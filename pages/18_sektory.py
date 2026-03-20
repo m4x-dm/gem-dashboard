@@ -12,9 +12,11 @@ from components.charts import (
 )
 from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
+from components.auth import require_premium
 
 st.set_page_config(page_title="Rotacja Sektorowa", page_icon="🔄", layout="wide")
 setup_sidebar()
+if not require_premium(18): st.stop()
 
 st.markdown("# 🔄 Rotacja Sektorowa")
 st.caption("Momentum 11 sektorow GICS — ktory sektor prowadzi?")

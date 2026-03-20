@@ -9,9 +9,11 @@ from data.momentum import backtest_gem, backtest_sma200, backtest_tqqq_mom
 from components.cards import stats_table
 from components.charts import equity_chart
 from components.formatting import fmt_number, GOLD, BG_CARD, BORDER, MUTED, GREEN, RED
+from components.auth import require_premium
 
 st.set_page_config(page_title="Backtest strategii", page_icon="🧪", layout="wide")
 setup_sidebar()
+if not require_premium(5): st.stop()
 
 st.markdown("# 🧪 Backtest strategii")
 

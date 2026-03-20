@@ -10,9 +10,11 @@ from data.momentum import backtest_gem
 from components.charts import _base_layout, category_pie, GOLD, BG2, COLORS
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED
+from components.auth import require_premium
 
 st.set_page_config(page_title="Historia Sygnalow", page_icon="🚦", layout="wide")
 setup_sidebar()
+if not require_premium(16): st.stop()
 
 st.markdown("# 🚦 Historia Sygnalow GEM")
 st.caption("Pelna historia zmian sygnalu GEM, czas trwania pozycji, alokacja w czasie")

@@ -11,9 +11,11 @@ from components.formatting import (
 )
 from components.charts import sparkline_chart, _base_layout, COLORS, BG2, GRID
 from components.cards import macro_card
+from components.auth import require_premium
 
 st.set_page_config(page_title="Makro Dashboard", page_icon="🌍", layout="wide")
 setup_sidebar()
+if not require_premium(12): st.stop()
 
 st.markdown("# 🌍 Makro Dashboard")
 st.caption("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM")

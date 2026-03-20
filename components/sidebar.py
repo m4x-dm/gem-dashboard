@@ -1,6 +1,7 @@
 """Wspolna konfiguracja sidebar i CSS dla wszystkich stron."""
 
 import streamlit as st
+from components.auth import init_auth, is_premium, activate_code, deactivate, NAFFY_URL
 
 
 def inject_css():
@@ -141,6 +142,42 @@ def setup_sidebar():
     with st.sidebar:
         st.markdown("## 📈 GEM Dashboard")
         st.caption("Global Equity Momentum — analiza ETF-ow")
+        st.divider()
+
+        # === PREMIUM ===
+        init_auth()
+        if is_premium():
+            st.markdown(
+                '<div style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);'
+                'border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
+                '<span style="color:#C9A84C;font-weight:700;font-size:13px;">'
+                '⭐ Premium aktywny</span></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Wyloguj Premium", use_container_width=True):
+                deactivate()
+                st.rerun()
+        else:
+            with st.expander("🔑 Aktywuj Premium"):
+                code_input = st.text_input(
+                    "Kod aktywacyjny",
+                    placeholder="GEM4-XXXX-XXXX-XXXX",
+                    key="activation_code_input",
+                )
+                if st.button("Aktywuj", use_container_width=True):
+                    if code_input:
+                        if activate_code(code_input):
+                            st.success("Premium aktywowany!")
+                            st.rerun()
+                        else:
+                            st.error("Nieprawidlowy kod.")
+                    else:
+                        st.warning("Wpisz kod aktywacyjny.")
+                st.markdown(
+                    f'<a href="{NAFFY_URL}" target="_blank" style="color:#C9A84C;font-size:12px;">'
+                    'Kup dostep Premium (49 zl)</a>',
+                    unsafe_allow_html=True,
+                )
         st.divider()
 
         # Ustawienia

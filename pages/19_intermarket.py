@@ -14,9 +14,11 @@ from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
 from components.cards import macro_card
 from components.sidebar import get_risk_free
+from components.auth import require_premium
 
 st.set_page_config(page_title="Intermarket", page_icon="🔗", layout="wide")
 setup_sidebar()
+if not require_premium(19): st.stop()
 
 st.markdown("# 🔗 Analiza Intermarket")
 st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa")

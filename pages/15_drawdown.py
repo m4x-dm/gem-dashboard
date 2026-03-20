@@ -11,9 +11,11 @@ from data.momentum import top_drawdowns, drawdown_series
 from components.charts import drawdown_chart, _base_layout, COLORS, GOLD, BG2
 from components.formatting import fmt_pct, MUTED, BG_CARD, BORDER
 from components.constants import PERIOD_MAP_FULL, RED, GREEN
+from components.auth import require_premium
 
 st.set_page_config(page_title="Analiza Drawdownow", page_icon="📉", layout="wide")
 setup_sidebar()
+if not require_premium(15): st.stop()
 
 st.markdown("# 📉 Analiza Drawdownow")
 st.caption("Top spadki od szczytu, czas trwania, czas odbudowy")

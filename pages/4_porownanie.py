@@ -9,9 +9,11 @@ from data.momentum import latest_returns, correlation_matrix, calc_stats
 from components.formatting import fmt_pct, color_for_value, GOLD, BG_CARD, BORDER, MUTED
 from components.charts import price_chart, correlation_heatmap
 from components.cards import comparison_card, stats_table
+from components.auth import require_premium
 
 st.set_page_config(page_title="Porownanie ETF", page_icon="⚖️", layout="wide")
 setup_sidebar()
+if not require_premium(4): st.stop()
 
 st.markdown("# ⚖️ Porownanie")
 

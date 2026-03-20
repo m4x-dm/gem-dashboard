@@ -21,9 +21,11 @@ from components.charts import (
     ranking_bar_chart, correlation_heatmap, equity_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card
+from components.auth import require_premium
 
 st.set_page_config(page_title="S&P 500 — Amerykanskie Akcje", page_icon="🇺🇸", layout="wide")
 setup_sidebar()
+if not require_premium(7): st.stop()
 
 st.markdown("# 🇺🇸 Amerykanskie Akcje S&P 500")
 

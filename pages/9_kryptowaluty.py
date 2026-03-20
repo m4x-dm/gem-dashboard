@@ -25,9 +25,11 @@ from components.charts import (
     _base_layout, ta_overview_chart, macd_chart, rsi_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
+from components.auth import require_premium
 
 st.set_page_config(page_title="Kryptowaluty", page_icon="₿", layout="wide")
 setup_sidebar()
+if not require_premium(9): st.stop()
 
 st.markdown("# ₿ Kryptowaluty — Top 200")
 

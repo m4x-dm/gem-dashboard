@@ -12,9 +12,11 @@ from data.momentum import latest_returns
 from components.charts import price_chart, _base_layout, COLORS, GOLD, BG2
 from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
 from components.constants import PERIOD_MAP_FULL
+from components.auth import require_premium
 
 st.set_page_config(page_title="Waluta PLN/USD", page_icon="💱", layout="wide")
 setup_sidebar()
+if not require_premium(14): st.stop()
 
 st.markdown("# 💱 Waluta PLN/USD")
 st.caption("Wplyw kursu USD/PLN na zwroty ETF-ow — realne zwroty polskiego inwestora")

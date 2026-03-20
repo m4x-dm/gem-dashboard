@@ -11,9 +11,11 @@ from data.momentum import monte_carlo_simulation, backtest_gem
 from components.charts import fan_chart, _base_layout, GOLD, BG2, COLORS
 from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED
+from components.auth import require_premium
 
 st.set_page_config(page_title="Monte Carlo", page_icon="🎲", layout="wide")
 setup_sidebar()
+if not require_premium(17): st.stop()
 
 st.markdown("# 🎲 Monte Carlo")
 st.caption("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?")

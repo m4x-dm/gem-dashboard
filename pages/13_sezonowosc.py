@@ -10,9 +10,11 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monthly_returns_matrix
 from components.charts import seasonality_heatmap, _base_layout, COLORS, BG2, GOLD
 from components.constants import PERIOD_MAP_FULL
+from components.auth import require_premium
 
 st.set_page_config(page_title="Sezonowosc", page_icon="📅", layout="wide")
 setup_sidebar()
+if not require_premium(13): st.stop()
 
 st.markdown("# 📅 Sezonowosc")
 st.caption("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May")

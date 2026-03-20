@@ -19,9 +19,11 @@ from components.charts import (
     category_pie, COLORS,
 )
 from components.cards import stats_table
+from components.auth import require_premium
 
 st.set_page_config(page_title="Portfolio Builder", page_icon="🏗️", layout="wide")
 setup_sidebar()
+if not require_premium(10): st.stop()
 
 st.markdown("# 🏗️ Portfolio Builder")
 st.caption("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki")

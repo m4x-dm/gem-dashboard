@@ -16,9 +16,11 @@ from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
 from components.charts import _base_layout, COLORS
+from components.auth import require_premium
 
 st.set_page_config(page_title="Cross-Asset Screener", page_icon="🔎", layout="wide")
 setup_sidebar()
+if not require_premium(11): st.stop()
 
 st.markdown("# 🔎 Cross-Asset Screener")
 st.caption("Jednolity ranking momentum ze wszystkich klas aktywow")
