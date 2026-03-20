@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(timeout 15 streamlit run:*)",
+      "Bash(python3:*)",
+      "Bash(/c/Python314/python:*)",
+      "Bash(netstat:*)",
+      "Bash(C:/Python314/python.exe:*)",
+      "Bash(/c/Python314/python.exe:*)",
+      "Bash(curl:*)",
+      "Bash(cmd.exe /c start \"\" \"http://localhost:8501\")",
+      "Bash(cmd.exe /c start \"\" \"http://localhost:8502\")",
+      "WebSearch",
+      "Bash(streamlit run:*)",
+      "Bash(pip show:*)",
+      "Bash(pkill:*)",
+      "Bash(cmd.exe /c \"netstat -ano | findstr 8501\")",
+      "Bash(cmd.exe /c \"taskkill /F /PID 4208\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(wc -l:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth status:*)"
+    ]
+  }
+}
