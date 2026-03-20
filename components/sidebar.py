@@ -239,10 +239,15 @@ def setup_sidebar():
 def render_footer():
     """Stopka na dole strony."""
     st.html(
-        '<div style="text-align:center;color:#4B5563;font-size:12px;'
-        'padding:32px 0 16px;border-top:1px solid rgba(201,168,76,0.1);'
-        'margin-top:48px;letter-spacing:0.03em">'
-        '&copy; 2026 M4X &middot; Wszelkie prawa zastrzeżone</div>'
+        '<div style="text-align:center;color:#4B5563;font-size:11px;'
+        'padding:32px 16px 16px;border-top:1px solid rgba(201,168,76,0.1);'
+        'margin-top:48px;letter-spacing:0.02em;line-height:1.6;max-width:700px;margin-left:auto;margin-right:auto">'
+        '<p style="margin:0 0 8px;color:#6B7280;font-style:italic">'
+        'Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej, '
+        'finansowej ani prawnej. Wyniki historyczne i symulacje nie gwarantują przyszłych zwrotów. '
+        'Przed podjęciem decyzji inwestycyjnych skonsultuj się z licencjonowanym doradcą finansowym.</p>'
+        '<p style="margin:0">&copy; 2026 M4X &middot; Wszelkie prawa zastrzeżone</p>'
+        '</div>'
     )
 
 
