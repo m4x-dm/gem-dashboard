@@ -5,9 +5,11 @@ from components.sidebar import setup_sidebar, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.downloader import download_prices
 from components.charts import price_chart, momentum_chart, drawdown_chart
+from components.auth import require_premium
 
 st.set_page_config(page_title="Wykresy", page_icon="📉", layout="wide")
 setup_sidebar()
+if not require_premium(3): st.stop()
 
 st.markdown("# 📉 Wykresy")
 
@@ -45,14 +47,18 @@ if not selected:
     _ok = False
 
 if _ok:
-    # Pobierz dane
-    prices = download_prices(selected, period=period)
+    # Pobierz dane — dla Strategii 12-1 pobierz wiecej, zeby momentum mialo z czego liczyc
+    dl_period = "5y" if is_strategy_view else period
+    prices_full = download_prices(selected, period=dl_period)
 
-    # Strategia 12-1: pokaz okres od 13 mies. wstecz do 1 mies. wstecz (pomijamy ostatni miesiac)
-    if is_strategy_view and len(prices) > 273:
-        prices = prices.iloc[-(273):-21]
+    # Strategia 12-1: przytnij do okna 13M-1M wstecz dla ceny/drawdown
+    if is_strategy_view and len(prices_full) > 273:
+        prices = prices_full.iloc[-273:-21]
     elif is_strategy_view:
         st.warning("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane.")
+        prices = prices_full
+    else:
+        prices = prices_full
 
     if prices.empty:
         st.error("Nie udalo sie pobrac danych.")
@@ -69,8 +75,12 @@ if _ok:
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
-        window = st.slider("Okno momentum (dni)", 21, 504, 252, step=21)
-        fig = momentum_chart(prices, window=window, title=f"Momentum {window}D (rolling)")
+        # Momentum uzywa pelnych danych (nie przycinanych), zeby rolling mial wystarczajaco historii
+        mom_data = prices_full if is_strategy_view else prices
+        max_window = min(504, len(mom_data) - 1) if len(mom_data) > 21 else 21
+        default_window = min(252, max_window)
+        window = st.slider("Okno momentum (dni)", 21, max_window, default_window, step=21)
+        fig = momentum_chart(mom_data, window=window, title=f"Momentum {window}D (rolling)")
         st.plotly_chart(fig, use_container_width=True)
 
     with tab3:
