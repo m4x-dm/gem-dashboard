@@ -44,7 +44,7 @@ st.divider()
 st.markdown("### Regime rynkowy")
 
 # Pobierz dane do regime
-regime_tickers = {"SPY": "S&P 500", "AGG": "Obligacje", "GLD": "Zloto",
+regime_tickers = {"SPY": "S&P 500", "AGG": "Obligacje", "GC=F": "Zloto",
                   "DX-Y.NYB": "Dolar (DXY)", "CL=F": "Ropa WTI"}
 regime_data = {}
 for t in regime_tickers:
@@ -73,7 +73,7 @@ with col_regime:
                 risk_on_count += 2
             else:
                 risk_off_count += 2
-        elif t in ("AGG", "GLD"):
+        elif t in ("AGG", "GC=F"):
             if mom > 0:
                 risk_off_count += 1
             else:
@@ -170,7 +170,7 @@ st.markdown("### Kluczowe aktywa")
 spark_tickers = [
     ("QQQ", "Nasdaq 100"),
     ("AGG", "Obligacje USA"),
-    ("GLD", "Zloto"),
+    ("GC=F", "Zloto (USD/oz)"),
     ("BTC-USD", "Bitcoin"),
 ]
 

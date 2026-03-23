@@ -116,7 +116,7 @@ with st.spinner("Pobieram dane makro..."):
     tnx_data = _download_macro("^TNX")
     irx_data = _download_macro("^IRX")
     dxy_data = _download_macro("DX-Y.NYB")
-    gld_data = _download_macro("GLD")
+    gld_data = _download_macro("GC=F")
     oil_data = _download_macro("CL=F")
     sp500_data = _download_macro("^GSPC")
 
@@ -247,11 +247,11 @@ with row3_col1:
             g_color, g_label = "#F59E0B", "Wzrostowy"
         else:
             g_color, g_label = RED, "Spadkowy"
-        macro_card("Zloto (GLD)", f"${gld_val:.2f}", "USD",
+        macro_card("Zloto (USD/oz)", f"${gld_val:.2f}", "USD",
                    gld_changes, g_color, g_label)
         st.plotly_chart(sparkline_chart(gld_data, color=GOLD), use_container_width=True)
     else:
-        st.warning("Brak danych GLD")
+        st.warning("Brak danych zlota (GC=F)")
 
 # --- Oil WTI ---
 with row3_col2:
@@ -297,7 +297,7 @@ with st.expander("📖 Interpretacja makro dla GEM", expanded=False):
 - Ponizej 200MA: Trend spadkowy — rozwazyc przejscie na obligacje (AGG)
 - Kluczowy wskaznik dla momentum absolutnego w GEM
 
-**Zloto (GLD)**
+**Zloto (USD/oz)**
 - Rosnie przy: niskich realnych stopach, slabym dolarze, niepewnosci
 - Safe haven w okresach paniki rynkowej
 - Dla GEM: silne zloto moze sygnalizowac slabe momentum akcji

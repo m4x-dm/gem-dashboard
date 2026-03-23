@@ -27,7 +27,7 @@ st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa
 INTERMARKET = {
     "SPY": "S&P 500",
     "AGG": "Obligacje USA",
-    "GLD": "Zloto",
+    "GC=F": "Zloto",
     "DX-Y.NYB": "Dolar (DXY)",
     "CL=F": "Ropa WTI",
 }
@@ -189,7 +189,7 @@ with tab5:
                 risk_on_count += 2  # double weight for equities
             else:
                 risk_off_count += 2
-        elif t in ("AGG", "GLD"):
+        elif t in ("AGG", "GC=F"):
             if mom > 0:
                 risk_off_count += 1
             else:
@@ -252,8 +252,8 @@ with tab5:
 | Para | Typowa korelacja | Znaczenie |
 |---|---|---|
 | SPY vs AGG | Negatywna | Akcje rosna → obligacje spadaja (i odwrotnie) |
-| SPY vs GLD | Slaba/zmienna | Zloto to hedge, ale nie zawsze odwrotny |
-| GLD vs DXY | Negatywna | Slaby dolar → droge zloto |
+| SPY vs Zloto | Slaba/zmienna | Zloto to hedge, ale nie zawsze odwrotny |
+| Zloto vs DXY | Negatywna | Slaby dolar → droge zloto |
 | SPY vs CL=F | Pozytywna | Ropa rosnie z gospodarka (ale szoki sa negatywne) |
 | AGG vs DXY | Zmienna | Silny dolar moze wspierac obligacje USA |
 
