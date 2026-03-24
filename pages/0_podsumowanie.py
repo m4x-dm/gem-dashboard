@@ -66,7 +66,7 @@ st.divider()
 st.markdown("### Regime rynkowy")
 
 # Pobierz dane do regime
-regime_tickers = {"SPY": "S&P 500", "AGG": "Obligacje", "GC=F": "Zloto",
+regime_tickers = {"SPY": "S&P 500", "^TNX": "Obligacje (10Y yield)", "GC=F": "Zloto",
                   "DX-Y.NYB": "Dolar (DXY)", "CL=F": "Ropa WTI"}
 regime_data = {}
 for t in regime_tickers:
@@ -95,7 +95,13 @@ with col_regime:
                 risk_on_count += 2
             else:
                 risk_off_count += 2
-        elif t in ("AGG", "GC=F"):
+        elif t == "^TNX":
+            # Rosnaca rentownosc = spadek cen obligacji = risk-on
+            if mom > 0:
+                risk_on_count += 1
+            else:
+                risk_off_count += 1
+        elif t == "GC=F":
             if mom > 0:
                 risk_off_count += 1
             else:
@@ -190,8 +196,8 @@ st.divider()
 st.markdown("### Kluczowe aktywa")
 
 spark_tickers = [
-    ("QQQ", "Nasdaq 100"),
-    ("AGG", "Obligacje USA"),
+    ("^IXIC", "Nasdaq Composite"),
+    ("^TNX", "Obligacje USA (10Y yield)"),
     ("GC=F", "Zloto (USD/oz)"),
     ("BTC-USD", "Bitcoin"),
 ]

@@ -26,7 +26,7 @@ st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa
 # Assets
 INTERMARKET = {
     "SPY": "S&P 500",
-    "AGG": "Obligacje USA",
+    "^TNX": "Obligacje USA (10Y yield)",
     "GC=F": "Zloto",
     "DX-Y.NYB": "Dolar (DXY)",
     "CL=F": "Ropa WTI",
@@ -189,7 +189,13 @@ with tab5:
                 risk_on_count += 2  # double weight for equities
             else:
                 risk_off_count += 2
-        elif t in ("AGG", "GC=F"):
+        elif t == "^TNX":
+            # Rosnaca rentownosc = spadek cen obligacji = risk-on
+            if mom > 0:
+                risk_on_count += 1
+            else:
+                risk_off_count += 1
+        elif t == "GC=F":
             if mom > 0:
                 risk_off_count += 1
             else:
@@ -251,20 +257,20 @@ with tab5:
 
 | Para | Typowa korelacja | Znaczenie |
 |---|---|---|
-| SPY vs AGG | Negatywna | Akcje rosna → obligacje spadaja (i odwrotnie) |
+| SPY vs 10Y yield | Pozytywna | Rosnace rentownosci = risk-on (obie rosna) |
 | SPY vs Zloto | Slaba/zmienna | Zloto to hedge, ale nie zawsze odwrotny |
 | Zloto vs DXY | Negatywna | Slaby dolar → droge zloto |
 | SPY vs CL=F | Pozytywna | Ropa rosnie z gospodarka (ale szoki sa negatywne) |
-| AGG vs DXY | Zmienna | Silny dolar moze wspierac obligacje USA |
+| 10Y yield vs DXY | Pozytywna | Rosnace stopy przyciagaja kapital → silny dolar |
 
 **Dla strategii GEM:**
 - Risk-On: GEM prawdopodobnie wskazuje QQQ/VEA/EEM/ACWI
-- Risk-Off: GEM prawdopodobnie przechodzi na AGG
+- Risk-Off: GEM prawdopodobnie przechodzi na obligacje (AGG)
 - Zwracaj uwage na divergencje — np. SPY rosnie ale zloto tez (niepewnosc)
 
-**Ratio SPY/AGG:**
+**Ratio SPY / 10Y yield:**
 - Rosnace = akcje wygrywaja vs obligacje (risk-on)
-- Spadajace = obligacje wygrywaja (risk-off, srodowisko GEM → AGG)
+- Spadajace = rentownosci rosna szybciej niz akcje (zaostrzanie polityki monetarnej)
         """)
 
 with tab6:
