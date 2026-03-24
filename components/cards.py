@@ -241,6 +241,78 @@ def ta_signal_card(ticker: str, name: str, signals: dict) -> None:
     )
 
 
+def data_status_card() -> None:
+    """Kompaktowa karta statusu danych — traffic light + breakdown zrodel."""
+    from datetime import datetime
+    sources = st.session_state.get("_data_sources", {})
+    failures = st.session_state.get("_data_failures", [])
+
+    total = len(sources) + len(failures)
+    if total == 0:
+        return
+
+    fail_pct = len(failures) / total * 100
+    if fail_pct == 0:
+        color, icon, label = GREEN, "🟢", "Wszystkie dane OK"
+    elif fail_pct < 20:
+        color, icon, label = "#F59E0B", "🟡", f"{len(failures)} brak danych"
+    else:
+        color, icon, label = RED, "🔴", f"{len(failures)} brak danych"
+
+    # Breakdown zrodel
+    source_counts = {}
+    for src in sources.values():
+        source_counts[src] = source_counts.get(src, 0) + 1
+
+    breakdown_parts = []
+    for src, cnt in sorted(source_counts.items(), key=lambda x: -x[1]):
+        breakdown_parts.append(f"{src}: {cnt}")
+    breakdown = " · ".join(breakdown_parts)
+
+    now_str = datetime.now().strftime("%H:%M")
+
+    st.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:10px;'
+        f'padding:10px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+        f'<span style="font-size:1.2rem">{icon}</span>'
+        f'<div style="flex:1">'
+        f'<span style="color:{color};font-weight:600;font-size:0.85rem">{label}</span>'
+        f'<span style="color:{MUTED};font-size:0.75rem;margin-left:12px">{breakdown}</span>'
+        f'</div>'
+        f'<span style="color:{MUTED};font-size:0.7rem">{now_str}</span>'
+        f'</div>'
+    )
+
+
+def alert_banner(ticker: str, condition: str, threshold: float,
+                 period: str, actual_change: float) -> None:
+    """Kolorowy banner alertu cenowego."""
+    triggered = (condition == "spadek" and actual_change * 100 <= -threshold) or \
+                (condition == "wzrost" and actual_change * 100 >= threshold)
+
+    if not triggered:
+        return
+
+    if condition == "spadek":
+        color, icon = RED, "🔻"
+        desc = f"spadl o {abs(actual_change)*100:.1f}%"
+    else:
+        color, icon = GREEN, "🔺"
+        desc = f"wzrosl o {actual_change*100:.1f}%"
+
+    st.html(
+        f'<div style="background:{color}15;border:1px solid {color}40;border-radius:10px;'
+        f'padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+        f'<span style="font-size:1.3rem">{icon}</span>'
+        f'<div>'
+        f'<span style="color:{color};font-weight:700;font-size:0.95rem">{ticker}</span>'
+        f'<span style="color:{MUTED};font-size:0.85rem;margin-left:8px">'
+        f'{desc} ({period}), prog: {threshold:.1f}%</span>'
+        f'</div>'
+        f'</div>'
+    )
+
+
 def final_value_card(name: str, value: float, start_capital: float,
                      currency: str = "USD") -> None:
     """Karta koncowej wartosci portfela."""

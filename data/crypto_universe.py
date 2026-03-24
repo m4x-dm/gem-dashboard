@@ -275,3 +275,24 @@ CRYPTO_BY_MCAP = [
     "RBN-USD", "MORPHO-USD", "CFG-USD", "POLY-USD", "MPL-USD",
     "TRU-USD", "RIO-USD", "PUNDIX-USD", "MX-USD",
 ]
+
+# Mapping ticker -> CoinGecko ID (top ~50 krypto do fallback)
+COINGECKO_IDS = {
+    "BTC-USD": "bitcoin", "ETH-USD": "ethereum", "XRP-USD": "ripple",
+    "BNB-USD": "binancecoin", "SOL-USD": "solana", "DOGE-USD": "dogecoin",
+    "ADA-USD": "cardano", "TRX-USD": "tron", "LINK-USD": "chainlink",
+    "AVAX-USD": "avalanche-2", "XLM-USD": "stellar", "SHIB-USD": "shiba-inu",
+    "DOT-USD": "polkadot", "HBAR-USD": "hedera-hashgraph", "UNI-USD": "uniswap",
+    "LTC-USD": "litecoin", "BCH-USD": "bitcoin-cash", "PEPE-USD": "pepe",
+    "NEAR-USD": "near", "ICP-USD": "internet-computer", "AAVE-USD": "aave",
+    "ETC-USD": "ethereum-classic", "APT-USD": "aptos", "RNDR-USD": "render-token",
+    "FET-USD": "fetch-ai", "MNT-USD": "mantle", "STX-USD": "blockstack",
+    "FIL-USD": "filecoin", "MATIC-USD": "matic-network", "VET-USD": "vechain",
+    "TAO-USD": "bittensor", "ATOM-USD": "cosmos", "INJ-USD": "injective-protocol",
+    "OP-USD": "optimism", "ARB-USD": "arbitrum", "MKR-USD": "maker",
+    "WLD-USD": "worldcoin-wld", "GRT-USD": "the-graph", "FTM-USD": "fantom",
+    "THETA-USD": "theta-token", "IMX-USD": "immutable-x", "ALGO-USD": "algorand",
+    "KAS-USD": "kaspa", "SEI-USD": "sei-network", "SUI-USD": "sui",
+    "LDO-USD": "lido-dao", "QNT-USD": "quant-network", "XMR-USD": "monero",
+    "DYDX-USD": "dydx", "ENS-USD": "ethereum-name-service",
+}

@@ -1,11 +1,11 @@
 # CLAUDE.md — GEM ETF Dashboard
 
 ## Overview
-Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~500 US stocks from S&P 500. 19 pages total.
+Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~500 US stocks from S&P 500. 21 pages total.
 
 ## Tech Stack
-- **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**
-- No database — data fetched live from Yahoo Finance (yfinance) + stooq.com (GPW indices)
+- **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**, **reportlab**
+- No database — data fetched live from Yahoo Finance (yfinance) + stooq.com (GPW indices) + CoinGecko (crypto fallback)
 - Cache: `st.cache_data` (prices TTL=1h, risk-free rate TTL=6h)
 
 ## Running
@@ -28,8 +28,9 @@ data/
 components/
   formatting.py         # Polish formatting (%, numbers, colors)
   charts.py             # Plotly charts (price, momentum, drawdown, sparkline, seasonality heatmap, fan chart, TA overview/MACD/RSI)
-  cards.py              # Signal cards, metric cards, macro cards, stats table, TA signal card (st.html)
-  sidebar.py            # Shared sidebar config + CSS injection
+  cards.py              # Signal cards, metric cards, macro cards, stats table, TA signal card, data status, alert banner (st.html)
+  pdf_report.py         # PDF report generator (reportlab) — text+tables, no charts
+  sidebar.py            # Shared sidebar config + CSS injection + favorites + alerts
 pages/
   1_sygnal_gem.py       # Classic GEM signal + top 5 ETFs
   2_ranking.py          # Sortable ranking table 30+ ETFs
@@ -50,6 +51,7 @@ pages/
   17_monte_carlo.py     # Monte Carlo simulation (fan chart, distribution, probabilities)
   18_sektory.py         # Sector rotation (11 GICS sectors, heatmap, cycle)
   19_intermarket.py     # Intermarket analysis (overlay, ratio, rolling corr, regime)
+  20_side_by_side.py    # Side-by-Side comparison of two assets (price, drawdown, RS)
 ```
 
 ## Key Design Decisions
@@ -75,7 +77,7 @@ pages/
 - **Portfolio Builder:** Multiselect from all 4 universes (max 20), 3 weight presets (equal, risk parity, reset), backtest custom vs equal-weight, correlation heatmap, drawdown
 - **Cross-Asset Screener:** Unified `pd.concat()` ranking from ETF+S&P+GPW+Crypto, filters (class, min score, mom abs, top N), bar chart colored by asset class, CSV export
 - **Macro Dashboard:** 2x3 grid of macro indicators (VIX, yield curve 10Y-13W, DXY, S&P+200MA, gold, oil), `macro_card()` + `sparkline_chart()`, traffic light signals, interpretation expander
-- **Macro tickers:** ^VIX, ^TNX, ^IRX, DX-Y.NYB, GLD, CL=F, ^GSPC — each downloaded individually for reliability
+- **Macro tickers:** ^VIX, ^TNX, ^IRX, DX-Y.NYB, GC=F (gold spot USD/oz), CL=F, ^GSPC — each downloaded individually for reliability
 - **Stooq.com integration:** GPW indices (WIG20, mWIG40, sWIG80) downloaded from `https://stooq.com/q/d/l/?s={sym}&i=d` via `download_stooq()` in `downloader.py`. Yahoo Finance has no historical data for these indices. Available in Porownanie (page 4) and GPW Porownanie tab (page 8).
 - **Footer:** `render_footer()` in `sidebar.py` — called at the end of every page via `st.html()`. Shows "© 2026 M4X · Wszelkie prawa zastrzeżone"
 - **Seasonality (page 13):** `monthly_returns_matrix()` in `momentum.py` — pivot year×month. `seasonality_heatmap()` in `charts.py` — RED→BG→GREEN. Tabs: heatmap, avg month bar, Sell in May (May-Oct vs Nov-Apr).
@@ -84,7 +86,7 @@ pages/
 - **Signal History (page 16):** Reuses `backtest_gem()` with period="max" for full signal log. Tabs: current signal card, Gantt-style timeline, pie chart of time allocation, year×month calendar heatmap (colored by signal).
 - **Monte Carlo (page 17):** `monte_carlo_simulation()` in `momentum.py` — bootstrap daily returns. `fan_chart()` in `charts.py` — percentile bands P5/P25/P50/P75/P95. Tabs: fan chart, final value histogram, probability cards.
 - **Sector Rotation (page 18):** 11 SPDR sector ETFs (XLK,XLF,XLE,XLV,XLI,XLY,XLP,XLC,XLRE,XLU,XLB). Added 6 missing ETFs to `etf_universe.py`. Tabs: rolling 3M momentum heatmap, ranking bar, business cycle explainer, comparison.
-- **Intermarket (page 19):** SPY,AGG,GLD,DX-Y.NYB,CL=F — cross-asset relationships. Tabs: normalized overlay, ratio pairs, rolling correlation, correlation matrix, risk-on/risk-off regime classifier.
+- **Intermarket (page 19):** SPY,AGG,GC=F,DX-Y.NYB,CL=F — cross-asset relationships. Tabs: normalized overlay, ratio pairs, rolling correlation, correlation matrix, risk-on/risk-off regime classifier.
 - **TA Signals (page 9, tab 6):** Trend-following system with 5 indicators, each scoring -1/0/+1:
   1. **Trend (EMA 200):** Price > EMA(200) = +1, below = -1. Primary trend filter. Skipped if <200 data points.
   2. **EMA crossover:** EMA(short) > EMA(long) = +1, below = -1.
@@ -94,7 +96,14 @@ pages/
   - **Aggregate:** sum of 5 signals (-5 to +5). Threshold: >=3 = KUP, <=-3 = SPRZEDAJ, else NEUTRALNY. With 4 indicators (no EMA200): >=2 / <=-2.
   - Functions: `calc_ema()`, `calc_macd()`, `calc_rsi()`, `calc_bollinger()` in `momentum.py`. Charts: `ta_overview_chart()`, `macd_chart()`, `rsi_chart()` in `charts.py`. Card: `ta_signal_card()` in `cards.py`.
   - Daily signal markers on chart (BUY triangles up green, SELL triangles down red). Signal history table (last 20).
-- **Sidebar separators:** nth-child(7) = ETF→markets, nth-child(10) = markets→tools, nth-child(13) = tools→analytics
+- **Sidebar separators:** nth-child(8) = ETF→markets, nth-child(11) = markets→tools, nth-child(14) = tools→analytics
+- **Multi-source Fallback (F2):** `download_single()` tries yfinance → stooq.com → CoinGecko. Tracks sources in `st.session_state["_data_sources"]` and failures in `["_data_failures"]`. `COINGECKO_IDS` dict in `crypto_universe.py` (~50 top coins).
+- **Data Status (F3):** `data_status_card()` in `cards.py` — traffic light (green/yellow/red) based on failure %. Shows on page 0.
+- **Price Alerts (F1):** Max 5 alerts in `st.session_state["alerts"]`. Sidebar expander to add (ticker, condition, threshold, period). `alert_banner()` in `cards.py` shows on page 0.
+- **Favorites (F8):** Max 8 tickers in `st.session_state["favorites"]`. Sidebar section. Sparklines grid on page 0.
+- **Relative Strength (F6):** `relative_strength(asset, benchmark)` in `momentum.py` — RS=asset/benchmark normalized to 100 + SMA(50,200). `rs_chart()` in `charts.py`. Integrated as new tabs on pages 7 (vs SPY), 8 (vs WIG20), 9 (vs BTC), and as section on page 4.
+- **Side-by-Side (F9):** Page 20 (`pages/20_side_by_side.py`) — two-column comparison of any two assets. Includes price chart, drawdown, stats table, correlation, RS chart. Premium page.
+- **PDF Export (F10):** `components/pdf_report.py` — reportlab-based, text+table report (no charts). Font: Arial (Windows) / Helvetica (Linux). Integrated on page 0 via expander with section checkboxes + download button.
 
 ## ETF Universe (37 tickers, 7 categories)
 Akcje USA (SPY, QQQ, VTI, VOO, IWM), Rynki rozwinięte (VEA, EFA, ACWI, VGK, EWJ, EWU),

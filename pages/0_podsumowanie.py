@@ -1,4 +1,4 @@
-"""Strona 0: Podsumowanie — centrum dowodzenia z kluczowymi sygnaami."""
+"""Strona 0: Podsumowanie — centrum dowodzenia z kluczowymi sygnalami."""
 
 import streamlit as st
 import pandas as pd
@@ -9,7 +9,10 @@ from data.downloader import download_prices, download_single
 from data.momentum import (
     gem_classic_signal, build_ranking, backtest_gem, calc_stats,
 )
-from components.cards import signal_card, metric_row, top_etf_cards, stats_table
+from components.cards import (
+    signal_card, metric_row, top_etf_cards, stats_table,
+    data_status_card, alert_banner,
+)
 from components.charts import sparkline_chart
 from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, GOLD
@@ -24,6 +27,25 @@ st.caption("Centrum dowodzenia — najwazniejsze sygnaly i metryki w jednym miej
 tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", [])))
 prices = download_prices(tickers)
 rf = get_risk_free()
+
+# =====================================================================
+# Status danych (F3)
+# =====================================================================
+data_status_card()
+
+# =====================================================================
+# Alerty cenowe (F1)
+# =====================================================================
+alerts = st.session_state.get("alerts", [])
+if alerts:
+    ALERT_PERIOD_DAYS = {"1D": 1, "1W": 5, "1M": 21}
+    for a in alerts:
+        s = download_single(a["ticker"], period="3mo")
+        if s is not None and len(s) > ALERT_PERIOD_DAYS.get(a["period"], 1):
+            days = ALERT_PERIOD_DAYS.get(a["period"], 1)
+            actual_chg = s.iloc[-1] / s.iloc[-1 - days] - 1
+            alert_banner(a["ticker"], a["condition"], a["threshold"],
+                         a["period"], actual_chg)
 
 # =====================================================================
 # Sekcja 1: Sygnal GEM
@@ -196,6 +218,35 @@ for col, (ticker, label) in zip(spark_cols, spark_tickers):
         else:
             st.caption(f"{label}: brak danych")
 
+# =====================================================================
+# Sekcja 4b: Ulubione tickery (F8)
+# =====================================================================
+favorites = st.session_state.get("favorites", set())
+if favorites:
+    st.divider()
+    st.markdown("### ⭐ Ulubione")
+    fav_list = sorted(favorites)
+    fav_cols = st.columns(min(4, len(fav_list)))
+    for i, ticker in enumerate(fav_list):
+        with fav_cols[i % min(4, len(fav_list))]:
+            s = download_single(ticker, period="6mo")
+            if s is not None and len(s) > 21:
+                current = s.iloc[-1]
+                chg_1m = s.iloc[-1] / s.iloc[-21] - 1
+                chg_color = color_for_value(chg_1m)
+                sign = "+" if chg_1m > 0 else ""
+
+                st.html(
+                    f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:12px;text-align:center">'
+                    f'<div style="font-size:0.7rem;color:{MUTED};text-transform:uppercase;letter-spacing:0.05em">{ticker}</div>'
+                    f'<div style="font-size:1.2rem;font-weight:700;color:#E5E7EB;margin:4px 0">{current:,.2f}</div>'
+                    f'<div style="font-size:0.8rem;color:{chg_color};font-weight:600">{sign}{chg_1m*100:.1f}% (1M)</div>'
+                    f'</div>'
+                )
+                st.plotly_chart(sparkline_chart(s, height=80), use_container_width=True)
+            else:
+                st.caption(f"{ticker}: brak danych")
+
 st.divider()
 
 # =====================================================================
@@ -223,5 +274,68 @@ if bt_result is not None:
         stats_table(show_stats)
 else:
     st.info("Za malo danych do backtestu GEM (wymagane 273+ sesji).")
+
+st.divider()
+
+# =====================================================================
+# Sekcja 6: Export PDF (F10)
+# =====================================================================
+with st.expander("📄 Eksport raportu PDF"):
+    st.caption("Wybierz sekcje do wlaczenia w raport")
+
+    pdf_gem = st.checkbox("Sygnal GEM", value=True, key="pdf_gem")
+    pdf_regime = st.checkbox("Regime rynkowy", value=True, key="pdf_regime")
+    pdf_top5 = st.checkbox("Top 5 ETF-ow", value=True, key="pdf_top5")
+    pdf_sparks = st.checkbox("Kluczowe aktywa", value=True, key="pdf_sparks")
+    pdf_backtest = st.checkbox("Statystyki strategii", value=True, key="pdf_bt")
+    pdf_ranking = st.checkbox("Ranking ETF top 10", value=True, key="pdf_rank")
+
+    if st.button("Generuj raport PDF", key="pdf_gen_btn"):
+        from components.pdf_report import generate_report
+
+        report_sections = {}
+
+        if pdf_gem:
+            report_sections["gem_signal"] = gem_data
+
+        if pdf_regime:
+            report_sections["regime"] = {"label": regime_label, "score": risk_on_pct}
+
+        if pdf_top5 and not valid_ranking.empty:
+            top5_list = []
+            for ticker, row in valid_ranking.head(5).iterrows():
+                top5_list.append((ticker, names.get(ticker, ticker), row.get("Wynik", 0)))
+            report_sections["top_etfs"] = top5_list
+
+        if pdf_sparks:
+            sparks_list = []
+            for ticker, label in spark_tickers:
+                s = download_single(ticker, period="6mo")
+                if s is not None and len(s) > 21:
+                    sparks_list.append((ticker, label, s.iloc[-1], s.iloc[-1] / s.iloc[-21] - 1))
+            report_sections["sparklines"] = sparks_list
+
+        if pdf_backtest and bt_result is not None:
+            report_sections["backtest_stats"] = show_stats if show_stats else {}
+
+        if pdf_ranking and not valid_ranking.empty:
+            rank_list = []
+            for ticker, row in valid_ranking.head(10).iterrows():
+                rank_list.append((
+                    ticker, names.get(ticker, ticker),
+                    row.get("Wynik", 0), row.get("Momentum_abs", "—"),
+                ))
+            report_sections["ranking_top10"] = rank_list
+
+        if report_sections:
+            pdf_bytes = generate_report(report_sections)
+            st.download_button(
+                "📥 Pobierz PDF",
+                data=pdf_bytes,
+                file_name=f"gem_raport_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+            )
+        else:
+            st.warning("Wybierz co najmniej jedna sekcje.")
 
 render_footer()

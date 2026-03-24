@@ -27,6 +27,7 @@ PAGE_INFO = {
     17: ("\U0001f3b2", "Monte Carlo", "Symulacja przyszlych zwrotow \u2014 ile mozesz miec za N lat?"),
     18: ("\U0001f504", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow"),
     19: ("\U0001f517", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar"),
+    20: ("\U0001f500", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS"),
 }
 
 # Link do zakupu na Naffy (do uzupelnienia po stworzeniu produktu)

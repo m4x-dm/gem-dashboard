@@ -39,6 +39,7 @@ cards = [
     (17, "🎲", "Monte Carlo", "Symulacja przyszlych zwrotow — ile mozesz miec za N lat?", "pages/17_monte_carlo.py"),
     (18, "🔄", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow", "pages/18_sektory.py"),
     (19, "🔗", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar", "pages/19_intermarket.py"),
+    (20, "🔀", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS", "pages/20_side_by_side.py"),
 ]
 
 premium = is_premium()

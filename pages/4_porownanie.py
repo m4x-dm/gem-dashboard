@@ -5,9 +5,9 @@ import pandas as pd
 from components.sidebar import setup_sidebar, render_footer, get_risk_free
 from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
 from data.downloader import download_prices, download_stooq, STOOQ_TICKERS
-from data.momentum import latest_returns, correlation_matrix, calc_stats
+from data.momentum import latest_returns, correlation_matrix, calc_stats, relative_strength
 from components.formatting import fmt_pct, color_for_value, GOLD, BG_CARD, BORDER, MUTED
-from components.charts import price_chart, correlation_heatmap
+from components.charts import price_chart, correlation_heatmap, rs_chart
 from components.cards import comparison_card, stats_table
 from components.auth import require_premium
 
@@ -133,5 +133,27 @@ with st.expander("Jak czytac korelacje?"):
 
     Dobrze zdywersyfikowany portfel powinien zawierac aktywa o **niskiej lub ujemnej korelacji**.
     """)
+
+st.divider()
+
+# =====================================================================
+# Relative Strength
+# =====================================================================
+st.markdown("### Relative Strength")
+
+rs_benchmark = st.selectbox(
+    "Benchmark RS", [t for t in selected], index=0, key="rs_bench",
+)
+rs_assets = [t for t in selected if t != rs_benchmark]
+
+if rs_assets and rs_benchmark in prices.columns:
+    for asset_t in rs_assets:
+        if asset_t in prices.columns:
+            rs_data = relative_strength(prices[asset_t].dropna(), prices[rs_benchmark].dropna())
+            if not rs_data.empty:
+                fig = rs_chart(rs_data, asset_t, rs_benchmark)
+                st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Wybierz co najmniej 2 instrumenty.")
 
 render_footer()

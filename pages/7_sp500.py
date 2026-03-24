@@ -10,7 +10,7 @@ from data.sp500_universe import (
 from data.downloader import download_prices
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
-    correlation_matrix,
+    correlation_matrix, relative_strength,
 )
 from components.formatting import (
     fmt_pct, fmt_number, color_for_value,
@@ -18,7 +18,7 @@ from components.formatting import (
 )
 from components.charts import (
     price_chart, momentum_chart, drawdown_chart,
-    ranking_bar_chart, correlation_heatmap, equity_chart,
+    ranking_bar_chart, correlation_heatmap, equity_chart, rs_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card
 from components.auth import require_premium
@@ -45,11 +45,12 @@ def _tickers_for_sector(sector_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
+    "💪 Relative Strength",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -335,5 +336,43 @@ with tab4:
     for i, (name, eq) in enumerate(strategies):
         with final_cols[i]:
             final_value_card(name, eq.iloc[-1], start_capital, "USD")
+
+# ========================== TAB 5: RELATIVE STRENGTH ==========================
+with tab5:
+    st.markdown("### Relative Strength vs SPY")
+    st.caption("RS > 100 = spolka outperformuje benchmark (SPY)")
+
+    rs_options = {t: f"{t} — {SP500_NAMES.get(t, t)}" for t in ALL_SP500_TICKERS}
+    rs_selected = st.multiselect(
+        "Wybierz spolki (maks. 5)",
+        options=list(rs_options.keys()),
+        default=["AAPL", "NVDA", "MSFT"],
+        format_func=lambda x: rs_options[x],
+        max_selections=5,
+        key="sp_rs_sel",
+    )
+
+    rs_period_map = {
+        "1 rok": "1y", "2 lata": "2y", "5 lat": "5y", "Maksymalny": "max",
+    }
+    rs_period_label = st.selectbox("Okres", list(rs_period_map.keys()), index=1, key="sp_rs_period")
+    rs_period = rs_period_map[rs_period_label]
+
+    if rs_selected:
+        rs_tickers = list(set(rs_selected + ["SPY"]))
+        with st.spinner("Pobieram dane..."):
+            rs_prices = download_prices(rs_tickers, period=rs_period)
+
+        if "SPY" in rs_prices.columns:
+            for t in rs_selected:
+                if t in rs_prices.columns and t != "SPY":
+                    rs_data = relative_strength(rs_prices[t].dropna(), rs_prices["SPY"].dropna())
+                    if not rs_data.empty:
+                        fig = rs_chart(rs_data, t, "SPY")
+                        st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Nie udalo sie pobrac danych SPY.")
+    else:
+        st.info("Wybierz co najmniej 1 spolke.")
 
 render_footer()

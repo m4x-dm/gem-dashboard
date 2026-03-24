@@ -180,6 +180,66 @@ def setup_sidebar():
                 )
         st.divider()
 
+        # === ULUBIONE TICKERY ===
+        st.markdown("### ⭐ Ulubione")
+        if "favorites" not in st.session_state:
+            st.session_state["favorites"] = set()
+
+        fav_input = st.text_input("Ticker", max_chars=12, key="fav_input",
+                                  placeholder="np. AAPL, BTC-USD")
+        if st.button("Dodaj do ulubionych", key="fav_add_btn") and fav_input:
+            t = fav_input.upper().strip()
+            if len(st.session_state["favorites"]) >= 8:
+                st.warning("Maks. 8 ulubionych.")
+            else:
+                st.session_state["favorites"].add(t)
+                st.rerun()
+
+        if st.session_state["favorites"]:
+            st.caption("Ulubione: " + ", ".join(sorted(st.session_state["favorites"])))
+            if st.button("Wyczysc ulubione", key="fav_clear"):
+                st.session_state["favorites"] = set()
+                st.rerun()
+
+        st.divider()
+
+        # === ALERTY CENOWE ===
+        st.markdown("### 🔔 Alerty")
+        if "alerts" not in st.session_state:
+            st.session_state["alerts"] = []
+
+        with st.expander("Dodaj alert"):
+            alert_ticker = st.text_input("Ticker", max_chars=12,
+                                         key="alert_ticker_input",
+                                         placeholder="np. QQQ")
+            alert_cond = st.selectbox("Warunek", ["spadek", "wzrost"],
+                                      key="alert_cond")
+            alert_thresh = st.number_input("Prog (%)", min_value=0.1,
+                                           max_value=99.0, value=5.0,
+                                           step=0.5, key="alert_thresh")
+            alert_period = st.selectbox("Okres", ["1D", "1W", "1M"],
+                                        key="alert_period")
+            if st.button("Dodaj alert", key="alert_add_btn") and alert_ticker:
+                if len(st.session_state["alerts"]) >= 5:
+                    st.warning("Maks. 5 alertow.")
+                else:
+                    st.session_state["alerts"].append({
+                        "ticker": alert_ticker.upper().strip(),
+                        "condition": alert_cond,
+                        "threshold": alert_thresh,
+                        "period": alert_period,
+                    })
+                    st.rerun()
+
+        if st.session_state["alerts"]:
+            for i, a in enumerate(st.session_state["alerts"]):
+                st.caption(f"{a['ticker']} {a['condition']} >{a['threshold']:.1f}% ({a['period']})")
+            if st.button("Wyczysc alerty", key="alert_clear"):
+                st.session_state["alerts"] = []
+                st.rerun()
+
+        st.divider()
+
         # Ustawienia
         st.markdown("### ⚙️ Ustawienia")
 

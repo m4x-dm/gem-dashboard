@@ -12,7 +12,7 @@ from data.crypto_universe import (
 from data.downloader import download_prices
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
-    correlation_matrix,
+    correlation_matrix, relative_strength,
     calc_ema, calc_macd, calc_rsi, calc_bollinger,
 )
 from components.formatting import (
@@ -22,7 +22,7 @@ from components.formatting import (
 from components.charts import (
     price_chart, momentum_chart, drawdown_chart,
     ranking_bar_chart, correlation_heatmap, equity_chart, COLORS,
-    _base_layout, ta_overview_chart, macd_chart, rsi_chart,
+    _base_layout, ta_overview_chart, macd_chart, rsi_chart, rs_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
 from components.auth import require_premium
@@ -86,13 +86,14 @@ def _flexible_score(ret_row: pd.Series) -> float:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Ranking momentum",
     "₿ Alt/BTC — sila vs Bitcoin",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "🔔 Sygnaly TA",
+    "💪 Relative Strength",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -747,5 +748,43 @@ with tab6:
 
 *Sygnaly TA maja charakter informacyjny i nie stanowia rekomendacji inwestycyjnej.*
 """)
+
+# ========================== TAB 7: RELATIVE STRENGTH ==========================
+with tab7:
+    st.markdown("### Relative Strength vs BTC")
+    st.caption("RS > 100 = kryptowaluta outperformuje Bitcoin")
+
+    rs_options_cr = {t: f"{t.replace('-USD','')} — {CRYPTO_NAMES.get(t, t)}" for t in CRYPTO_BY_MCAP[:50]}
+    rs_selected_cr = st.multiselect(
+        "Wybierz krypto (maks. 5)",
+        options=list(rs_options_cr.keys()),
+        default=["ETH-USD", "SOL-USD"],
+        format_func=lambda x: rs_options_cr[x],
+        max_selections=5,
+        key="cr_rs_sel",
+    )
+
+    rs_period_map = {
+        "6 miesiecy": "6mo", "1 rok": "1y", "2 lata": "2y", "Maksymalny": "max",
+    }
+    rs_period_label = st.selectbox("Okres", list(rs_period_map.keys()), index=1, key="cr_rs_period")
+    rs_period = rs_period_map[rs_period_label]
+
+    if rs_selected_cr:
+        rs_tickers_cr = list(set(rs_selected_cr + ["BTC-USD"]))
+        with st.spinner("Pobieram dane..."):
+            rs_prices_cr = download_prices(rs_tickers_cr, period=rs_period)
+
+        if "BTC-USD" in rs_prices_cr.columns:
+            for t in rs_selected_cr:
+                if t in rs_prices_cr.columns and t != "BTC-USD":
+                    rs_data = relative_strength(rs_prices_cr[t].dropna(), rs_prices_cr["BTC-USD"].dropna())
+                    if not rs_data.empty:
+                        fig = rs_chart(rs_data, t.replace("-USD", ""), "BTC")
+                        st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Nie udalo sie pobrac danych BTC.")
+    else:
+        st.info("Wybierz co najmniej 1 kryptowalute.")
 
 render_footer()

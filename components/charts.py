@@ -391,6 +391,53 @@ def rsi_chart(rsi_series: pd.Series, title: str = "RSI") -> go.Figure:
     return fig
 
 
+def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
+             benchmark_name: str = "Benchmark",
+             title: str = "") -> go.Figure:
+    """Wykres Relative Strength: linia RS + SMA + linia referencyjna 100."""
+    if not title:
+        title = f"Relative Strength: {asset_name} vs {benchmark_name}"
+    fig = go.Figure()
+
+    if "RS" in rs_df.columns:
+        fig.add_trace(go.Scatter(
+            x=rs_df.index, y=rs_df["RS"], name="RS", mode="lines",
+            line=dict(color=GOLD, width=2),
+        ))
+
+    sma_colors = {"RS_SMA_50": "#3B82F6", "RS_SMA_200": "#A855F7"}
+    for col in rs_df.columns:
+        if col.startswith("RS_SMA_"):
+            fig.add_trace(go.Scatter(
+                x=rs_df.index, y=rs_df[col].dropna(), name=col.replace("_", " "),
+                mode="lines", line=dict(color=sma_colors.get(col, COLORS[2]), width=1.5, dash="dash"),
+            ))
+
+    # Linia referencyjna 100
+    fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1,
+                  annotation_text="Baza", annotation_position="bottom right")
+
+    # Adnotacje outperformance/underperformance
+    if "RS" in rs_df.columns and len(rs_df) > 0:
+        last_rs = rs_df["RS"].iloc[-1]
+        if last_rs > 100:
+            fig.add_annotation(
+                x=rs_df.index[-1], y=last_rs, text=f"Outperformance ({last_rs:.1f})",
+                showarrow=False, font=dict(color="#22C55E", size=11),
+                yshift=15,
+            )
+        else:
+            fig.add_annotation(
+                x=rs_df.index[-1], y=last_rs, text=f"Underperformance ({last_rs:.1f})",
+                showarrow=False, font=dict(color="#EF4444", size=11),
+                yshift=-15,
+            )
+
+    fig.update_layout(**_base_layout(title))
+    fig.update_yaxes(title_text="RS (baza=100)")
+    return fig
+
+
 def _hex_to_rgb(hex_color: str) -> str:
     """Konwertuje #RRGGBB na R,G,B."""
     h = hex_color.lstrip("#")

@@ -622,6 +622,28 @@ def calc_bollinger(prices: pd.Series, period=20, std_dev=2) -> pd.DataFrame:
     return pd.DataFrame({"Middle": middle, "Upper": upper, "Lower": lower})
 
 
+def relative_strength(asset: pd.Series, benchmark: pd.Series,
+                      sma_windows: tuple = (50, 200)) -> pd.DataFrame:
+    """Oblicza Relative Strength (asset/benchmark) + SMA linii RS.
+
+    Returns DataFrame z kolumnami: RS, RS_SMA_50, RS_SMA_200 (znormalizowane do 100).
+    """
+    common = asset.dropna().index.intersection(benchmark.dropna().index)
+    if len(common) < 20:
+        return pd.DataFrame()
+
+    a = asset.loc[common]
+    b = benchmark.loc[common]
+    rs = (a / b)
+    rs = rs / rs.iloc[0] * 100  # normalizacja do bazy 100
+
+    result = pd.DataFrame({"RS": rs}, index=common)
+    for w in sma_windows:
+        if len(rs) > w:
+            result[f"RS_SMA_{w}"] = rs.rolling(window=w).mean()
+    return result
+
+
 def correlation_matrix(prices: pd.DataFrame, period: int = 252) -> pd.DataFrame:
     """Macierz korelacji zwrotow dziennych za ostatnie `period` dni."""
     recent = prices.tail(period)
