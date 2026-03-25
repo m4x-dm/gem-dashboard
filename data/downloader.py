@@ -4,6 +4,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import requests
+from io import StringIO
 from datetime import datetime, timedelta
 
 
@@ -40,6 +41,8 @@ def _yfinance_single(ticker: str, period: str = "15y") -> pd.Series | None:
         if isinstance(close, pd.DataFrame):
             close = close.iloc[:, 0]
         s = close.dropna()
+        if hasattr(s.index, "tz") and s.index.tz is not None:
+            s.index = s.index.tz_localize(None)
         return s if len(s) > 0 else None
     except Exception:
         return None
@@ -59,7 +62,9 @@ def _stooq_fallback(ticker: str, period: str = "15y") -> pd.Series | None:
             return None
 
         url = f"https://stooq.com/q/d/l/?s={sym}&i=d"
-        df = pd.read_csv(url)
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        df = pd.read_csv(StringIO(resp.text))
         if df.empty or "Close" not in df.columns or "Date" not in df.columns:
             return None
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -131,6 +136,10 @@ def download_prices(tickers: list[str], period: str = "15y") -> pd.DataFrame:
 
     prices = prices.dropna(how="all")
 
+    # Normalize timezone — yfinance returns tz-aware, stooq/CoinGecko tz-naive
+    if hasattr(prices.index, "tz") and prices.index.tz is not None:
+        prices.index = prices.index.tz_localize(None)
+
     # Track sources for tickers that have data
     for t in tickers:
         if t in prices.columns and prices[t].dropna().shape[0] > 0:
@@ -180,7 +189,9 @@ def download_stooq(symbol: str, period: str = "15y") -> pd.Series | None:
         return None
     try:
         url = f"https://stooq.com/q/d/l/?s={stooq_sym}&i=d"
-        df = pd.read_csv(url)
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        df = pd.read_csv(StringIO(resp.text))
         if df.empty or "Close" not in df.columns or "Date" not in df.columns:
             return None
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -194,11 +205,12 @@ def download_stooq(symbol: str, period: str = "15y") -> pd.Series | None:
             cutoff = pd.Timestamp.now() - timedelta(days=days)
             df = df[df.index >= cutoff]
 
-        return df["Close"].dropna()
-    except (KeyError, ValueError) as e:
-        st.warning(f"Blad pobierania danych ze Stooq ({symbol}): {e}")
-        return None
-    except Exception:
+        result = df["Close"].dropna()
+        if result.empty:
+            return None
+        return result
+    except Exception as e:
+        st.warning(f"Stooq: blad pobierania {symbol} — {type(e).__name__}: {e}")
         return None
 
 
