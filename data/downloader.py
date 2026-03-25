@@ -5,9 +5,11 @@ import yfinance as yf
 import pandas as pd
 import requests
 from io import StringIO
+from pathlib import Path
 from datetime import datetime, timedelta
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+_CACHE_DIR = Path(__file__).parent / "cache"
 
 
 # --- Period → days mapping (reused across functions) ---
@@ -183,37 +185,60 @@ def get_risk_free_rate() -> float | None:
 STOOQ_TICKERS = {"WIG20": "wig20", "mWIG40": "mwig40", "sWIG80": "swig80"}
 
 
+def _load_stooq_csv(stooq_sym: str, period: str) -> pd.Series | None:
+    """Laduje dane indeksu GPW z lokalnego CSV cache (fallback gdy stooq.com niedostepny)."""
+    csv_path = _CACHE_DIR / f"{stooq_sym}.csv"
+    if not csv_path.exists():
+        return None
+    try:
+        df = pd.read_csv(csv_path)
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
+        if df.empty:
+            return None
+        days = PERIOD_DAYS.get(period, 5475)
+        if days < 999999:
+            cutoff = pd.Timestamp.now() - timedelta(days=days)
+            df = df[df.index >= cutoff]
+        result = df["Close"].dropna()
+        return result if len(result) > 0 else None
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=3600, show_spinner="Pobieram dane ze Stooq...")
 def download_stooq(symbol: str, period: str = "15y") -> pd.Series | None:
-    """Pobiera cenę zamknięcia indeksu GPW ze stooq.com. Zwraca Series z DatetimeIndex."""
+    """Pobiera cenę zamknięcia indeksu GPW ze stooq.com z fallbackiem na lokalny CSV."""
     stooq_sym = STOOQ_TICKERS.get(symbol)
     if not stooq_sym:
         return None
+    # 1. Try stooq.com live
     try:
         url = f"https://stooq.com/q/d/l/?s={stooq_sym}&i=d"
         resp = requests.get(url, headers=_HEADERS, timeout=15)
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
-        if df.empty or "Close" not in df.columns or "Date" not in df.columns:
-            return None
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-        df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
-
-        if df.empty:
-            return None
-
-        days = PERIOD_DAYS.get(period, 5475)
-        if days < 999999:
-            cutoff = pd.Timestamp.now() - timedelta(days=days)
-            df = df[df.index >= cutoff]
-
-        result = df["Close"].dropna()
-        if result.empty:
-            return None
+        if not df.empty and "Close" in df.columns and "Date" in df.columns:
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+            df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
+            if not df.empty:
+                days = PERIOD_DAYS.get(period, 5475)
+                if days < 999999:
+                    cutoff = pd.Timestamp.now() - timedelta(days=days)
+                    df = df[df.index >= cutoff]
+                result = df["Close"].dropna()
+                if len(result) > 0:
+                    _track_source(symbol, "stooq")
+                    return result
+    except Exception:
+        pass
+    # 2. Fallback: local CSV cache
+    result = _load_stooq_csv(stooq_sym, period)
+    if result is not None:
+        _track_source(symbol, "cache")
         return result
-    except Exception as e:
-        st.warning(f"Stooq: blad pobierania {symbol} — {type(e).__name__}: {e}")
-        return None
+    _track_failure(symbol)
+    return None
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
