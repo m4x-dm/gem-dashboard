@@ -7,7 +7,7 @@ from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.gpw_universe import (
     ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP, GPW_CATEGORIES,
 )
-from data.downloader import download_prices, download_stooq, STOOQ_TICKERS
+from data.downloader import download_prices, download_single, download_stooq, STOOQ_TICKERS
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
     correlation_matrix, relative_strength,
@@ -140,7 +140,12 @@ with tab2:
         st.info("Wybierz co najmniej 1 spolke.")
     else:
         with st.spinner("Pobieram dane..."):
-            chart_prices = download_prices(selected_charts, period=period)
+            chart_prices = pd.DataFrame()
+            for t in selected_charts:
+                s = download_single(t, period=period)
+                if s is not None:
+                    chart_prices[t] = s
+            chart_prices = chart_prices.dropna(how="all")
 
         if is_strategy_view and len(chart_prices) > 273:
             chart_prices = chart_prices.iloc[-273:-21]
@@ -209,16 +214,13 @@ with tab3:
     if len(selected_cmp) < 2:
         st.info("Wybierz co najmniej 2 spolki / indeksy.")
     else:
-        # Rozdziel tickery yfinance vs stooq
-        yf_tickers = [t for t in selected_cmp if t not in STOOQ_TICKERS]
-        stooq_tickers = [t for t in selected_cmp if t in STOOQ_TICKERS]
-
         with st.spinner("Pobieram dane..."):
             cmp_prices = pd.DataFrame()
-            if yf_tickers:
-                cmp_prices = download_prices(yf_tickers, period=cmp_period)
-            for t in stooq_tickers:
-                s = download_stooq(t, period=cmp_period)
+            for t in selected_cmp:
+                if t in STOOQ_TICKERS:
+                    s = download_stooq(t, period=cmp_period)
+                else:
+                    s = download_single(t, period=cmp_period)
                 if s is not None:
                     cmp_prices[t] = s
             cmp_prices = cmp_prices.dropna(how="all")
@@ -361,11 +363,15 @@ with tab5:
         # Pobierz WIG20 ze stooq jako benchmark
         wig20_data = download_stooq("WIG20", period=rs_period)
         with st.spinner("Pobieram dane..."):
-            rs_prices_gpw = download_prices(rs_selected_gpw, period=rs_period)
+            rs_prices_gpw = {}
+            for t in rs_selected_gpw:
+                s = download_single(t, period=rs_period)
+                if s is not None:
+                    rs_prices_gpw[t] = s
 
         if wig20_data is not None and len(wig20_data) > 20:
             for t in rs_selected_gpw:
-                if t in rs_prices_gpw.columns:
+                if t in rs_prices_gpw:
                     rs_data = relative_strength(rs_prices_gpw[t].dropna(), wig20_data)
                     if not rs_data.empty:
                         fig = rs_chart(rs_data, t.replace(".WA", ""), "WIG20")

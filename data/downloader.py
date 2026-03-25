@@ -152,11 +152,19 @@ def download_prices(tickers: list[str], period: str = "15y") -> pd.DataFrame:
     # Fallback for missing tickers
     missing = [t for t in tickers if t not in prices.columns or prices[t].dropna().shape[0] == 0]
     for t in missing:
+        # 1. Retry yfinance individually (bulk download sometimes fails for some tickers)
+        s = _yfinance_single(t, period)
+        if s is not None:
+            prices[t] = s
+            _track_source(t, "yfinance")
+            continue
+        # 2. stooq fallback
         s = _stooq_fallback(t, period)
         if s is not None:
             prices[t] = s
             _track_source(t, "stooq")
             continue
+        # 3. CoinGecko fallback
         s = _coingecko_fallback(t, period)
         if s is not None:
             prices[t] = s
