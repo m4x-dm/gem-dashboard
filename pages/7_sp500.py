@@ -7,7 +7,7 @@ from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.sp500_universe import (
     ALL_SP500_TICKERS, SP500_NAMES, SP500_SECTOR_MAP, SP500_SECTORS,
 )
-from data.downloader import download_prices
+from data.downloader import download_prices, download_single
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
     correlation_matrix, relative_strength,
@@ -140,7 +140,12 @@ with tab2:
         st.info("Wybierz co najmniej 1 spolke.")
     else:
         with st.spinner("Pobieram dane..."):
-            chart_prices = download_prices(selected_charts, period=period)
+            chart_prices = pd.DataFrame()
+            for t in selected_charts:
+                s = download_single(t, period=period)
+                if s is not None:
+                    chart_prices[t] = s
+            chart_prices = chart_prices.dropna(how="all")
 
         if is_strategy_view and len(chart_prices) > 273:
             chart_prices = chart_prices.iloc[-273:-21]
@@ -203,7 +208,12 @@ with tab3:
         st.info("Wybierz co najmniej 2 spolki.")
     else:
         with st.spinner("Pobieram dane..."):
-            cmp_prices = download_prices(selected_cmp, period=cmp_period)
+            cmp_prices = pd.DataFrame()
+            for t in selected_cmp:
+                s = download_single(t, period=cmp_period)
+                if s is not None:
+                    cmp_prices[t] = s
+            cmp_prices = cmp_prices.dropna(how="all")
 
         if cmp_is_strategy and len(cmp_prices) > 273:
             cmp_prices = cmp_prices.iloc[-273:-21]
@@ -359,9 +369,12 @@ with tab5:
     rs_period = rs_period_map[rs_period_label]
 
     if rs_selected:
-        rs_tickers = list(set(rs_selected + ["SPY"]))
         with st.spinner("Pobieram dane..."):
-            rs_prices = download_prices(rs_tickers, period=rs_period)
+            rs_prices = pd.DataFrame()
+            for t in list(set(rs_selected + ["SPY"])):
+                s = download_single(t, period=rs_period)
+                if s is not None:
+                    rs_prices[t] = s
 
         if "SPY" in rs_prices.columns:
             for t in rs_selected:
