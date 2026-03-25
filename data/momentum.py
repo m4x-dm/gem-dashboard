@@ -40,8 +40,8 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
     periods = {"1M": 21, "3M": 63, "6M": 126}
 
     for label, days in periods.items():
-        if len(prices) > days:
-            ret = prices.iloc[-1] / prices.iloc[-1 - days] - 1
+        if len(prices) >= days:
+            ret = prices.iloc[-1] / prices.iloc[-days] - 1
         else:
             ret = pd.Series(np.nan, index=prices.columns)
         result[label] = ret.replace([np.inf, -np.inf], np.nan)
