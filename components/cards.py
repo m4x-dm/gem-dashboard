@@ -271,13 +271,16 @@ def data_status_card() -> None:
 
     now_str = datetime.now().strftime("%H:%M")
 
+    fail_list = f' · <span style="color:{MUTED};font-size:0.7rem">{", ".join(failures)}</span>' if failures else ""
+
     st.html(
         f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:10px;'
-        f'padding:10px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+        f'padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">'
         f'<span style="font-size:1.2rem">{icon}</span>'
-        f'<div style="flex:1">'
+        f'<div style="flex:1;min-width:200px">'
         f'<span style="color:{color};font-weight:600;font-size:0.85rem">{label}</span>'
         f'<span style="color:{MUTED};font-size:0.75rem;margin-left:12px">{breakdown}</span>'
+        f'{fail_list}'
         f'</div>'
         f'<span style="color:{MUTED};font-size:0.7rem">{now_str}</span>'
         f'</div>'
