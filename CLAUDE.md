@@ -5,8 +5,9 @@ Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Glob
 
 ## Tech Stack
 - **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**, **reportlab**
-- No database — data fetched live from Yahoo Finance (yfinance) + stooq.com (GPW indices) + CoinGecko (crypto fallback)
+- No database — data fetched live from Yahoo Finance (yfinance) + stooq.com (GPW indices) + CoinGecko (crypto fallback) + local CSV cache (GPW indices fallback for cloud)
 - Cache: `st.cache_data` (prices TTL=1h, risk-free rate TTL=6h)
+- Deploy: Streamlit Community Cloud at `https://gem-dashboard.streamlit.app/` (repo `m4x-dm/gem-dashboard`, branch `main`)
 
 ## Running
 ```bash
@@ -23,8 +24,9 @@ data/
   gpw_universe.py       # 140 Polish stocks (WIG20/mWIG40/sWIG80) with .WA suffix
   crypto_universe.py    # ~200 cryptocurrencies with -USD suffix, 11 categories
   sp500_universe.py     # ~500 US stocks (S&P 500) with 11 GICS sectors
-  downloader.py         # yfinance + stooq.com download with st.cache_data
-  momentum.py           # Momentum calculations, GEM signals, backtest, seasonality, drawdowns, Monte Carlo, TA indicators
+  downloader.py         # yfinance + stooq.com + CoinGecko fallback + CSV cache, st.cache_data, source tracking
+  cache/                # Local CSV cache for GPW indices (wig20.csv, mwig40.csv, swig80.csv) — fallback when stooq blocked on cloud
+  momentum.py           # Momentum calculations, GEM signals, backtest, seasonality, drawdowns, Monte Carlo, TA indicators, relative strength
 components/
   formatting.py         # Polish formatting (%, numbers, colors)
   charts.py             # Plotly charts (price, momentum, drawdown, sparkline, seasonality heatmap, fan chart, TA overview/MACD/RSI)
@@ -38,9 +40,9 @@ pages/
   4_porownanie.py       # Compare 2-4 ETFs/indices + stats + correlation (incl. WIG20/mWIG40/sWIG80)
   5_backtest.py         # Backtest strategii (GEM, QQQ+SMA200, TQQQ+Momentum, porownanie)
   6_info.py             # GEM strategy explanation (Polish)
-  7_sp500.py            # S&P 500 US stocks (4 tabs: ranking, wykresy, porownanie+stats, backtest)
-  8_gpw.py              # Polish stocks GPW (4 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest)
-  9_kryptowaluty.py     # Crypto (6 tabs: ranking, alt/BTC ratio, wykresy, porownanie+stats, backtest, sygnaly TA)
+  7_sp500.py            # S&P 500 US stocks (5 tabs: ranking, wykresy, porownanie+stats, backtest, RS)
+  8_gpw.py              # Polish stocks GPW (5 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest, RS)
+  9_kryptowaluty.py     # Crypto (7 tabs: ranking, alt/BTC ratio, wykresy, porownanie+stats, backtest, sygnaly TA, RS)
   10_portfolio.py       # Portfolio Builder (ticker selection, weights, backtest, correlation)
   11_screener.py        # Cross-Asset Screener (unified ranking from all 4 universes)
   12_makro.py           # Macro Dashboard (VIX, yield curve, DXY, S&P+200MA, gold, oil)
@@ -77,8 +79,10 @@ pages/
 - **Portfolio Builder:** Multiselect from all 4 universes (max 20), 3 weight presets (equal, risk parity, reset), backtest custom vs equal-weight, correlation heatmap, drawdown
 - **Cross-Asset Screener:** Unified `pd.concat()` ranking from ETF+S&P+GPW+Crypto, filters (class, min score, mom abs, top N), bar chart colored by asset class, CSV export
 - **Macro Dashboard:** 2x3 grid of macro indicators (VIX, yield curve 10Y-13W, DXY, S&P+200MA, gold, oil), `macro_card()` + `sparkline_chart()`, traffic light signals, interpretation expander
-- **Macro tickers:** ^VIX, ^TNX, ^IRX, DX-Y.NYB, GC=F (gold spot USD/oz), CL=F, ^GSPC — each downloaded individually for reliability
-- **Stooq.com integration:** GPW indices (WIG20, mWIG40, sWIG80) downloaded from `https://stooq.com/q/d/l/?s={sym}&i=d` via `download_stooq()` in `downloader.py`. Yahoo Finance has no historical data for these indices. Available in Porownanie (page 4) and GPW Porownanie tab (page 8).
+- **Macro tickers:** ^VIX, ^TNX, ^IRX, ^IXIC, DX-Y.NYB, GC=F (gold spot USD/oz), CL=F, ^GSPC — each downloaded individually for reliability
+- **Display vs Strategy tickers:** Market overview (sparklines, regime, intermarket) uses indices: `^IXIC` (Nasdaq Composite), `^TNX` (10Y Treasury yield), `GC=F` (gold spot). GEM strategy logic uses ETFs (QQQ, AGG) as trading instruments — do NOT change strategy tickers. `^TNX` is a yield (not price), so regime logic is inverted compared to AGG (rising yield = risk-on for equities).
+- **Stooq.com integration:** GPW indices (WIG20, mWIG40, sWIG80) downloaded from `https://stooq.com/q/d/l/?s={sym}&i=d` via `download_stooq()` in `downloader.py`. Yahoo Finance has no historical data for these indices (returns only 1 row). Available in Porownanie (page 4) and GPW Porownanie tab (page 8). **Cloud fallback:** Stooq blocks GCP IPs (Streamlit Cloud), so `download_stooq()` falls back to local CSV cache in `data/cache/`. CSVs contain 10 years of data and should be periodically updated. All stooq requests use `requests.get()` with User-Agent header (NOT `pd.read_csv(url)` — it has no `timeout` parameter).
+- **Data merge & trailing NaN:** When combining data from different sources (yfinance + stooq/CSV), series may end on different dates. `latest_returns()` applies `ffill()` before computing returns to avoid NaN from date misalignment.
 - **Footer:** `render_footer()` in `sidebar.py` — called at the end of every page via `st.html()`. Shows "© 2026 M4X · Wszelkie prawa zastrzeżone"
 - **Seasonality (page 13):** `monthly_returns_matrix()` in `momentum.py` — pivot year×month. `seasonality_heatmap()` in `charts.py` — RED→BG→GREEN. Tabs: heatmap, avg month bar, Sell in May (May-Oct vs Nov-Apr).
 - **Currency PLN/USD (page 14):** `USDPLN=X` from yfinance. Formula: `ret_PLN = (1+ret_USD)*(1+ret_USDPLN)-1`. Tabs: kurs, USD vs PLN table, dual-axis overlay, hedging explainer.
@@ -86,7 +90,7 @@ pages/
 - **Signal History (page 16):** Reuses `backtest_gem()` with period="max" for full signal log. Tabs: current signal card, Gantt-style timeline, pie chart of time allocation, year×month calendar heatmap (colored by signal).
 - **Monte Carlo (page 17):** `monte_carlo_simulation()` in `momentum.py` — bootstrap daily returns. `fan_chart()` in `charts.py` — percentile bands P5/P25/P50/P75/P95. Tabs: fan chart, final value histogram, probability cards.
 - **Sector Rotation (page 18):** 11 SPDR sector ETFs (XLK,XLF,XLE,XLV,XLI,XLY,XLP,XLC,XLRE,XLU,XLB). Added 6 missing ETFs to `etf_universe.py`. Tabs: rolling 3M momentum heatmap, ranking bar, business cycle explainer, comparison.
-- **Intermarket (page 19):** SPY,AGG,GC=F,DX-Y.NYB,CL=F — cross-asset relationships. Tabs: normalized overlay, ratio pairs, rolling correlation, correlation matrix, risk-on/risk-off regime classifier.
+- **Intermarket (page 19):** SPY,^TNX,GC=F,DX-Y.NYB,CL=F — cross-asset relationships. Tabs: normalized overlay, ratio pairs, rolling correlation, correlation matrix, risk-on/risk-off regime classifier. Note: uses ^TNX (yield) instead of AGG (price) — regime logic inverted for yields.
 - **TA Signals (page 9, tab 6):** Trend-following system with 5 indicators, each scoring -1/0/+1:
   1. **Trend (EMA 200):** Price > EMA(200) = +1, below = -1. Primary trend filter. Skipped if <200 data points.
   2. **EMA crossover:** EMA(short) > EMA(long) = +1, below = -1.
@@ -140,4 +144,5 @@ Utilities (NEE, SO, DUK...), Real Estate (AMT, PLD, CCI...), Materials (LIN, APD
 - Users can add custom tickers via sidebar
 - "Odśwież dane" button clears st.cache_data
 - GPW stocks: yfinance supports `.WA` suffix for Warsaw Stock Exchange
-- GPW indices: WIG20/mWIG40/sWIG80 from stooq.com (yfinance returns only 1 row for these)
+- GPW indices: WIG20/mWIG40/sWIG80 from stooq.com with CSV fallback (yfinance returns only 1 row for these)
+- Stooq downloads: ALWAYS use `requests.get(url, headers=_HEADERS, timeout=15)` + `pd.read_csv(StringIO(resp.text))`. NEVER use `pd.read_csv(url, timeout=N)` — `timeout` is not a valid pd.read_csv parameter
