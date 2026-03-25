@@ -33,7 +33,9 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
     """Zwraca ostatnie stopy zwrotu dla kazdego tickera. Kolumny: 1M, 3M, 6M, 12M.
 
     Zoptymalizowana wersja — oblicza tylko ostatni wiersz zamiast pelnych DataFrames.
+    Forward-fill eliminuje trailing NaN gdy zrodla danych konczą sie na roznych datach.
     """
+    prices = prices.ffill()
     result = {}
     periods = {"1M": 21, "3M": 63, "6M": 126}
 
