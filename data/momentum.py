@@ -36,12 +36,15 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
     Forward-fill eliminuje trailing NaN gdy zrodla danych konczą sie na roznych datach.
     """
     prices = prices.ffill()
+    n = len(prices)
     result = {}
-    periods = {"1M": 21, "3M": 63, "6M": 126}
+    # (min_rows, ideal_lookback) — min obnizone ~8% bo yfinance zwraca mniej niz kalendarz
+    periods = {"1M": (19, 21), "3M": (58, 63), "6M": (115, 126)}
 
-    for label, days in periods.items():
-        if len(prices) >= days:
-            ret = prices.iloc[-1] / prices.iloc[-days] - 1
+    for label, (min_rows, ideal) in periods.items():
+        if n >= min_rows:
+            lookback = min(ideal, n - 1)
+            ret = prices.iloc[-1] / prices.iloc[-lookback] - 1
         else:
             ret = pd.Series(np.nan, index=prices.columns)
         result[label] = ret.replace([np.inf, -np.inf], np.nan)
@@ -49,10 +52,10 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
     # 12M momentum: skip-month (12-1) when enough data, else simple 12M
     skip = 21
     total = 273
-    if len(prices) >= total:
+    if n >= total:
         ret_12m = prices.iloc[-1 - skip] / prices.iloc[-total] - 1
-    elif len(prices) >= 252:
-        ret_12m = prices.iloc[-1] / prices.iloc[-252] - 1
+    elif n >= 230:
+        ret_12m = prices.iloc[-1] / prices.iloc[0] - 1
     else:
         ret_12m = pd.Series(np.nan, index=prices.columns)
     result["12M"] = ret_12m.replace([np.inf, -np.inf], np.nan)
