@@ -46,11 +46,13 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
             ret = pd.Series(np.nan, index=prices.columns)
         result[label] = ret.replace([np.inf, -np.inf], np.nan)
 
-    # 12M momentum: skip-month (12-1)
+    # 12M momentum: skip-month (12-1) when enough data, else simple 12M
     skip = 21
     total = 273
-    if len(prices) > total:
-        ret_12m = prices.iloc[-1 - skip] / prices.iloc[-1 - total] - 1
+    if len(prices) >= total:
+        ret_12m = prices.iloc[-1 - skip] / prices.iloc[-total] - 1
+    elif len(prices) >= 252:
+        ret_12m = prices.iloc[-1] / prices.iloc[-252] - 1
     else:
         ret_12m = pd.Series(np.nan, index=prices.columns)
     result["12M"] = ret_12m.replace([np.inf, -np.inf], np.nan)
