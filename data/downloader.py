@@ -7,6 +7,8 @@ import requests
 from io import StringIO
 from datetime import datetime, timedelta
 
+_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
 
 # --- Period → days mapping (reused across functions) ---
 PERIOD_DAYS = {
@@ -62,7 +64,7 @@ def _stooq_fallback(ticker: str, period: str = "15y") -> pd.Series | None:
             return None
 
         url = f"https://stooq.com/q/d/l/?s={sym}&i=d"
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, headers=_HEADERS, timeout=15)
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
         if df.empty or "Close" not in df.columns or "Date" not in df.columns:
@@ -104,7 +106,7 @@ def _coingecko_fallback(ticker: str, period: str = "15y") -> pd.Series | None:
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
         resp = requests.get(url, params={"vs_currency": "usd", "days": days},
-                            timeout=10)
+                            headers=_HEADERS, timeout=10)
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -189,7 +191,7 @@ def download_stooq(symbol: str, period: str = "15y") -> pd.Series | None:
         return None
     try:
         url = f"https://stooq.com/q/d/l/?s={stooq_sym}&i=d"
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, headers=_HEADERS, timeout=15)
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
         if df.empty or "Close" not in df.columns or "Date" not in df.columns:
