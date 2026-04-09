@@ -1,7 +1,7 @@
 # CLAUDE.md — GEM ETF Dashboard
 
 ## Overview
-Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~500 US stocks from S&P 500. 21 pages total.
+Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 120 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~456 US stocks from S&P 500. 21 pages total.
 
 ## Tech Stack
 - **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**, **reportlab**
@@ -21,9 +21,9 @@ app.py                  # Entrypoint, sidebar, settings
 .streamlit/config.toml  # Dark theme (gold #C9A84C, bg #0B0E1A)
 data/
   etf_universe.py       # 37 ETFs with Polish names + categories (incl. ACWI + 6 sector SPDRs)
-  gpw_universe.py       # 140 Polish stocks (WIG20/mWIG40/sWIG80) with .WA suffix
+  gpw_universe.py       # 120 Polish stocks (WIG20/mWIG40/sWIG80) with .WA suffix
   crypto_universe.py    # ~200 cryptocurrencies with -USD suffix, 11 categories
-  sp500_universe.py     # ~500 US stocks (S&P 500) with 11 GICS sectors
+  sp500_universe.py     # ~456 US stocks (S&P 500) with 11 GICS sectors
   downloader.py         # yfinance + stooq.com + CoinGecko fallback + CSV cache, st.cache_data, source tracking
   cache/                # Local CSV cache for GPW indices (wig20.csv, mwig40.csv, swig80.csv) — fallback when stooq blocked on cloud
   momentum.py           # Momentum calculations, GEM signals, backtest, seasonality, drawdowns, Monte Carlo, TA indicators, relative strength
@@ -117,10 +117,10 @@ Rynki wschodzące (VWO, EEM, FXI), Obligacje USA (AGG, BND, TLT, IEF, SHY, TIP),
 Złoto/surowce (GLD, IAU, GSG, DBC), REIT (VNQ, VNQI),
 Sektory USA (XLK, XLF, XLE, XLV, XLI, XLY, XLP, XLC, XLRE, XLU, XLB)
 
-## GPW Universe (140 tickers, 3 indices)
-- **WIG20** (20 spolek): PKO, CDR, KGH, PZU, LPP, DNP, PKN, PEO, ALE, etc.
-- **mWIG40** (40 spolek): 11B, ACP, BFT, CAR, CCC, DOM, ING, LVC, WPL, etc.
-- **sWIG80** (81 spolek): PLW, MBR, SNT, RBW, TOR, VOX, OPN, etc.
+## GPW Universe (120 tickers, 3 indices)
+- **WIG20** (19 spolek): PKO, CDR, KGH, PZU, LPP, DNP, PKN, PEO, ALE, etc.
+- **mWIG40** (34 spolek): 11B, ACP, BFT, CAR, CCC, DOM, ING, WPL, etc.
+- **sWIG80** (67 spolek): PLW, MBR, SNT, RBW, TOR, VOX, OPN, etc.
 - All tickers use `.WA` suffix for Yahoo Finance
 
 ## Crypto Universe (~194 tickers, 11 categories)
@@ -132,7 +132,7 @@ RWA/Tokenizacja (ONDO, MNT...), Inne (LTC, BCH, ETC...)
 - All tickers use `-USD` suffix for Yahoo Finance
 - `CRYPTO_BY_MCAP` — ordered list ~195 tickers by approximate market cap (for Top N filters)
 
-## S&P 500 Universe (~500 tickers, 11 GICS sectors)
+## S&P 500 Universe (~456 tickers, 11 GICS sectors)
 Information Technology (AAPL, MSFT, NVDA, AVGO...), Health Care (LLY, UNH, JNJ, ABBV...),
 Financials (BRK-B, JPM, V, MA...), Consumer Discretionary (AMZN, TSLA, HD, MCD...),
 Communication Services (META, GOOG, NFLX...), Industrials (GE, CAT, RTX, UNP...),
