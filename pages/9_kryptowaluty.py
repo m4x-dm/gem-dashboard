@@ -9,7 +9,7 @@ from data.crypto_universe import (
     ALL_CRYPTO_TICKERS, CRYPTO_NAMES, CRYPTO_CATEGORY_MAP, CRYPTO_CATEGORIES,
     CRYPTO_BY_MCAP,
 )
-from data.downloader import download_prices
+from data.downloader import download_prices, download_single
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
     correlation_matrix, relative_strength,
@@ -547,14 +547,14 @@ with tab6:
 
     _ta_ok = True
     with st.spinner("Pobieram dane..."):
-        ta_prices = download_prices([ta_ticker], period=ta_period)
+        _ta_series = download_single(ta_ticker, period=ta_period)
 
-    if ta_prices.empty or ta_ticker not in ta_prices.columns:
+    if _ta_series is None or len(_ta_series) == 0:
         st.error("Nie udalo sie pobrac danych.")
         _ta_ok = False
 
     if _ta_ok:
-        ta_close = ta_prices[ta_ticker].dropna()
+        ta_close = _ta_series.dropna()
         if len(ta_close) < 50:
             st.error("Za malo danych do analizy technicznej (min. 50 sesji).")
             _ta_ok = False

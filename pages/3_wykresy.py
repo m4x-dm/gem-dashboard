@@ -3,7 +3,7 @@
 import streamlit as st
 from components.sidebar import setup_sidebar, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
-from data.downloader import download_prices
+from data.downloader import download_single
 from components.charts import price_chart, momentum_chart, drawdown_chart
 from components.auth import require_premium
 
@@ -47,9 +47,15 @@ if not selected:
     _ok = False
 
 if _ok:
-    # Pobierz dane — dla Strategii 12-1 pobierz wiecej, zeby momentum mialo z czego liczyc
+    # Pobierz dane — download_single per ticker (pelny fallback chain)
     dl_period = "5y" if is_strategy_view else period
-    prices_full = download_prices(selected, period=dl_period)
+    import pandas as pd
+    _parts = {}
+    for _t in selected:
+        _s = download_single(_t, period=dl_period)
+        if _s is not None and len(_s) > 0:
+            _parts[_t] = _s
+    prices_full = pd.DataFrame(_parts) if _parts else pd.DataFrame()
 
     # Strategia 12-1: przytnij do okna 13M-1M wstecz dla ceny/drawdown
     if is_strategy_view and len(prices_full) > 273:

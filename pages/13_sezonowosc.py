@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, render_footer
-from data.downloader import download_prices
+from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monthly_returns_matrix
 from components.charts import seasonality_heatmap, _base_layout, COLORS, BG2, GOLD
@@ -40,14 +40,14 @@ yf_period = PERIOD_MAP_FULL.get(period, "10y")
 
 # --- Download ---
 with st.spinner("Pobieram dane..."):
-    prices = download_prices([ticker], period=yf_period)
+    _series = download_single(ticker, period=yf_period)
 
-if prices.empty or ticker not in prices.columns:
+if _series is None or len(_series) == 0:
     st.error(f"Brak danych dla {ticker}")
     render_footer()
     st.stop()
 
-series = prices[ticker].dropna()
+series = _series.dropna()
 matrix = monthly_returns_matrix(series)
 
 if matrix.empty:

@@ -50,10 +50,11 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
         result[label] = ret.replace([np.inf, -np.inf], np.nan)
 
     # 12M momentum: skip-month (12-1) when enough data, else simple 12M
+    # iloc[-1] = today (t), iloc[-1-skip] = t-21, iloc[-1-total] = t-273
     skip = 21
     total = 273
-    if n >= total:
-        ret_12m = prices.iloc[-1 - skip] / prices.iloc[-total] - 1
+    if n >= total + 1:
+        ret_12m = prices.iloc[-1 - skip] / prices.iloc[-1 - total] - 1
     elif n >= 230:
         ret_12m = prices.iloc[-1] / prices.iloc[0] - 1
     else:
@@ -308,15 +309,16 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
     daily_returns = prices_clean.pct_change()
     rf_decimal = risk_free_annual / 100.0
 
-    # Poczatkowy sygnal
+    # Poczatkowy sygnal (na podstawie danych z dnia start_idx — znane przed otwarciem)
     current_signal = "QQQ" if qqq.loc[dates[0]] > sma.loc[dates[0]] else "AGG"
     signals_log = [(dates[0], current_signal)]
 
     equity = [start_capital]
     for i in range(1, len(dates)):
         date = dates[i]
-        # Codzienny check SMA
-        new_signal = "QQQ" if qqq.loc[date] > sma.loc[date] else "AGG"
+        date_prev = dates[i - 1]
+        # Codzienny check SMA — uzyj WCZORAJSZEGO close (bez lookahead)
+        new_signal = "QQQ" if qqq.loc[date_prev] > sma.loc[date_prev] else "AGG"
         if new_signal != current_signal:
             signals_log.append((date, new_signal))
             current_signal = new_signal

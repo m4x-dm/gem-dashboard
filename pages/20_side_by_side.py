@@ -7,7 +7,7 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES, SP500_SECTOR_MAP
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP
 from data.crypto_universe import CRYPTO_BY_MCAP, CRYPTO_NAMES, CRYPTO_CATEGORY_MAP
-from data.downloader import download_prices
+from data.downloader import download_single
 from data.momentum import (
     latest_returns, calc_stats, correlation_matrix, relative_strength,
 )
@@ -70,7 +70,12 @@ if ticker_a == ticker_b:
 
 # --- Pobierz dane ---
 with st.spinner("Pobieram dane..."):
-    prices = download_prices([ticker_a, ticker_b], period=period)
+    _parts = {}
+    for _t in [ticker_a, ticker_b]:
+        _s = download_single(_t, period=period)
+        if _s is not None and len(_s) > 0:
+            _parts[_t] = _s
+    prices = pd.DataFrame(_parts) if _parts else pd.DataFrame()
 
 if prices.empty or ticker_a not in prices.columns or ticker_b not in prices.columns:
     st.error("Nie udalo sie pobrac danych dla wybranych aktywow.")

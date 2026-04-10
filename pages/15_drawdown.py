@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, render_footer
-from data.downloader import download_prices
+from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import top_drawdowns, drawdown_series
 from components.charts import drawdown_chart, _base_layout, COLORS, GOLD, BG2
@@ -36,14 +36,14 @@ with col2:
 yf_period = PERIOD_MAP_FULL[period]
 
 with st.spinner("Pobieram dane..."):
-    prices = download_prices([ticker], period=yf_period)
+    _series = download_single(ticker, period=yf_period)
 
-if prices.empty or ticker not in prices.columns:
+if _series is None or len(_series) == 0:
     st.error(f"Brak danych dla {ticker}")
     render_footer()
     st.stop()
 
-series = prices[ticker].dropna()
+series = _series.dropna()
 dd = drawdown_series(series)
 top_dd = top_drawdowns(series, n=10)
 

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
-from data.downloader import download_prices
+from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monte_carlo_simulation, backtest_gem
 from components.charts import fan_chart, _base_layout, GOLD, BG2, COLORS
@@ -56,9 +56,9 @@ else:
                            format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}",
                            key="mc_ticker")
     with st.spinner(f"Pobieram dane {ticker}..."):
-        prices = download_prices([ticker], period="max")
-    if not prices.empty and ticker in prices.columns:
-        series = prices[ticker].dropna()
+        _series = download_single(ticker, period="max")
+    if _series is not None and len(_series) > 0:
+        series = _series.dropna()
         # Normalize to start_capital
         equity = series / series.iloc[0] * start_capital
         equity_label = ticker

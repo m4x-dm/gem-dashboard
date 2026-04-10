@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from components.sidebar import setup_sidebar, render_footer
-from data.downloader import download_prices, download_single
+from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import latest_returns
 from components.charts import price_chart, _base_layout, COLORS, GOLD, BG2
@@ -42,7 +42,12 @@ if not selected:
 # Download
 with st.spinner("Pobieram dane..."):
     usdpln = download_single(USDPLN_TICKER, period=yf_period)
-    etf_prices = download_prices(selected, period=yf_period)
+    _parts = {}
+    for _t in selected:
+        _s = download_single(_t, period=yf_period)
+        if _s is not None and len(_s) > 0:
+            _parts[_t] = _s
+    etf_prices = pd.DataFrame(_parts) if _parts else pd.DataFrame()
 
 if usdpln is None or usdpln.empty:
     st.error("Brak danych kursu USD/PLN.")

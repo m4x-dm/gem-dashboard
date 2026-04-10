@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 from components.sidebar import setup_sidebar, render_footer, get_risk_free
 from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
-from data.downloader import download_prices, download_stooq, STOOQ_TICKERS
+from data.downloader import download_single, download_stooq, STOOQ_TICKERS
 from data.momentum import latest_returns, correlation_matrix, calc_stats, relative_strength
 from components.formatting import fmt_pct, color_for_value, GOLD, BG_CARD, BORDER, MUTED
 from components.charts import price_chart, correlation_heatmap, rs_chart
@@ -64,8 +64,10 @@ yf_tickers = [t for t in selected if t not in STOOQ_TICKERS]
 stooq_tickers = [t for t in selected if t in STOOQ_TICKERS]
 
 prices = pd.DataFrame()
-if yf_tickers:
-    prices = download_prices(yf_tickers, period=period)
+for _t in yf_tickers:
+    _s = download_single(_t, period=period)
+    if _s is not None and len(_s) > 0:
+        prices[_t] = _s
 
 for t in stooq_tickers:
     s = download_stooq(t, period=period)

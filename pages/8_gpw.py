@@ -64,45 +64,46 @@ with tab1:
         mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="rank_mom")
 
     tickers = _tickers_for_index(idx_filter)
-    if not tickers:
+    _tab1_ok = bool(tickers)
+    if not _tab1_ok:
         st.warning("Brak tickerow dla wybranego indeksu.")
-        st.stop()
+    else:
+        with st.spinner("Pobieram dane GPW..."):
+            prices = download_prices(tickers, period="2y")
 
-    with st.spinner("Pobieram dane GPW..."):
-        prices = download_prices(tickers, period="2y")
+        if prices.empty:
+            st.error("Nie udalo sie pobrac danych.")
+            _tab1_ok = False
 
-    if prices.empty:
-        st.error("Nie udalo sie pobrac danych.")
-        st.stop()
+    if _tab1_ok:
+        rf = get_risk_free()
+        ranking = build_ranking(prices, rf)
 
-    rf = get_risk_free()
-    ranking = build_ranking(prices, rf)
+        # Dodaj nazwy i indeks
+        ranking["Nazwa"] = ranking.index.map(lambda t: GPW_NAMES.get(t, t))
+        ranking["Indeks"] = ranking.index.map(lambda t: GPW_CATEGORY_MAP.get(t, "—"))
 
-    # Dodaj nazwy i indeks
-    ranking["Nazwa"] = ranking.index.map(lambda t: GPW_NAMES.get(t, t))
-    ranking["Indeks"] = ranking.index.map(lambda t: GPW_CATEGORY_MAP.get(t, "—"))
+        # Filtr
+        filtered = ranking.copy()
+        if idx_filter != "Wszystkie":
+            filtered = filtered[filtered["Indeks"] == idx_filter]
+        if mom_filter != "Wszystkie":
+            filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
-    # Filtr
-    filtered = ranking.copy()
-    if idx_filter != "Wszystkie":
-        filtered = filtered[filtered["Indeks"] == idx_filter]
-    if mom_filter != "Wszystkie":
-        filtered = filtered[filtered["Momentum_abs"] == mom_filter]
+        st.markdown(f"**{len(filtered)}** spolek | Stopa wolna: **{rf:.2f}%**")
 
-    st.markdown(f"**{len(filtered)}** spolek | Stopa wolna: **{rf:.2f}%**")
+        display_df = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+        display_df.index.name = "Ticker"
+        for col in ["1M", "3M", "6M", "12M", "Wynik"]:
+            display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
+        display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-    display_df = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-    display_df.index.name = "Ticker"
-    for col in ["1M", "3M", "6M", "12M", "Wynik"]:
-        display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
-    display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
+        st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
 
-    st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
-
-    # Eksport CSV
-    csv = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-    csv.index.name = "Ticker"
-    st.download_button("📥 Eksportuj CSV", csv.to_csv(), "gpw_ranking.csv", "text/csv")
+        # Eksport CSV
+        csv = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+        csv.index.name = "Ticker"
+        st.download_button("📥 Eksportuj CSV", csv.to_csv(), "gpw_ranking.csv", "text/csv")
 
     st.divider()
 
@@ -293,50 +294,50 @@ with tab4:
         start_capital = st.number_input("Kapital (PLN)", value=10000, step=1000, min_value=100, key="bt_cap")
 
     bt_tickers = _tickers_for_index(bt_index)
-    if len(bt_tickers) < top_n:
+    _tab4_ok = len(bt_tickers) >= top_n
+    if not _tab4_ok:
         st.warning(f"Za malo spolek ({len(bt_tickers)}) dla top {top_n}.")
-        st.stop()
+    else:
+        with st.spinner("Pobieram dane i licze backtest..."):
+            bt_prices = download_prices(bt_tickers, period=bt_period)
 
-    with st.spinner("Pobieram dane i licze backtest..."):
-        bt_prices = download_prices(bt_tickers, period=bt_period)
+        if bt_prices.empty or len(bt_prices) < 273:
+            st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+            _tab4_ok = False
 
-    if bt_prices.empty or len(bt_prices) < 273:
-        st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
-        st.stop()
+    if _tab4_ok:
+        available_cols = [c for c in bt_prices.columns if bt_prices[c].dropna().shape[0] > 273]
+        result = backtest_rotation(
+            bt_prices[available_cols].dropna(how="all"), top_n=top_n,
+            start_capital=start_capital, trading_days=252,
+            benchmarks={"Equal-Weight B&H": available_cols},
+        )
 
-    available_cols = [c for c in bt_prices.columns if bt_prices[c].dropna().shape[0] > 273]
-    result = backtest_rotation(
-        bt_prices[available_cols].dropna(how="all"), top_n=top_n,
-        start_capital=start_capital, trading_days=252,
-        benchmarks={"Equal-Weight B&H": available_cols},
-    )
+        if result is None:
+            st.error("Za malo danych do backtestu.")
+        else:
+            # Krzywa kapitalu
+            st.markdown("#### Krzywa kapitalu")
+            fig = equity_chart(result["equity_curves"])
+            st.plotly_chart(fig, use_container_width=True)
 
-    if result is None:
-        st.error("Za malo danych do backtestu.")
-        st.stop()
+            # Statystyki z rf
+            rf = get_risk_free()
+            rf_decimal = rf / 100.0
+            bt_stats = {}
+            for name, eq in result["equity_curves"].items():
+                bt_stats[name] = calc_stats(eq, 252, rf_decimal)
 
-    # Krzywa kapitalu
-    st.markdown("#### Krzywa kapitalu")
-    fig = equity_chart(result["equity_curves"])
-    st.plotly_chart(fig, use_container_width=True)
+            st.markdown("#### Statystyki")
+            stats_table(bt_stats)
 
-    # Statystyki z rf
-    rf = get_risk_free()
-    rf_decimal = rf / 100.0
-    bt_stats = {}
-    for name, eq in result["equity_curves"].items():
-        bt_stats[name] = calc_stats(eq, 252, rf_decimal)
-
-    st.markdown("#### Statystyki")
-    stats_table(bt_stats)
-
-    # Wartosci koncowe
-    st.divider()
-    strategies = list(result["equity_curves"].items())
-    cols = st.columns(len(strategies))
-    for i, (name, eq) in enumerate(strategies):
-        with cols[i]:
-            final_value_card(name, eq.iloc[-1], start_capital, "PLN")
+            # Wartosci koncowe
+            st.divider()
+            strategies = list(result["equity_curves"].items())
+            cols = st.columns(len(strategies))
+            for i, (name, eq) in enumerate(strategies):
+                with cols[i]:
+                    final_value_card(name, eq.iloc[-1], start_capital, "PLN")
 
 # ========================== TAB 5: RELATIVE STRENGTH ==========================
 with tab5:
