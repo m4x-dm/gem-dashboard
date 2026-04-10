@@ -55,64 +55,67 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ========================== TAB 1: RANKING ==========================
 with tab1:
-    st.markdown("### Ranking momentum — S&P 500")
+    @st.fragment
+    def _ranking_fragment():
+        st.markdown("### Ranking momentum — S&P 500")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        sector_filter = st.selectbox("Sektor", SECTOR_OPTIONS, key="sp_rank_sec")
-    with col2:
-        mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="sp_rank_mom")
+        col1, col2 = st.columns(2)
+        with col1:
+            sector_filter = st.selectbox("Sektor", SECTOR_OPTIONS, key="sp_rank_sec")
+        with col2:
+            mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="sp_rank_mom")
 
-    tickers = _tickers_for_sector(sector_filter)
-    _tab1_ok = bool(tickers)
-    if not _tab1_ok:
-        st.warning("Brak tickerow dla wybranego sektora.")
-    else:
-        with st.spinner("Pobieram dane S&P 500..."):
-            prices = download_prices(tickers, period="2y")
+        tickers = _tickers_for_sector(sector_filter)
+        _tab1_ok = bool(tickers)
+        if not _tab1_ok:
+            st.warning("Brak tickerow dla wybranego sektora.")
+        else:
+            with st.spinner("Pobieram dane S&P 500..."):
+                prices = download_prices(tickers, period="2y")
 
-        if prices.empty:
-            st.error("Nie udalo sie pobrac danych.")
-            _tab1_ok = False
+            if prices.empty:
+                st.error("Nie udalo sie pobrac danych.")
+                _tab1_ok = False
 
-    if _tab1_ok:
-        rf = get_risk_free()
-        ranking = build_ranking(prices, rf)
+        if _tab1_ok:
+            rf = get_risk_free()
+            ranking = build_ranking(prices, rf)
 
-        # Dodaj nazwy i sektor
-        ranking["Nazwa"] = ranking.index.map(lambda t: SP500_NAMES.get(t, t))
-        ranking["Sektor"] = ranking.index.map(lambda t: SP500_SECTOR_MAP.get(t, "—"))
+            # Dodaj nazwy i sektor
+            ranking["Nazwa"] = ranking.index.map(lambda t: SP500_NAMES.get(t, t))
+            ranking["Sektor"] = ranking.index.map(lambda t: SP500_SECTOR_MAP.get(t, "—"))
 
-        # Filtr
-        filtered = ranking.copy()
-        if sector_filter != "Wszystkie":
-            filtered = filtered[filtered["Sektor"] == sector_filter]
-        if mom_filter != "Wszystkie":
-            filtered = filtered[filtered["Momentum_abs"] == mom_filter]
+            # Filtr
+            filtered = ranking.copy()
+            if sector_filter != "Wszystkie":
+                filtered = filtered[filtered["Sektor"] == sector_filter]
+            if mom_filter != "Wszystkie":
+                filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
-        st.markdown(f"**{len(filtered)}** spolek | Stopa wolna: **{rf:.2f}%**")
+            st.markdown(f"**{len(filtered)}** spolek | Stopa wolna: **{rf:.2f}%**")
 
-        display_df = filtered[["Nazwa", "Sektor", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-        display_df.index.name = "Ticker"
-        for col in ["1M", "3M", "6M", "12M", "Wynik"]:
-            display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
-        display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
+            display_df = filtered[["Nazwa", "Sektor", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+            display_df.index.name = "Ticker"
+            for col in ["1M", "3M", "6M", "12M", "Wynik"]:
+                display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
+            display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-        st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
+            st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
 
-        # Eksport CSV
-        csv = filtered[["Nazwa", "Sektor", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-        csv.index.name = "Ticker"
-        st.download_button("📥 Eksportuj CSV", csv.to_csv(), "sp500_ranking.csv", "text/csv")
+            # Eksport CSV
+            csv = filtered[["Nazwa", "Sektor", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+            csv.index.name = "Ticker"
+            st.download_button("📥 Eksportuj CSV", csv.to_csv(), "sp500_ranking.csv", "text/csv")
 
-    if _tab1_ok:
-        st.divider()
+            st.divider()
 
-        # Wykres slupkowy top 15
-        valid = filtered.dropna(subset=["Wynik"])
-        if not valid.empty:
-            fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum S&P 500")
-            st.plotly_chart(fig, use_container_width=True)
+            # Wykres slupkowy top 15
+            valid = filtered.dropna(subset=["Wynik"])
+            if not valid.empty:
+                fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum S&P 500")
+                st.plotly_chart(fig, use_container_width=True)
+
+    _ranking_fragment()
 
 # ========================== TAB 2: WYKRESY ==========================
 with tab2:
@@ -268,86 +271,90 @@ with tab3:
 
 # ========================== TAB 4: BACKTEST ==========================
 with tab4:
-    st.markdown("### Backtest rotacji momentum — S&P 500")
-    st.caption("Co miesiac kupuj top N spolek wg wyniku kompozytowego. Porownanie z equal-weight B&H i SPY B&H.")
+    @st.fragment
+    def _backtest_fragment():
+        st.markdown("### Backtest rotacji momentum — S&P 500")
+        st.caption("Co miesiac kupuj top N spolek wg wyniku kompozytowego. Porownanie z equal-weight B&H i SPY B&H.")
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        bt_sector = st.selectbox("Sektor", SECTOR_OPTIONS, key="sp_bt_sec")
-    with col2:
-        top_n = st.selectbox("Top N spolek", [1, 3, 5, 10], index=1, key="sp_bt_topn")
-    with col3:
-        bt_period_map = {"2 lata": "2y", "5 lat": "5y", "10 lat": "10y", "Maksymalny": "max"}
-        bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="sp_bt_period")
-        bt_period = bt_period_map[bt_period_label]
-    with col4:
-        start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="sp_bt_cap")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            bt_sector = st.selectbox("Sektor", SECTOR_OPTIONS, key="sp_bt_sec")
+        with col2:
+            top_n = st.selectbox("Top N spolek", [1, 3, 5, 10], index=1, key="sp_bt_topn")
+        with col3:
+            bt_period_map = {"2 lata": "2y", "5 lat": "5y", "10 lat": "10y", "Maksymalny": "max"}
+            bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="sp_bt_period")
+            bt_period = bt_period_map[bt_period_label]
+        with col4:
+            start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="sp_bt_cap")
 
-    bt_tickers = _tickers_for_sector(bt_sector)
-    _tab4_ok = len(bt_tickers) >= top_n
-    if not _tab4_ok:
-        st.warning(f"Za malo spolek ({len(bt_tickers)}) dla top {top_n}.")
-    else:
-        # Dodaj SPY do pobrania jesli go nie ma
-        dl_tickers = list(set(bt_tickers + ["SPY"]))
-
-        with st.spinner("Pobieram dane i licze backtest..."):
-            bt_prices = download_prices(dl_tickers, period=bt_period)
-
-        if bt_prices.empty or len(bt_prices) < 273:
-            st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
-            _tab4_ok = False
-
-    if _tab4_ok:
-        # Kolumny do momentum rotation (bez SPY — benchmark osobno)
-        mom_cols = [c for c in bt_prices.columns if c in bt_tickers]
-
-        # Benchmarki
-        bm = {"Equal-Weight B&H": mom_cols}
-        if "SPY" in bt_prices.columns and bt_prices["SPY"].dropna().shape[0] > 273:
-            bm["SPY B&H"] = "SPY"
-
-        result = backtest_rotation(
-            bt_prices[mom_cols].dropna(how="all"), top_n=top_n,
-            start_capital=start_capital, trading_days=252,
-            benchmarks=bm,
-        )
-
-        if result is None:
-            st.error("Za malo danych do backtestu.")
+        bt_tickers = _tickers_for_sector(bt_sector)
+        _tab4_ok = len(bt_tickers) >= top_n
+        if not _tab4_ok:
+            st.warning(f"Za malo spolek ({len(bt_tickers)}) dla top {top_n}.")
         else:
-            # Dodaj SPY benchmark jesli jest
-            if "SPY B&H" in bm and "SPY" in bt_prices.columns:
-                spy_prices = bt_prices["SPY"].dropna()
-                mom_eq = result["equity_curves"][f"Momentum Top {top_n}"]
-                spy_slice = spy_prices.loc[spy_prices.index.isin(mom_eq.index)]
-                if len(spy_slice) > 0:
-                    result["equity_curves"]["SPY B&H"] = start_capital * spy_slice / spy_slice.iloc[0]
-                    rf = get_risk_free()
-                    result["stats"]["SPY B&H"] = calc_stats(result["equity_curves"]["SPY B&H"], 252, rf / 100.0)
+            # Dodaj SPY do pobrania jesli go nie ma
+            dl_tickers = list(set(bt_tickers + ["SPY"]))
 
-            # Krzywa kapitalu
-            st.markdown("#### Krzywa kapitalu")
-            fig = equity_chart(result["equity_curves"])
-            st.plotly_chart(fig, use_container_width=True)
+            with st.spinner("Pobieram dane i licze backtest..."):
+                bt_prices = download_prices(dl_tickers, period=bt_period)
 
-            # Statystyki — przelicz z rf
-            rf = get_risk_free()
-            rf_decimal = rf / 100.0
-            bt_stats = {}
-            for name, eq in result["equity_curves"].items():
-                bt_stats[name] = calc_stats(eq, 252, rf_decimal)
+            if bt_prices.empty or len(bt_prices) < 273:
+                st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+                _tab4_ok = False
 
-            st.markdown("#### Statystyki")
-            stats_table(bt_stats)
+        if _tab4_ok:
+            # Kolumny do momentum rotation (bez SPY — benchmark osobno)
+            mom_cols = [c for c in bt_prices.columns if c in bt_tickers]
 
-            # Wartosci koncowe
-            st.divider()
-            strategies = list(result["equity_curves"].items())
-            final_cols = st.columns(len(strategies))
-            for i, (name, eq) in enumerate(strategies):
-                with final_cols[i]:
-                    final_value_card(name, eq.iloc[-1], start_capital, "USD")
+            # Benchmarki
+            bm = {"Equal-Weight B&H": mom_cols}
+            if "SPY" in bt_prices.columns and bt_prices["SPY"].dropna().shape[0] > 273:
+                bm["SPY B&H"] = "SPY"
+
+            result = backtest_rotation(
+                bt_prices[mom_cols].dropna(how="all"), top_n=top_n,
+                start_capital=start_capital, trading_days=252,
+                benchmarks=bm,
+            )
+
+            if result is None:
+                st.error("Za malo danych do backtestu.")
+            else:
+                # Dodaj SPY benchmark jesli jest
+                if "SPY B&H" in bm and "SPY" in bt_prices.columns:
+                    spy_prices = bt_prices["SPY"].dropna()
+                    mom_eq = result["equity_curves"][f"Momentum Top {top_n}"]
+                    spy_slice = spy_prices.loc[spy_prices.index.isin(mom_eq.index)]
+                    if len(spy_slice) > 0:
+                        result["equity_curves"]["SPY B&H"] = start_capital * spy_slice / spy_slice.iloc[0]
+                        rf = get_risk_free()
+                        result["stats"]["SPY B&H"] = calc_stats(result["equity_curves"]["SPY B&H"], 252, rf / 100.0)
+
+                # Krzywa kapitalu
+                st.markdown("#### Krzywa kapitalu")
+                fig = equity_chart(result["equity_curves"])
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Statystyki — przelicz z rf
+                rf = get_risk_free()
+                rf_decimal = rf / 100.0
+                bt_stats = {}
+                for name, eq in result["equity_curves"].items():
+                    bt_stats[name] = calc_stats(eq, 252, rf_decimal)
+
+                st.markdown("#### Statystyki")
+                stats_table(bt_stats)
+
+                # Wartosci koncowe
+                st.divider()
+                strategies = list(result["equity_curves"].items())
+                final_cols = st.columns(len(strategies))
+                for i, (name, eq) in enumerate(strategies):
+                    with final_cols[i]:
+                        final_value_card(name, eq.iloc[-1], start_capital, "USD")
+
+    _backtest_fragment()
 
 # ========================== TAB 5: RELATIVE STRENGTH ==========================
 with tab5:

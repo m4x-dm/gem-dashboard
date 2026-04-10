@@ -98,63 +98,67 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 
 # ========================== TAB 1: RANKING ==========================
 with tab1:
-    st.markdown("### Ranking momentum — kryptowaluty")
+    @st.fragment
+    def _ranking_fragment():
+        st.markdown("### Ranking momentum — kryptowaluty")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        cat_filter = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_rank_cat")
-    with col2:
-        mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="cr_rank_mom")
+        col1, col2 = st.columns(2)
+        with col1:
+            cat_filter = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_rank_cat")
+        with col2:
+            mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="cr_rank_mom")
 
-    tickers = _tickers_for_category(cat_filter)
-    if not tickers:
-        st.warning("Brak tickerow dla wybranej kategorii.")
-    else:
-        if cat_filter == "Wszystkie":
-            st.info("Pobieranie danych dla ~200 kryptowalut moze potrwac dluzej. Mozesz wybrac konkretna kategorie.")
-
-        with st.spinner("Pobieram dane kryptowalut..."):
-            prices = download_prices(tickers, period="2y")
-
-        if prices.empty:
-            st.error("Nie udalo sie pobrac danych.")
+        tickers = _tickers_for_category(cat_filter)
+        if not tickers:
+            st.warning("Brak tickerow dla wybranej kategorii.")
         else:
-            rf = get_risk_free()
-            ranking = build_ranking(prices, rf)
+            if cat_filter == "Wszystkie":
+                st.info("Pobieranie danych dla ~200 kryptowalut moze potrwac dluzej. Mozesz wybrac konkretna kategorie.")
 
-            # Dodaj nazwy i kategorie
-            ranking["Nazwa"] = ranking.index.map(lambda t: CRYPTO_NAMES.get(t, t))
-            ranking["Kategoria"] = ranking.index.map(lambda t: CRYPTO_CATEGORY_MAP.get(t, "—"))
+            with st.spinner("Pobieram dane kryptowalut..."):
+                prices = download_prices(tickers, period="2y")
 
-            # Filtr
-            filtered = ranking.copy()
-            if cat_filter != "Wszystkie":
-                filtered = filtered[filtered["Kategoria"] == cat_filter]
-            if mom_filter != "Wszystkie":
-                filtered = filtered[filtered["Momentum_abs"] == mom_filter]
+            if prices.empty:
+                st.error("Nie udalo sie pobrac danych.")
+            else:
+                rf = get_risk_free()
+                ranking = build_ranking(prices, rf)
 
-            st.markdown(f"**{len(filtered)}** kryptowalut | Stopa wolna: **{rf:.2f}%**")
+                # Dodaj nazwy i kategorie
+                ranking["Nazwa"] = ranking.index.map(lambda t: CRYPTO_NAMES.get(t, t))
+                ranking["Kategoria"] = ranking.index.map(lambda t: CRYPTO_CATEGORY_MAP.get(t, "—"))
 
-            display_df = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-            display_df.index.name = "Ticker"
-            for col in ["1M", "3M", "6M", "12M", "Wynik"]:
-                display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
-            display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
+                # Filtr
+                filtered = ranking.copy()
+                if cat_filter != "Wszystkie":
+                    filtered = filtered[filtered["Kategoria"] == cat_filter]
+                if mom_filter != "Wszystkie":
+                    filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
-            st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
+                st.markdown(f"**{len(filtered)}** kryptowalut | Stopa wolna: **{rf:.2f}%**")
 
-            # Eksport CSV
-            csv = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
-            csv.index.name = "Ticker"
-            st.download_button("📥 Eksportuj CSV", csv.to_csv(), "crypto_ranking.csv", "text/csv")
+                display_df = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+                display_df.index.name = "Ticker"
+                for col in ["1M", "3M", "6M", "12M", "Wynik"]:
+                    display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
+                display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-            st.divider()
+                st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
 
-            # Wykres slupkowy top 15
-            valid = filtered.dropna(subset=["Wynik"])
-            if not valid.empty:
-                fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum kryptowalut")
-                st.plotly_chart(fig, use_container_width=True)
+                # Eksport CSV
+                csv = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
+                csv.index.name = "Ticker"
+                st.download_button("📥 Eksportuj CSV", csv.to_csv(), "crypto_ranking.csv", "text/csv")
+
+                st.divider()
+
+                # Wykres slupkowy top 15
+                valid = filtered.dropna(subset=["Wynik"])
+                if not valid.empty:
+                    fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum kryptowalut")
+                    st.plotly_chart(fig, use_container_width=True)
+
+    _ranking_fragment()
 
 # ========================== TAB 2: ALT/BTC ==========================
 with tab2:
@@ -428,91 +432,95 @@ with tab4:
 
 # ========================== TAB 5: BACKTEST ==========================
 with tab5:
-    st.markdown("### Backtest rotacji momentum — kryptowaluty")
-    st.caption("Co miesiac kupuj top N krypto wg wyniku kompozytowego. Porownanie z BTC buy & hold i equal-weight B&H.")
+    @st.fragment
+    def _backtest_fragment():
+        st.markdown("### Backtest rotacji momentum — kryptowaluty")
+        st.caption("Co miesiac kupuj top N krypto wg wyniku kompozytowego. Porownanie z BTC buy & hold i equal-weight B&H.")
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        bt_cat = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_bt_cat")
-    with col2:
-        top_n = st.selectbox("Top N kryptowalut", [1, 3, 5, 10], index=1, key="cr_bt_topn")
-    with col3:
-        bt_period_map = {"1 rok": "1y", "2 lata": "2y", "5 lat": "5y"}
-        bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="cr_bt_period")
-        bt_period = bt_period_map[bt_period_label]
-    with col4:
-        start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="cr_bt_cap")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            bt_cat = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_bt_cat")
+        with col2:
+            top_n = st.selectbox("Top N kryptowalut", [1, 3, 5, 10], index=1, key="cr_bt_topn")
+        with col3:
+            bt_period_map = {"1 rok": "1y", "2 lata": "2y", "5 lat": "5y"}
+            bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="cr_bt_period")
+            bt_period = bt_period_map[bt_period_label]
+        with col4:
+            start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="cr_bt_cap")
 
-    bt_tickers = _tickers_for_category(bt_cat)
-    # Zawsze dodaj BTC do porownania
-    if "BTC-USD" not in bt_tickers:
-        bt_tickers = bt_tickers + ["BTC-USD"]
+        bt_tickers = _tickers_for_category(bt_cat)
+        # Zawsze dodaj BTC do porownania
+        if "BTC-USD" not in bt_tickers:
+            bt_tickers = bt_tickers + ["BTC-USD"]
 
-    _bt_ok = True
-    if len(bt_tickers) < top_n + 1:
-        st.warning(f"Za malo kryptowalut ({len(bt_tickers)}) dla top {top_n}.")
-        _bt_ok = False
-
-    if _bt_ok:
-        with st.spinner("Pobieram dane i licze backtest..."):
-            bt_prices = download_prices(bt_tickers, period=bt_period)
-
-        if bt_prices.empty or len(bt_prices) < 91:
-            st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+        _bt_ok = True
+        if len(bt_tickers) < top_n + 1:
+            st.warning(f"Za malo kryptowalut ({len(bt_tickers)}) dla top {top_n}.")
             _bt_ok = False
 
-    if _bt_ok:
-        # --- Backtest: momentum rotation ---
-        # Krypto: krotszy lookback niz akcje (90 dni ~ 3M)
-        lookback = min(273, len(bt_prices) - 30)
-        if lookback < 63:
-            st.error("Za malo danych do backtestu (potrzeba min. 63 dni historii).")
-            _bt_ok = False
+        if _bt_ok:
+            with st.spinner("Pobieram dane i licze backtest..."):
+                bt_prices = download_prices(bt_tickers, period=bt_period)
 
-    if _bt_ok:
-        available_cols = [c for c in bt_prices.columns if bt_prices[c].dropna().shape[0] > lookback]
-        if len(available_cols) < top_n:
-            st.error(f"Tylko {len(available_cols)} kryptowalut ma wystarczajaco dlugie dane. Potrzeba min. {top_n}.")
-            _bt_ok = False
+            if bt_prices.empty or len(bt_prices) < 91:
+                st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+                _bt_ok = False
 
-    if _bt_ok:
-        has_btc = "BTC-USD" in available_cols
-        bm = {"Equal-Weight B&H": available_cols}
-        if has_btc:
-            bm["BTC Buy&Hold"] = "BTC-USD"
+        if _bt_ok:
+            # --- Backtest: momentum rotation ---
+            # Krypto: krotszy lookback niz akcje (90 dni ~ 3M)
+            lookback = min(273, len(bt_prices) - 30)
+            if lookback < 63:
+                st.error("Za malo danych do backtestu (potrzeba min. 63 dni historii).")
+                _bt_ok = False
 
-        result = backtest_rotation(
-            bt_prices[available_cols].dropna(how="all"), top_n=top_n,
-            lookback=lookback, start_capital=start_capital,
-            trading_days=365, benchmarks=bm,
-            score_func=_flexible_score,
-        )
+        if _bt_ok:
+            available_cols = [c for c in bt_prices.columns if bt_prices[c].dropna().shape[0] > lookback]
+            if len(available_cols) < top_n:
+                st.error(f"Tylko {len(available_cols)} kryptowalut ma wystarczajaco dlugie dane. Potrzeba min. {top_n}.")
+                _bt_ok = False
 
-        if result is None:
-            st.error("Za malo danych do backtestu.")
-        else:
-            # Krzywa kapitalu
-            st.markdown("#### Krzywa kapitalu")
-            fig = equity_chart(result["equity_curves"])
-            st.plotly_chart(fig, use_container_width=True)
+        if _bt_ok:
+            has_btc = "BTC-USD" in available_cols
+            bm = {"Equal-Weight B&H": available_cols}
+            if has_btc:
+                bm["BTC Buy&Hold"] = "BTC-USD"
 
-            # Statystyki z rf
-            rf = get_risk_free()
-            rf_decimal = rf / 100.0
-            bt_stats = {}
-            for name, eq in result["equity_curves"].items():
-                bt_stats[name] = calc_stats(eq, 365, rf_decimal)
+            result = backtest_rotation(
+                bt_prices[available_cols].dropna(how="all"), top_n=top_n,
+                lookback=lookback, start_capital=start_capital,
+                trading_days=365, benchmarks=bm,
+                score_func=_flexible_score,
+            )
 
-            st.markdown("#### Statystyki")
-            stats_table(bt_stats)
+            if result is None:
+                st.error("Za malo danych do backtestu.")
+            else:
+                # Krzywa kapitalu
+                st.markdown("#### Krzywa kapitalu")
+                fig = equity_chart(result["equity_curves"])
+                st.plotly_chart(fig, use_container_width=True)
 
-            # Wartosci koncowe
-            st.divider()
-            strategies = list(result["equity_curves"].items())
-            cols = st.columns(len(strategies))
-            for i, (name, eq) in enumerate(strategies):
-                with cols[i]:
-                    final_value_card(name, eq.iloc[-1], start_capital, "USD")
+                # Statystyki z rf
+                rf = get_risk_free()
+                rf_decimal = rf / 100.0
+                bt_stats = {}
+                for name, eq in result["equity_curves"].items():
+                    bt_stats[name] = calc_stats(eq, 365, rf_decimal)
+
+                st.markdown("#### Statystyki")
+                stats_table(bt_stats)
+
+                # Wartosci koncowe
+                st.divider()
+                strategies = list(result["equity_curves"].items())
+                cols = st.columns(len(strategies))
+                for i, (name, eq) in enumerate(strategies):
+                    with cols[i]:
+                        final_value_card(name, eq.iloc[-1], start_capital, "USD")
+
+    _backtest_fragment()
 
 # ========================== TAB 6: SYGNALY TA ==========================
 with tab6:
