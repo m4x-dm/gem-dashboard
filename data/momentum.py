@@ -649,7 +649,7 @@ def relative_strength(asset: pd.Series, benchmark: pd.Series,
     result = pd.DataFrame({"RS": rs}, index=common)
     for w in sma_windows:
         if len(rs) > w:
-            result[f"RS_SMA_{w}"] = rs.rolling(window=w).mean()
+            result[f"RS_SMA_{w}"] = rs.rolling(window=w, min_periods=1).mean()
     return result
 
 
