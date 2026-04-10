@@ -105,13 +105,14 @@ with tab1:
         csv.index.name = "Ticker"
         st.download_button("📥 Eksportuj CSV", csv.to_csv(), "sp500_ranking.csv", "text/csv")
 
-    st.divider()
+    if _tab1_ok:
+        st.divider()
 
-    # Wykres slupkowy top 15
-    valid = filtered.dropna(subset=["Wynik"])
-    if not valid.empty:
-        fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum S&P 500")
-        st.plotly_chart(fig, use_container_width=True)
+        # Wykres slupkowy top 15
+        valid = filtered.dropna(subset=["Wynik"])
+        if not valid.empty:
+            fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum S&P 500")
+            st.plotly_chart(fig, use_container_width=True)
 
 # ========================== TAB 2: WYKRESY ==========================
 with tab2:
