@@ -407,8 +407,9 @@ def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
     sma_colors = {"RS_SMA_50": "#3B82F6", "RS_SMA_200": "#A855F7"}
     for col in rs_df.columns:
         if col.startswith("RS_SMA_"):
+            sma_data = rs_df[col].dropna()
             fig.add_trace(go.Scatter(
-                x=rs_df.index, y=rs_df[col].dropna(), name=col.replace("_", " "),
+                x=sma_data.index, y=sma_data.values, name=col.replace("_", " "),
                 mode="lines", line=dict(color=sma_colors.get(col, COLORS[2]), width=1.5, dash="dash"),
             ))
 
