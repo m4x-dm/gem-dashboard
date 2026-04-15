@@ -36,12 +36,29 @@ def _track_failure(ticker: str):
 
 
 def _yfinance_single(ticker: str, period: str = "15y") -> pd.Series | None:
-    """Pobiera cene zamkniecia z yfinance."""
+    """Pobiera cene zamkniecia z yfinance.
+
+    UWAGA (2026-04): Yahoo aggressively rate-limituje single-ticker calls.
+    yf.download(TICKER, ...) oraz yf.Ticker(TICKER).history() zwracaja puste dane.
+    Workaround: zawsze wywoluj bulk mode z companion tickerem (SPY/QQQ) i wyciagaj
+    tylko interesujaca kolumne.
+    """
     try:
-        data = yf.download(ticker, period=period, auto_adjust=True, progress=False)
+        companion = "SPY" if ticker != "SPY" else "QQQ"
+        data = yf.download(f"{ticker} {companion}", period=period,
+                           auto_adjust=True, progress=False, group_by="ticker")
         if data.empty:
             return None
-        close = data["Close"]
+        if isinstance(data.columns, pd.MultiIndex):
+            level0 = data.columns.get_level_values(0)
+            if ticker in level0:
+                close = data[ticker]["Close"]
+            elif "Close" in level0 and ticker in data["Close"].columns:
+                close = data["Close"][ticker]
+            else:
+                return None
+        else:
+            close = data["Close"]
         if isinstance(close, pd.DataFrame):
             close = close.iloc[:, 0]
         s = close.dropna()
