@@ -5,7 +5,7 @@ import pandas as pd
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS
 from data.downloader import download_prices
-from data.momentum import backtest_gem, backtest_sma200, backtest_tqqq_mom
+from data.momentum import backtest_gem, backtest_sma200, backtest_tqqq_mom, walk_forward_gem
 from components.cards import stats_table
 from components.charts import equity_chart
 from components.formatting import fmt_number, GOLD, BG_CARD, BORDER, MUTED, GREEN, RED
@@ -25,6 +25,7 @@ with col1:
         "QQQ + SMA 200",
         "TQQQ + Momentum",
         "Porownanie wszystkich",
+        "Walk-forward GEM",
     ]
     strategy = st.selectbox("Strategia", strategy_options)
 with col2:
@@ -574,5 +575,114 @@ elif strategy == "Porownanie wszystkich":
     if curves:
         st.divider()
         _render_final_values([(n, eq) for n, eq in curves.items()], start_capital)
+
+
+# ─── Walk-forward GEM ─────────────────────────────────────────
+elif strategy == "Walk-forward GEM":
+    st.caption(
+        "Rolling in-sample / out-of-sample — dla kazdego okna IS siatka parametrow "
+        "(trend_filter × vol_target) oceniana po wybranej metryce, najlepszy zestaw "
+        "uruchamiany na OOS. Wyniki OOS lancuchowane w jedna krzywa. Wymaga >=6 lat "
+        "danych (domyslnie 5 IS + 1 OOS). Uwaga: okres powyzej musi byc wystarczajaco dlugi."
+    )
+    with st.expander("⚙️ Ustawienia walk-forward", expanded=True):
+        col_wf1, col_wf2, col_wf3, col_wf4 = st.columns(4)
+        with col_wf1:
+            is_years = st.slider(
+                "Dlugosc IS (lat)", 3.0, 8.0, 5.0, 0.5,
+                help="In-sample window — na nim dobierane sa parametry.",
+            )
+        with col_wf2:
+            oos_years = st.slider(
+                "Dlugosc OOS (lat)", 0.5, 2.0, 1.0, 0.25,
+                help="Out-of-sample window — na nim liczone realne zwroty.",
+            )
+        with col_wf3:
+            step_years = st.slider(
+                "Krok (lat)", 0.5, 2.0, 1.0, 0.25,
+                help="O ile rolujemy okna. 1.0 = nowy fold co rok.",
+            )
+        with col_wf4:
+            select_metric = st.selectbox(
+                "Metryka wyboru", ["Sharpe", "Calmar", "CAGR"],
+                index=0,
+                help="Po czym wybieramy 'najlepsze parametry' na IS.",
+            )
+
+    wf = walk_forward_gem(
+        prices, rf,
+        is_years=is_years, oos_years=oos_years, step_years=step_years,
+        select_metric=select_metric,
+    )
+    if wf is None:
+        st.error(
+            f"Za malo danych — walk-forward potrzebuje co najmniej "
+            f"~{int(is_years + oos_years) + 1} lat historii + bufor momentum 273 dni. "
+            "Zwieksz okres lub skroc IS/OOS."
+        )
+        st.stop()
+
+    folds = wf["folds"]
+    st.markdown(f"### Przebieg walk-forward — {len(folds)} foldow")
+
+    fold_rows = []
+    for i, f in enumerate(folds, start=1):
+        fp = f["best_params"]
+        oss = f["oos_stats"]
+        fold_rows.append({
+            "Fold": i,
+            "IS od": f["is_start"].strftime("%Y-%m-%d"),
+            "IS do": f["is_end"].strftime("%Y-%m-%d"),
+            "OOS od": f["oos_start"].strftime("%Y-%m-%d"),
+            "OOS do": f["oos_end"].strftime("%Y-%m-%d"),
+            "Trend filter": "T" if fp.get("trend_filter") else "-",
+            "Vol target": f"{fp.get('vol_target'):.0%}" if fp.get("vol_target") else "-",
+            "OOS CAGR": f"{oss.get('CAGR', 0):.1%}" if oss.get("CAGR") is not None else "-",
+            "OOS Sharpe": f"{oss.get('Sharpe', 0):.2f}" if oss.get("Sharpe") is not None else "-",
+            "OOS MaxDD": f"{oss.get('Max Drawdown', 0):.1%}" if oss.get("Max Drawdown") is not None else "-",
+        })
+    fold_df = pd.DataFrame(fold_rows)
+    st.dataframe(fold_df, use_container_width=True, hide_index=True)
+
+    # OOS chain chart
+    st.markdown("### Krzywa kapitalu (OOS chain)")
+    oos_chain = wf["oos_chain"] * start_capital
+    charts = {"Walk-forward OOS": oos_chain}
+    if wf.get("qqq_oos_chain") is not None:
+        charts["QQQ B&H (ten sam zakres)"] = wf["qqq_oos_chain"] * start_capital
+    fig_wf = equity_chart(charts)
+    st.plotly_chart(fig_wf, use_container_width=True)
+
+    # Aggregated OOS summary
+    st.markdown("### Podsumowanie OOS vs QQQ")
+    summary = {"Walk-forward OOS": wf["oos_summary"]}
+    if wf.get("qqq_oos_summary") is not None:
+        summary["QQQ B&H"] = wf["qqq_oos_summary"]
+    stats_table(summary)
+
+    st.divider()
+    kafelki = [("Walk-forward OOS", oos_chain)]
+    if wf.get("qqq_oos_chain") is not None:
+        kafelki.append(("QQQ B&H", wf["qqq_oos_chain"] * start_capital))
+    _render_final_values(kafelki, start_capital)
+
+    # Param stability
+    st.markdown("### Stabilnosc parametrow")
+    hits = wf.get("param_hits", {})
+    if hits:
+        total = sum(hits.values())
+        hit_rows = []
+        for k, v in sorted(hits.items(), key=lambda x: -x[1]):
+            hit_rows.append({
+                "Parametry": k,
+                "Wybrane w X foldach": v,
+                "% foldow": f"{v/total:.0%}",
+            })
+        st.dataframe(pd.DataFrame(hit_rows), use_container_width=True, hide_index=True)
+        st.caption(
+            "Gdy jedna kombinacja dominuje (>=60% foldow) — parametry sa stabilne historycznie. "
+            "Rozproszenie (3+ roznych po ~20%) sugeruje ze kazdy rezim rynkowy preferuje inne "
+            "ustawienia — rozwazyc regime-aware alokacje."
+        )
 
 render_footer()

@@ -1131,6 +1131,170 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
     return {"equity_curves": equity_curves, "stats": stats}
 
 
+def walk_forward_gem(prices: pd.DataFrame, rf: float,
+                      is_years: float = 5.0,
+                      oos_years: float = 1.0,
+                      step_years: float = 1.0,
+                      trading_days: int = 252,
+                      param_grid: list[dict] | None = None,
+                      select_metric: str = "Sharpe") -> dict | None:
+    """Walk-forward validation dla backtest_gem.
+
+    Kazda iteracja: na IS-window testuje siatke parametrow, wybiera najlepszy
+    (metric = Sharpe/Calmar/CAGR), ocenia go na OOS-window. Folds roll forward
+    o `step_years`. Aggregat OOS: chain equity curves (normalizacja per-fold
+    do 1, potem mnozenie).
+
+    Args:
+        prices: DataFrame cen (wymagane: QQQ, VEA, EEM, ACWI, AGG)
+        rf: roczna stopa wolna w %
+        is_years: dlugosc in-sample window (default 5 lat = ~1260 dni)
+        oos_years: dlugosc out-of-sample window (default 1 rok = 252 dni)
+        step_years: krok rolowania (default 1 rok)
+        trading_days: dni handlowe/rok (252 dla akcji, 365 krypto)
+        param_grid: lista dict z parametrami dla backtest_gem (bez prices/rf).
+            Default: 6 kombinacji trend_filter × vol_target.
+        select_metric: "Sharpe", "Calmar" lub "CAGR" — kryterium wyboru na IS
+
+    Returns:
+        dict z:
+          folds: lista dict (is_start, is_end, oos_start, oos_end, best_params,
+                 oos_stats, is_stats)
+          oos_chain: pd.Series skumulowana krzywa kapitalu OOS (start=1)
+          oos_summary: dict statystyk agregowanych z oos_chain
+          param_hits: dict {str(params): count} ile razy dany zestaw wygral
+    """
+    if param_grid is None:
+        param_grid = [
+            {"trend_filter": False, "vol_target": None},
+            {"trend_filter": True,  "vol_target": None},
+            {"trend_filter": False, "vol_target": 0.12},
+            {"trend_filter": True,  "vol_target": 0.12},
+            {"trend_filter": False, "vol_target": 0.18},
+            {"trend_filter": True,  "vol_target": 0.18},
+        ]
+
+    required = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
+    for t in required:
+        if t not in prices.columns:
+            return None
+    prices_clean = prices[required].dropna()
+    if len(prices_clean) < 273 + int(is_years * trading_days) + int(oos_years * trading_days):
+        return None
+
+    is_days = int(is_years * trading_days)
+    oos_days = int(oos_years * trading_days)
+    step_days = int(step_years * trading_days)
+    lookback = 273
+    rf_decimal = rf / 100.0
+
+    folds = []
+    param_hits: dict = {}
+
+    # First IS window ends at lookback + is_days
+    cursor = lookback + is_days
+    while cursor + oos_days <= len(prices_clean):
+        is_end_idx = cursor
+        oos_end_idx = cursor + oos_days
+        is_start_idx = max(0, is_end_idx - is_days)
+        is_start = prices_clean.index[is_start_idx]
+        is_end = prices_clean.index[is_end_idx - 1]
+        oos_start = prices_clean.index[is_end_idx]
+        oos_end = prices_clean.index[oos_end_idx - 1]
+
+        # IS evaluation: run each param combo on prices up to is_end
+        is_prices = prices_clean.iloc[:is_end_idx]
+        best = None
+        for params in param_grid:
+            kwargs = {"vol_target": None, "trend_filter": False}
+            kwargs.update(params)
+            try:
+                res_is = backtest_gem(is_prices, rf, **kwargs)
+            except Exception:
+                continue
+            if res_is is None:
+                continue
+            s = res_is["stats"].get("GEM", {})
+            metric_val = s.get(select_metric)
+            if metric_val is None or pd.isna(metric_val):
+                continue
+            if best is None or metric_val > best[1]:
+                best = (params, metric_val, s)
+
+        if best is None:
+            cursor += step_days
+            continue
+        best_params, _, is_stats = best
+
+        # OOS: run with best params on full history up to oos_end, slice OOS tail
+        full_prices = prices_clean.iloc[:oos_end_idx]
+        kwargs = {"vol_target": None, "trend_filter": False}
+        kwargs.update(best_params)
+        try:
+            res_full = backtest_gem(full_prices, rf, **kwargs)
+        except Exception:
+            cursor += step_days
+            continue
+        eq_full = res_full["equity_gem"]
+        oos_mask = (eq_full.index >= oos_start) & (eq_full.index <= oos_end)
+        oos_eq = eq_full[oos_mask]
+        if len(oos_eq) < 10:
+            cursor += step_days
+            continue
+        oos_eq_norm = oos_eq / oos_eq.iloc[0]
+        oos_stats = calc_stats(oos_eq_norm, trading_days, rf_decimal)
+
+        key = str(best_params)
+        param_hits[key] = param_hits.get(key, 0) + 1
+
+        folds.append({
+            "is_start": is_start,
+            "is_end": is_end,
+            "oos_start": oos_start,
+            "oos_end": oos_end,
+            "best_params": best_params,
+            "is_stats": is_stats,
+            "oos_stats": oos_stats,
+            "oos_eq_norm": oos_eq_norm,
+        })
+
+        cursor += step_days
+
+    if not folds:
+        return None
+
+    # Chain OOS equity
+    chained_parts = []
+    running = 1.0
+    for f in folds:
+        seg = f["oos_eq_norm"] * running
+        chained_parts.append(seg)
+        running = float(seg.iloc[-1])
+    oos_chain = pd.concat(chained_parts)
+    oos_chain = oos_chain[~oos_chain.index.duplicated(keep="last")]
+    oos_summary = calc_stats(oos_chain, trading_days, rf_decimal)
+
+    # Benchmark: QQQ B&H across the same OOS span
+    span_start = folds[0]["oos_start"]
+    span_end = folds[-1]["oos_end"]
+    qqq_slice = prices_clean["QQQ"].loc[span_start:span_end]
+    if len(qqq_slice) > 10:
+        qqq_norm = qqq_slice / qqq_slice.iloc[0]
+        qqq_summary = calc_stats(qqq_norm, trading_days, rf_decimal)
+    else:
+        qqq_norm = None
+        qqq_summary = None
+
+    return {
+        "folds": folds,
+        "oos_chain": oos_chain,
+        "oos_summary": oos_summary,
+        "qqq_oos_chain": qqq_norm,
+        "qqq_oos_summary": qqq_summary,
+        "param_hits": param_hits,
+    }
+
+
 def strategy_correlations(prices: pd.DataFrame, rf: float,
                           window: int = 63) -> pd.DataFrame | None:
     """Rolling korelacja miedzy equity curves 3 strategii: GEM, SMA200, TQQQ+Mom.
