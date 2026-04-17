@@ -235,7 +235,9 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
                  sma_window: int = 200,
                  vol_target: float | None = None,
                  max_leverage: float = 1.0,
-                 vol_window: int = 20) -> dict:
+                 vol_window: int = 20,
+                 transaction_cost: float = 0.0,
+                 tax_belka: float = 0.0) -> dict:
     """Backtest klasycznego GEM vs Buy&Hold QQQ vs ACWI vs AGG.
 
     Args:
@@ -253,6 +255,11 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
             Scalowanie tylko gdy sygnal = akcje; AGG zawsze full.
         max_leverage: maks. dzwignia przy vol_target (1.0 = bez dzwigni, 2.0 = 2x)
         vol_window: okno realizowanej zmiennosci (dni, default 20)
+        transaction_cost: koszt roundtrip przy zmianie sygnalu, ulamek (np. 0.002 = 0.2%).
+            Reprezentuje sell+buy przy pelnym przelaczeniu pozycji. Default 0 = brak.
+        tax_belka: stawka podatku Belki, ulamek (np. 0.19 = 19%). Pobrany od segmentu
+            w momencie zamkniecia pozycji, jesli segment_gain > 0. Straty NIE
+            przenoszone (uproszczenie). Default 0 = brak podatku.
 
     Returns dict z:
         equity_gem, equity_qqq, equity_acwi, equity_agg: pd.Series equity curves
@@ -308,6 +315,7 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
     rf_daily = rf_decimal / 252
 
     gem_equity = [start_capital]
+    segment_start_eq = start_capital
     for i in range(1, len(dates)):
         date = dates[i]
         idx = prices_clean.index.get_loc(date)
@@ -315,6 +323,16 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
         if i % 21 == 0:
             new_signal = _resolve_signal(idx)
             if new_signal != current_signal:
+                # Realize segment: tax Belka na zysku, koszt roundtrip
+                current_eq = gem_equity[-1]
+                if tax_belka > 0:
+                    seg_gain = current_eq - segment_start_eq
+                    if seg_gain > 0:
+                        current_eq -= tax_belka * seg_gain
+                if transaction_cost > 0:
+                    current_eq *= (1 - transaction_cost)
+                gem_equity[-1] = current_eq
+                segment_start_eq = current_eq
                 signals_log.append((date, new_signal))
                 current_signal = new_signal
 
@@ -367,7 +385,9 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
                     monthly_check: bool = False,
                     vol_target: float | None = None,
                     max_leverage: float = 1.0,
-                    vol_window: int = 20) -> dict | None:
+                    vol_window: int = 20,
+                    transaction_cost: float = 0.0,
+                    tax_belka: float = 0.0) -> dict | None:
     """Backtest QQQ + SMA 200: QQQ gdy cena > SMA(200), AGG gdy ponizej.
 
     Args:
@@ -386,6 +406,8 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
             Scalowanie dziala tylko gdy sygnal = QQQ; AGG zawsze full.
         max_leverage: maks. dzwignia dla vol_target (1.0 = bez dzwigni)
         vol_window: okno realizowanej zmiennosci (dni, default 20)
+        transaction_cost: roundtrip przy zmianie sygnalu (ulamek, default 0)
+        tax_belka: stawka podatku Belki na zyskownym segmencie (default 0)
 
     Returns dict z equity curves, stats (z Sortino/Calmar/Win Rate), signals.
     """
@@ -417,6 +439,7 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
     rf_daily = rf_decimal / 252
 
     equity = [start_capital]
+    segment_start_eq = start_capital
     for i in range(1, len(dates)):
         date = dates[i]
         date_prev = dates[i - 1]
@@ -427,12 +450,23 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
             p = qqq.loc[date_prev]
             s = sma.loc[date_prev]
             if pd.notna(p) and pd.notna(s):
+                new_sig = None
                 if current_signal == "QQQ" and p < s * lower_mult:
-                    current_signal = "AGG"
-                    signals_log.append((date, "AGG"))
+                    new_sig = "AGG"
                 elif current_signal == "AGG" and p > s * upper_mult:
-                    current_signal = "QQQ"
-                    signals_log.append((date, "QQQ"))
+                    new_sig = "QQQ"
+                if new_sig is not None:
+                    current_eq = equity[-1]
+                    if tax_belka > 0:
+                        seg_gain = current_eq - segment_start_eq
+                        if seg_gain > 0:
+                            current_eq -= tax_belka * seg_gain
+                    if transaction_cost > 0:
+                        current_eq *= (1 - transaction_cost)
+                    equity[-1] = current_eq
+                    segment_start_eq = current_eq
+                    current_signal = new_sig
+                    signals_log.append((date, new_sig))
 
         day_ret = daily_returns.loc[date, current_signal]
         if pd.isna(day_ret):
@@ -476,7 +510,9 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
                       start_capital: float = 10000, lookback: int = 273,
                       leverage: float = 3.0,
                       expense_ratio: float = 0.0,
-                      borrow_spread: float = 0.0) -> dict | None:
+                      borrow_spread: float = 0.0,
+                      transaction_cost: float = 0.0,
+                      tax_belka: float = 0.0) -> dict | None:
     """Backtest TQQQ + Momentum: syntetyczny leveraged ETF (default 3x QQQ), timing 12-1.
 
     Formula realistyczna (gdy expense_ratio/borrow_spread > 0):
@@ -534,6 +570,7 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
 
     # TQQQ+Momentum equity
     mom_equity = [start_capital]
+    segment_start_eq = start_capital
     # TQQQ Buy&Hold equity
     tqqq_bh_equity = [start_capital]
 
@@ -550,6 +587,15 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
 
             new_signal = "TQQQ" if qqq_ret > rf_decimal else "AGG"
             if new_signal != current_signal:
+                current_eq = mom_equity[-1]
+                if tax_belka > 0:
+                    seg_gain = current_eq - segment_start_eq
+                    if seg_gain > 0:
+                        current_eq -= tax_belka * seg_gain
+                if transaction_cost > 0:
+                    current_eq *= (1 - transaction_cost)
+                mom_equity[-1] = current_eq
+                segment_start_eq = current_eq
                 signals_log.append((date, new_signal))
                 current_signal = new_signal
 
@@ -869,7 +915,9 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
                        score_func=None,
                        rank_based: bool = False,
                        rank_weights: dict | None = None,
-                       anti_1m: bool = True) -> dict | None:
+                       anti_1m: bool = True,
+                       transaction_cost: float = 0.0,
+                       tax_belka: float = 0.0) -> dict | None:
     """Backtest rotacji momentum — wspolna logika dla S&P 500, GPW, krypto.
 
     Args:
@@ -887,6 +935,12 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
             dla rotacji w heterogenicznym universe (akcje GPW, krypto)
         rank_weights: wagi dla rank scoringu (default: 12M=0.40, 6M=0.30, 3M=0.20, 1M=0.10)
         anti_1m: czy odwracac rank 1M (default True, uzywane gdy rank_based=True)
+        transaction_cost: koszt roundtrip przy pelnym obrocie (np. 0.001 = 0.1%).
+            Skalowane turnoverem (frakcja tickerow wymienionych w rebalansie).
+            Default 0.0 (backwards compat).
+        tax_belka: stawka Belki na realizowanych zyskach segmentu (np. 0.19 = 19%).
+            Skalowane turnoverem — tylko czesc portfela jest "sprzedawana" przy
+            rotacji. Default 0.0 (backwards compat).
 
     Returns:
         dict z equity curves (dict[str, pd.Series]) i stats (dict)
@@ -906,6 +960,8 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
     dates = bt_clean.index[lookback:]
     mom_equity = [start_capital]
     current_holdings = []
+    previous_holdings: list[str] = []
+    segment_start_eq = start_capital
 
     for i, date in enumerate(dates):
         if i % rebalance_freq == 0:
@@ -919,7 +975,24 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
                     rets_now["score"] = rets_now.apply(score_func, axis=1)
                 rets_now = rets_now.dropna(subset=["score"])
                 if len(rets_now) >= top_n:
-                    current_holdings = rets_now.nlargest(top_n, "score").index.tolist()
+                    new_holdings = rets_now.nlargest(top_n, "score").index.tolist()
+                    if previous_holdings:
+                        changed = len(set(previous_holdings) - set(new_holdings))
+                        turnover = changed / top_n
+                    else:
+                        turnover = 0.0
+                    if turnover > 0 and (transaction_cost > 0 or tax_belka > 0):
+                        current_eq = mom_equity[-1]
+                        if tax_belka > 0:
+                            seg_gain = current_eq - segment_start_eq
+                            if seg_gain > 0:
+                                current_eq -= tax_belka * seg_gain * turnover
+                        if transaction_cost > 0:
+                            current_eq *= (1 - transaction_cost * turnover)
+                        mom_equity[-1] = current_eq
+                        segment_start_eq = current_eq
+                    current_holdings = new_holdings
+                    previous_holdings = new_holdings
 
         if current_holdings and date in daily_rets.index:
             port_ret = daily_rets.loc[date, current_holdings].mean()

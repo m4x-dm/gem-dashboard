@@ -110,10 +110,37 @@ if strategy == "GEM Klasyczny":
                 help="1.0 = bez dzwigni (tylko skalowanie w dol). 1.5-2.0 wymaga konta margin "
                      "i dolicza koszt finansowania ~rf.",
             )
+        costs_on_gem = st.checkbox(
+            "Koszty i podatki (realistycznie)",
+            value=False,
+            key="gem_costs_on",
+            help="Dodaj: (1) koszt roundtrip przy kazdej zmianie sygnalu (spread+prowizja), "
+                 "(2) podatek Belki 19% od zyskownych segmentow (zrealizowany zysk = rozliczany przy sprzedazy).",
+        )
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            tc_gem_pct = st.slider(
+                "Koszt roundtrip (%)", 0.0, 0.5, 0.05, 0.01,
+                disabled=not costs_on_gem,
+                key="gem_tc",
+                help="IBKR/Bossa ~0.02-0.1%, XTB ETF ~0.05-0.2%. Polska stawka plus spread.",
+            ) / 100.0
+        with col_c2:
+            belka_on_gem = st.checkbox(
+                "Belka 19%",
+                value=False,
+                disabled=not costs_on_gem,
+                key="gem_belka",
+                help="Podatek od zyskow kapitalowych (PL). Placony per segment: przy kazdej "
+                     "zmianie sygnalu realizowany jest zysk/strata na dotychczasowej pozycji.",
+            )
     vol_target_val = vol_target_pct if vol_on else None
+    tc_gem = tc_gem_pct if costs_on_gem else 0.0
+    tax_gem = 0.19 if (costs_on_gem and belka_on_gem) else 0.0
     result = backtest_gem(prices, rf, start_capital=start_capital,
                           trend_filter=trend_filter,
-                          vol_target=vol_target_val, max_leverage=max_lev)
+                          vol_target=vol_target_val, max_leverage=max_lev,
+                          transaction_cost=tc_gem, tax_belka=tax_gem)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
@@ -215,10 +242,37 @@ elif strategy == "QQQ + SMA 200":
                 key="sma_max_lev",
                 help="1.0 = bez dzwigni. >1 wymaga konta margin, w tle doliczany koszt ~rf.",
             )
+        costs_on_sma = st.checkbox(
+            "Koszty i podatki (realistycznie)",
+            value=False,
+            key="sma_costs_on",
+            help="Dodaj: (1) koszt roundtrip przy zmianie sygnalu, (2) podatek Belki 19% "
+                 "od zyskownych segmentow. SMA z dziennym checkiem ma duzo whipsawow — "
+                 "realistyczne koszty znaczaco obnizaja CAGR.",
+        )
+        col_sc1, col_sc2 = st.columns(2)
+        with col_sc1:
+            tc_sma_pct = st.slider(
+                "Koszt roundtrip (%) ", 0.0, 0.5, 0.05, 0.01,
+                disabled=not costs_on_sma,
+                key="sma_tc",
+                help="Spread + prowizja przy kazdej zmianie QQQ<->AGG.",
+            ) / 100.0
+        with col_sc2:
+            belka_on_sma = st.checkbox(
+                "Belka 19% ",
+                value=False,
+                disabled=not costs_on_sma,
+                key="sma_belka",
+                help="Podatek od zyskow kapitalowych (PL) rozliczany per segment.",
+            )
     vol_target_val_sma = vol_target_pct_sma if vol_on_sma else None
+    tc_sma = tc_sma_pct if costs_on_sma else 0.0
+    tax_sma = 0.19 if (costs_on_sma and belka_on_sma) else 0.0
     result = backtest_sma200(prices, rf, start_capital=start_capital,
                               buffer_pct=buffer_pct, monthly_check=monthly_check,
-                              vol_target=vol_target_val_sma, max_leverage=max_lev_sma)
+                              vol_target=vol_target_val_sma, max_leverage=max_lev_sma,
+                              transaction_cost=tc_sma, tax_belka=tax_sma)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
@@ -310,11 +364,37 @@ elif strategy == "TQQQ + Momentum":
                 disabled=not realistic_costs,
                 help="Spread jaki ETF placi za dzwignie ponad stope wolna. 0.3-0.7% realistycznie.",
             ) / 100.0
+        costs_on_tqqq = st.checkbox(
+            "Koszty transakcji + Belka",
+            value=False,
+            key="tqqq_costs_on",
+            help="Dodaj koszt roundtrip przy zmianie sygnalu (TQQQ<->AGG) i podatek Belki "
+                 "19% od zyskownych segmentow.",
+        )
+        col_tc1, col_tc2 = st.columns(2)
+        with col_tc1:
+            tc_tqqq_pct = st.slider(
+                "Koszt roundtrip (%)  ", 0.0, 0.5, 0.05, 0.01,
+                disabled=not costs_on_tqqq,
+                key="tqqq_tc",
+                help="Spread + prowizja. TQQQ ma duzy spread srodsesyjny (0.05-0.15%).",
+            ) / 100.0
+        with col_tc2:
+            belka_on_tqqq = st.checkbox(
+                "Belka 19%  ",
+                value=False,
+                disabled=not costs_on_tqqq,
+                key="tqqq_belka",
+                help="Podatek od zyskow kapitalowych rozliczany per segment.",
+            )
     er = expense_ratio_pct if realistic_costs else 0.0
     sp = borrow_spread_pct if realistic_costs else 0.0
+    tc_tqqq = tc_tqqq_pct if costs_on_tqqq else 0.0
+    tax_tqqq = 0.19 if (costs_on_tqqq and belka_on_tqqq) else 0.0
     result = backtest_tqqq_mom(prices, rf, start_capital=start_capital,
                                 leverage=leverage, expense_ratio=er,
-                                borrow_spread=sp)
+                                borrow_spread=sp,
+                                transaction_cost=tc_tqqq, tax_belka=tax_tqqq)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()

@@ -449,7 +449,7 @@ with tab5:
         with col4:
             start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="cr_bt_cap")
 
-        with st.expander("⚙️ Metoda scoringu", expanded=False):
+        with st.expander("⚙️ Metoda scoringu + koszty", expanded=False):
             rank_based = st.checkbox(
                 "Rank-based score (percentyle + anty-1M)",
                 value=False,
@@ -458,6 +458,30 @@ with tab5:
                      "tickery per okres (0-1). 1M flipowany jako anti-signal. Szczegolnie "
                      "odporny dla krypto — duze wahania 1M nie dominuja juz scoringu.",
             )
+            costs_on_cr = st.checkbox(
+                "Koszty i podatki (realistycznie)",
+                value=False,
+                key="cr_bt_costs",
+                help="Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow.",
+            )
+            col_cr_tc, col_cr_belka = st.columns(2)
+            with col_cr_tc:
+                tc_cr_pct = st.slider(
+                    "Koszt roundtrip (%)", 0.0, 1.0, 0.3, 0.01,
+                    disabled=not costs_on_cr,
+                    key="cr_bt_tc",
+                    help="Krypto: Binance/Zonda 0.1-0.25% per stronie, spread altcoinow 0.1-0.5%. Default 0.3%.",
+                ) / 100.0
+            with col_cr_belka:
+                belka_on_cr = st.checkbox(
+                    "Belka 19%",
+                    value=False,
+                    disabled=not costs_on_cr,
+                    key="cr_bt_belka",
+                    help="PIT-38 rozliczany rocznie. Model liczy od frakcji rotowanej przy rebalansie.",
+                )
+            tc_cr = tc_cr_pct if costs_on_cr else 0.0
+            tax_cr = 0.19 if (costs_on_cr and belka_on_cr) else 0.0
 
         bt_tickers = _tickers_for_category(bt_cat)
         # Zawsze dodaj BTC do porownania
@@ -503,6 +527,7 @@ with tab5:
                 trading_days=365, benchmarks=bm,
                 score_func=_flexible_score,
                 rank_based=rank_based,
+                transaction_cost=tc_cr, tax_belka=tax_cr,
             )
 
             if result is None:

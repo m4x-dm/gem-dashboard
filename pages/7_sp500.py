@@ -288,7 +288,7 @@ with tab4:
         with col4:
             start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="sp_bt_cap")
 
-        with st.expander("⚙️ Metoda scoringu", expanded=False):
+        with st.expander("⚙️ Metoda scoringu + koszty", expanded=False):
             rank_based = st.checkbox(
                 "Rank-based score (percentyle + anty-1M)",
                 value=False,
@@ -297,6 +297,31 @@ with tab4:
                      "(0-1). 1M flipowany jako anti-signal (short-term reversal). "
                      "Odporny na outliery i skew miedzy aktywami.",
             )
+            costs_on_sp = st.checkbox(
+                "Koszty i podatki (realistycznie)",
+                value=False,
+                key="sp_bt_costs",
+                help="Koszt transakcji skalowany turnoverem (frakcja tickerow wymienionych "
+                     "przy rebalansie) + Belka 19% od zyskownych segmentow.",
+            )
+            col_sp_tc, col_sp_belka = st.columns(2)
+            with col_sp_tc:
+                tc_sp_pct = st.slider(
+                    "Koszt roundtrip (%)", 0.0, 0.5, 0.1, 0.01,
+                    disabled=not costs_on_sp,
+                    key="sp_bt_tc",
+                    help="US akcje: IBKR ~0.02-0.05%, ale + spread ~0.05-0.1% dla mid-capow. Default 0.1%.",
+                ) / 100.0
+            with col_sp_belka:
+                belka_on_sp = st.checkbox(
+                    "Belka 19%",
+                    value=False,
+                    disabled=not costs_on_sp,
+                    key="sp_bt_belka",
+                    help="Rozliczany od frakcji portfela faktycznie rotowanej w rebalansie.",
+                )
+            tc_sp = tc_sp_pct if costs_on_sp else 0.0
+            tax_sp = 0.19 if (costs_on_sp and belka_on_sp) else 0.0
 
         bt_tickers = _tickers_for_sector(bt_sector)
         _tab4_ok = len(bt_tickers) >= top_n
@@ -327,6 +352,7 @@ with tab4:
                 start_capital=start_capital, trading_days=252,
                 benchmarks=bm,
                 rank_based=rank_based,
+                transaction_cost=tc_sp, tax_belka=tax_sp,
             )
 
             if result is None:

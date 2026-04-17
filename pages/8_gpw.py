@@ -299,7 +299,7 @@ with tab4:
         with col4:
             start_capital = st.number_input("Kapital (PLN)", value=10000, step=1000, min_value=100, key="bt_cap")
 
-        with st.expander("⚙️ Metoda scoringu", expanded=False):
+        with st.expander("⚙️ Metoda scoringu + koszty", expanded=False):
             rank_based = st.checkbox(
                 "Rank-based score (percentyle + anty-1M)",
                 value=False,
@@ -308,6 +308,30 @@ with tab4:
                      "(0-1). 1M flipowany jako anti-signal (short-term reversal). "
                      "Odporny na outliery i skew miedzy aktywami.",
             )
+            costs_on_gpw = st.checkbox(
+                "Koszty i podatki (realistycznie)",
+                value=False,
+                key="gpw_bt_costs",
+                help="Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow.",
+            )
+            col_gpw_tc, col_gpw_belka = st.columns(2)
+            with col_gpw_tc:
+                tc_gpw_pct = st.slider(
+                    "Koszt roundtrip (%)", 0.0, 0.5, 0.2, 0.01,
+                    disabled=not costs_on_gpw,
+                    key="gpw_bt_tc",
+                    help="GPW: prowizja Bossa/XTB ~0.1-0.2%, spread dla mid-capow 0.2-0.5%. Default 0.2%.",
+                ) / 100.0
+            with col_gpw_belka:
+                belka_on_gpw = st.checkbox(
+                    "Belka 19%",
+                    value=False,
+                    disabled=not costs_on_gpw,
+                    key="gpw_bt_belka",
+                    help="Podatek rozliczany od frakcji portfela rotowanej przy rebalansie.",
+                )
+            tc_gpw = tc_gpw_pct if costs_on_gpw else 0.0
+            tax_gpw = 0.19 if (costs_on_gpw and belka_on_gpw) else 0.0
 
         bt_tickers = _tickers_for_index(bt_index)
         _tab4_ok = len(bt_tickers) >= top_n
@@ -328,6 +352,7 @@ with tab4:
                 start_capital=start_capital, trading_days=252,
                 benchmarks={"Equal-Weight B&H": available_cols},
                 rank_based=rank_based,
+                transaction_cost=tc_gpw, tax_belka=tax_gpw,
             )
 
             if result is None:
