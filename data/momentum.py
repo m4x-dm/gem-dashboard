@@ -473,11 +473,31 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
 
 
 def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
-                      start_capital: float = 10000, lookback: int = 273) -> dict | None:
-    """Backtest TQQQ + Momentum: syntetyczny TQQQ (3x QQQ), timing 12-1 momentum.
+                      start_capital: float = 10000, lookback: int = 273,
+                      leverage: float = 3.0,
+                      expense_ratio: float = 0.0,
+                      borrow_spread: float = 0.0) -> dict | None:
+    """Backtest TQQQ + Momentum: syntetyczny leveraged ETF (default 3x QQQ), timing 12-1.
 
-    TQQQ syntetyzowany z QQQ (daily_return * 3) — pozwala siegnac dalej niz 2010.
-    Rebalans co 21 dni: jesli QQQ 12M skip-month > rf → TQQQ, w przeciwnym razie → AGG.
+    Formula realistyczna (gdy expense_ratio/borrow_spread > 0):
+        daily_lev = L * qqq_daily - (L-1) * (rf + spread)/252 - expense_ratio/252
+
+    Volatility drag jest obecny automatycznie przez compounding dziennych zwrotow
+    (NIE trzeba dodawac osobno). Brakujacym elementem wzgledem realnego TQQQ jest
+    koszt finansowania pozyczonej dzwigni + expense ratio — te parametry pozwalaja
+    porownac naiwny 3x vs realistyczny TQQQ.
+
+    Args:
+        prices: DataFrame z cenami (wymagane: QQQ, AGG)
+        risk_free_annual: roczna stopa wolna w %
+        start_capital: kapital poczatkowy
+        lookback: okno momentum w dniach (default 273 = 12M + 1M skip)
+        leverage: mnoznik dzwigni (default 3.0 = TQQQ, 2.0 = SSO/QLD, 1.0 = bez)
+        expense_ratio: roczny koszt zarzadzania jako ulamek (TQQQ: 0.0088 = 0.88%)
+            Default 0.0 = naiwny syntetyk bez kosztow.
+        borrow_spread: spread ponad rf dla kosztu finansowania dzwigni, ulamek
+            (typowe ~0.005 = 0.5%). Default 0.0 = tylko rf bez spreadu.
+
     Returns dict z equity curves, stats, signals.
     """
     required = ["QQQ", "AGG"]
@@ -492,9 +512,14 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
     dates = prices_clean.index[lookback:]
     qqq_daily = prices_clean["QQQ"].pct_change()
     agg_daily = prices_clean["AGG"].pct_change()
-    tqqq_daily = qqq_daily * 3  # syntetyczny 3x leverage
 
     rf_decimal = risk_free_annual / 100.0
+    # Koszty dzienne dla leveraged ETF
+    financing_daily = (leverage - 1) * (rf_decimal + borrow_spread) / 252
+    expense_daily = expense_ratio / 252
+    # Syntetyczny leveraged ETF z kosztami (financing + ER). Naiwny gdy obydwa = 0.
+    tqqq_daily = leverage * qqq_daily - financing_daily - expense_daily
+
     skip = 21
 
     # Poczatkowy sygnal

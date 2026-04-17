@@ -281,7 +281,40 @@ wiekszosci zwrotow z rynku akcji.
 
 # ─── TQQQ + Momentum ─────────────────────────────────────────
 elif strategy == "TQQQ + Momentum":
-    result = backtest_tqqq_mom(prices, rf, start_capital=start_capital)
+    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+        lev_col, cost_col = st.columns(2)
+        with lev_col:
+            leverage = st.slider(
+                "Dzwignia", 1.0, 3.0, 3.0, 0.5,
+                help="Mnoznik dzwigni. 3.0 = TQQQ, 2.0 = QLD/SSO, 1.5 = CSNDX 1.5x, 1.0 = brak dzwigni.",
+            )
+        with cost_col:
+            realistic_costs = st.checkbox(
+                "Realistyczne koszty TQQQ",
+                value=False,
+                help="Dodaj do dziennego zwrotu: koszt finansowania pozyczonej dzwigni "
+                     "((L-1)·(rf+spread)/252) oraz expense ratio. Naiwny syntetyk 3×QQQ "
+                     "przeszacowuje TQQQ o 2-4pp rocznie — realistyczny model dopasowuje "
+                     "sie do prawdziwego TQQQ do ~0.5pp.",
+            )
+        col_er, col_sp = st.columns(2)
+        with col_er:
+            expense_ratio_pct = st.slider(
+                "Expense ratio (%)", 0.0, 2.0, 0.88, 0.01,
+                disabled=not realistic_costs,
+                help="TQQQ: 0.88%, QLD: 0.95%, SSO: 0.89%, SPXL: 0.91%. 0 = naiwny.",
+            ) / 100.0
+        with col_sp:
+            borrow_spread_pct = st.slider(
+                "Spread ponad rf (%)", 0.0, 2.0, 0.50, 0.05,
+                disabled=not realistic_costs,
+                help="Spread jaki ETF placi za dzwignie ponad stope wolna. 0.3-0.7% realistycznie.",
+            ) / 100.0
+    er = expense_ratio_pct if realistic_costs else 0.0
+    sp = borrow_spread_pct if realistic_costs else 0.0
+    result = backtest_tqqq_mom(prices, rf, start_capital=start_capital,
+                                leverage=leverage, expense_ratio=er,
+                                borrow_spread=sp)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
