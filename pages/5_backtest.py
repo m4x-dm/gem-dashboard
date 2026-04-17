@@ -42,9 +42,15 @@ with col4:
     rf = get_risk_free()
     st.metric("Stopa wolna", f"{rf:.2f}%")
 
-# Pobierz dane
-tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", [])))
+# Pobierz dane (z ^VIX dla regime filtera)
+tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", []) + ["^VIX"]))
 prices = download_prices(tickers, period=period)
+
+# Wyciagnij VIX jako osobny szereg, usun z prices zeby nie mieszal w backtestach
+vix_series = None
+if "^VIX" in prices.columns:
+    vix_series = prices["^VIX"].dropna()
+    prices = prices.drop(columns=["^VIX"])
 
 
 def _render_final_values(curves: list[tuple[str, pd.Series]], capital: float):
@@ -134,13 +140,30 @@ if strategy == "GEM Klasyczny":
                 help="Podatek od zyskow kapitalowych (PL). Placony per segment: przy kazdej "
                      "zmianie sygnalu realizowany jest zysk/strata na dotychczasowej pozycji.",
             )
+        regime_on_gem = st.checkbox(
+            "Filtr regime (VIX)",
+            value=False,
+            disabled=(vix_series is None),
+            key="gem_regime",
+            help="Gdy VIX > progu, ignoruje momentum i siedzi w AGG. Historycznie VIX>30 "
+                 "markuje panike (2008, 2020, 2022). Obniza CAGR w normalnym rynku, "
+                 "ale drastycznie ratuje drawdown w stressie.",
+        )
+        vix_thr_gem = st.slider(
+            "Prog VIX", 15.0, 50.0, 30.0, 1.0,
+            disabled=not regime_on_gem,
+            key="gem_vix_thr",
+            help="30 = klasyczny prog paniki. 25 = ostrozniej (wiecej dni w AGG).",
+        )
     vol_target_val = vol_target_pct if vol_on else None
     tc_gem = tc_gem_pct if costs_on_gem else 0.0
     tax_gem = 0.19 if (costs_on_gem and belka_on_gem) else 0.0
+    rs_gem = vix_series if (regime_on_gem and vix_series is not None) else None
     result = backtest_gem(prices, rf, start_capital=start_capital,
                           trend_filter=trend_filter,
                           vol_target=vol_target_val, max_leverage=max_lev,
-                          transaction_cost=tc_gem, tax_belka=tax_gem)
+                          transaction_cost=tc_gem, tax_belka=tax_gem,
+                          regime_series=rs_gem, regime_threshold=vix_thr_gem)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
@@ -266,13 +289,28 @@ elif strategy == "QQQ + SMA 200":
                 key="sma_belka",
                 help="Podatek od zyskow kapitalowych (PL) rozliczany per segment.",
             )
+        regime_on_sma = st.checkbox(
+            "Filtr regime (VIX) ",
+            value=False,
+            disabled=(vix_series is None),
+            key="sma_regime",
+            help="VIX > progu → AGG niezaleznie od sygnalu SMA. Przydatne gdy rynek "
+                 "oscyluje wokol SMA200 w okresie wysokiej niepewnosci.",
+        )
+        vix_thr_sma = st.slider(
+            "Prog VIX ", 15.0, 50.0, 30.0, 1.0,
+            disabled=not regime_on_sma,
+            key="sma_vix_thr",
+        )
     vol_target_val_sma = vol_target_pct_sma if vol_on_sma else None
     tc_sma = tc_sma_pct if costs_on_sma else 0.0
     tax_sma = 0.19 if (costs_on_sma and belka_on_sma) else 0.0
+    rs_sma = vix_series if (regime_on_sma and vix_series is not None) else None
     result = backtest_sma200(prices, rf, start_capital=start_capital,
                               buffer_pct=buffer_pct, monthly_check=monthly_check,
                               vol_target=vol_target_val_sma, max_leverage=max_lev_sma,
-                              transaction_cost=tc_sma, tax_belka=tax_sma)
+                              transaction_cost=tc_sma, tax_belka=tax_sma,
+                              regime_series=rs_sma, regime_threshold=vix_thr_sma)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
@@ -387,14 +425,29 @@ elif strategy == "TQQQ + Momentum":
                 key="tqqq_belka",
                 help="Podatek od zyskow kapitalowych rozliczany per segment.",
             )
+        regime_on_tqqq = st.checkbox(
+            "Filtr regime (VIX)  ",
+            value=False,
+            disabled=(vix_series is None),
+            key="tqqq_regime",
+            help="KRYTYCZNY dla TQQQ — leveraged ETF giną w regime'ach paniki (2008, "
+                 "2020, 2022 spadki 50-80%). VIX>30 → AGG ratuje konto od katastrofy.",
+        )
+        vix_thr_tqqq = st.slider(
+            "Prog VIX  ", 15.0, 50.0, 30.0, 1.0,
+            disabled=not regime_on_tqqq,
+            key="tqqq_vix_thr",
+        )
     er = expense_ratio_pct if realistic_costs else 0.0
     sp = borrow_spread_pct if realistic_costs else 0.0
     tc_tqqq = tc_tqqq_pct if costs_on_tqqq else 0.0
     tax_tqqq = 0.19 if (costs_on_tqqq and belka_on_tqqq) else 0.0
+    rs_tqqq = vix_series if (regime_on_tqqq and vix_series is not None) else None
     result = backtest_tqqq_mom(prices, rf, start_capital=start_capital,
                                 leverage=leverage, expense_ratio=er,
                                 borrow_spread=sp,
-                                transaction_cost=tc_tqqq, tax_belka=tax_tqqq)
+                                transaction_cost=tc_tqqq, tax_belka=tax_tqqq,
+                                regime_series=rs_tqqq, regime_threshold=vix_thr_tqqq)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()

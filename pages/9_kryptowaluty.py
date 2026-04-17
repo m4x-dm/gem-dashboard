@@ -482,6 +482,19 @@ with tab5:
                 )
             tc_cr = tc_cr_pct if costs_on_cr else 0.0
             tax_cr = 0.19 if (costs_on_cr and belka_on_cr) else 0.0
+            regime_on_cr = st.checkbox(
+                "Filtr breadth (regime)",
+                value=False,
+                key="cr_bt_regime",
+                help="Gdy mniej niz X% coinow jest powyzej SMA100 → strategia przechodzi "
+                     "do cash. Krypto ma czeste bessy >70%, filtr regime ratuje kapital.",
+            )
+            breadth_cr_pct = st.slider(
+                "Prog breadth (% > SMA100)", 20, 70, 40, 5,
+                disabled=not regime_on_cr,
+                key="cr_bt_breadth",
+            ) / 100.0
+            breadth_cr = breadth_cr_pct if regime_on_cr else None
 
         bt_tickers = _tickers_for_category(bt_cat)
         # Zawsze dodaj BTC do porownania
@@ -528,6 +541,7 @@ with tab5:
                 score_func=_flexible_score,
                 rank_based=rank_based,
                 transaction_cost=tc_cr, tax_belka=tax_cr,
+                breadth_threshold=breadth_cr, breadth_sma_window=100,
             )
 
             if result is None:

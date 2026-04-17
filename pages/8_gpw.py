@@ -332,6 +332,19 @@ with tab4:
                 )
             tc_gpw = tc_gpw_pct if costs_on_gpw else 0.0
             tax_gpw = 0.19 if (costs_on_gpw and belka_on_gpw) else 0.0
+            regime_on_gpw = st.checkbox(
+                "Filtr breadth (regime)",
+                value=False,
+                key="gpw_bt_regime",
+                help="Gdy mniej niz X% spolek w indeksie jest powyzej SMA200 → strategia "
+                     "przechodzi do cash. Chroni GPW przed trendami spadkowymi (2008, 2022).",
+            )
+            breadth_gpw_pct = st.slider(
+                "Prog breadth (% > SMA200)", 20, 70, 40, 5,
+                disabled=not regime_on_gpw,
+                key="gpw_bt_breadth",
+            ) / 100.0
+            breadth_gpw = breadth_gpw_pct if regime_on_gpw else None
 
         bt_tickers = _tickers_for_index(bt_index)
         _tab4_ok = len(bt_tickers) >= top_n
@@ -353,6 +366,7 @@ with tab4:
                 benchmarks={"Equal-Weight B&H": available_cols},
                 rank_based=rank_based,
                 transaction_cost=tc_gpw, tax_belka=tax_gpw,
+                breadth_threshold=breadth_gpw,
             )
 
             if result is None:

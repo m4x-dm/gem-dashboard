@@ -322,6 +322,20 @@ with tab4:
                 )
             tc_sp = tc_sp_pct if costs_on_sp else 0.0
             tax_sp = 0.19 if (costs_on_sp and belka_on_sp) else 0.0
+            regime_on_sp = st.checkbox(
+                "Filtr breadth (regime)",
+                value=False,
+                key="sp_bt_regime",
+                help="Gdy mniej niz X% spolek w universum jest powyzej SMA200 → "
+                     "strategia przechodzi do cash (pomija rebalans). Chroni przed bessa. "
+                     "Default 40% = Faber-style breadth filter.",
+            )
+            breadth_sp_pct = st.slider(
+                "Prog breadth (% > SMA200)", 20, 70, 40, 5,
+                disabled=not regime_on_sp,
+                key="sp_bt_breadth",
+            ) / 100.0
+            breadth_sp = breadth_sp_pct if regime_on_sp else None
 
         bt_tickers = _tickers_for_sector(bt_sector)
         _tab4_ok = len(bt_tickers) >= top_n
@@ -353,6 +367,7 @@ with tab4:
                 benchmarks=bm,
                 rank_based=rank_based,
                 transaction_cost=tc_sp, tax_belka=tax_sp,
+                breadth_threshold=breadth_sp,
             )
 
             if result is None:

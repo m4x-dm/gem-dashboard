@@ -237,7 +237,9 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
                  max_leverage: float = 1.0,
                  vol_window: int = 20,
                  transaction_cost: float = 0.0,
-                 tax_belka: float = 0.0) -> dict:
+                 tax_belka: float = 0.0,
+                 regime_series: pd.Series | None = None,
+                 regime_threshold: float = 30.0) -> dict:
     """Backtest klasycznego GEM vs Buy&Hold QQQ vs ACWI vs AGG.
 
     Args:
@@ -285,9 +287,17 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
     sma = (prices_clean[equity_assets].rolling(sma_window, min_periods=max(50, sma_window // 4)).mean()
            if trend_filter else None)
 
+    regime_aligned: pd.Series | None = None
+    if regime_series is not None:
+        regime_aligned = regime_series.reindex(prices_clean.index).ffill()
+
     def _resolve_signal(idx: int) -> str:
         if idx < lookback or idx < skip:
             return "AGG"
+        if regime_aligned is not None:
+            rv = regime_aligned.iloc[idx]
+            if pd.notna(rv) and rv > regime_threshold:
+                return "AGG"
         qqq_r = prices_clean["QQQ"].iloc[idx - skip] / prices_clean["QQQ"].iloc[idx - lookback] - 1
         if qqq_r < rf_decimal:
             return "AGG"
@@ -387,7 +397,9 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
                     max_leverage: float = 1.0,
                     vol_window: int = 20,
                     transaction_cost: float = 0.0,
-                    tax_belka: float = 0.0) -> dict | None:
+                    tax_belka: float = 0.0,
+                    regime_series: pd.Series | None = None,
+                    regime_threshold: float = 30.0) -> dict | None:
     """Backtest QQQ + SMA 200: QQQ gdy cena > SMA(200), AGG gdy ponizej.
 
     Args:
@@ -430,8 +442,21 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
     upper_mult = 1.0 + buffer_pct
     lower_mult = 1.0 - buffer_pct
 
+    regime_aligned: pd.Series | None = None
+    if regime_series is not None:
+        regime_aligned = regime_series.reindex(prices_clean.index).ffill()
+
+    def _regime_blocks(date) -> bool:
+        if regime_aligned is None:
+            return False
+        rv = regime_aligned.loc[date] if date in regime_aligned.index else np.nan
+        return bool(pd.notna(rv) and rv > regime_threshold)
+
     # Poczatkowy sygnal bez histerezy (pierwsza decyzja)
-    current_signal = "QQQ" if qqq.loc[dates[0]] > sma.loc[dates[0]] else "AGG"
+    if _regime_blocks(dates[0]):
+        current_signal = "AGG"
+    else:
+        current_signal = "QQQ" if qqq.loc[dates[0]] > sma.loc[dates[0]] else "AGG"
     signals_log = [(dates[0], current_signal)]
 
     # Vol targeting: precompute realized vol na QQQ (AGG niescalowany)
@@ -451,9 +476,11 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
             s = sma.loc[date_prev]
             if pd.notna(p) and pd.notna(s):
                 new_sig = None
-                if current_signal == "QQQ" and p < s * lower_mult:
+                if _regime_blocks(date_prev) and current_signal != "AGG":
                     new_sig = "AGG"
-                elif current_signal == "AGG" and p > s * upper_mult:
+                elif current_signal == "QQQ" and p < s * lower_mult:
+                    new_sig = "AGG"
+                elif current_signal == "AGG" and p > s * upper_mult and not _regime_blocks(date_prev):
                     new_sig = "QQQ"
                 if new_sig is not None:
                     current_eq = equity[-1]
@@ -512,7 +539,9 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
                       expense_ratio: float = 0.0,
                       borrow_spread: float = 0.0,
                       transaction_cost: float = 0.0,
-                      tax_belka: float = 0.0) -> dict | None:
+                      tax_belka: float = 0.0,
+                      regime_series: pd.Series | None = None,
+                      regime_threshold: float = 30.0) -> dict | None:
     """Backtest TQQQ + Momentum: syntetyczny leveraged ETF (default 3x QQQ), timing 12-1.
 
     Formula realistyczna (gdy expense_ratio/borrow_spread > 0):
@@ -558,6 +587,16 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
 
     skip = 21
 
+    regime_aligned: pd.Series | None = None
+    if regime_series is not None:
+        regime_aligned = regime_series.reindex(prices_clean.index).ffill()
+
+    def _regime_blocks_idx(idx: int) -> bool:
+        if regime_aligned is None:
+            return False
+        rv = regime_aligned.iloc[idx]
+        return bool(pd.notna(rv) and rv > regime_threshold)
+
     # Poczatkowy sygnal
     idx0 = prices_clean.index.get_loc(dates[0])
     if idx0 >= lookback and idx0 >= skip:
@@ -565,7 +604,10 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
     else:
         qqq_r0 = 0
 
-    current_signal = "TQQQ" if qqq_r0 > rf_decimal else "AGG"
+    if _regime_blocks_idx(idx0):
+        current_signal = "AGG"
+    else:
+        current_signal = "TQQQ" if qqq_r0 > rf_decimal else "AGG"
     signals_log = [(dates[0], current_signal)]
 
     # TQQQ+Momentum equity
@@ -585,7 +627,10 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
             else:
                 qqq_ret = 0
 
-            new_signal = "TQQQ" if qqq_ret > rf_decimal else "AGG"
+            if _regime_blocks_idx(idx):
+                new_signal = "AGG"
+            else:
+                new_signal = "TQQQ" if qqq_ret > rf_decimal else "AGG"
             if new_signal != current_signal:
                 current_eq = mom_equity[-1]
                 if tax_belka > 0:
@@ -917,7 +962,9 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
                        rank_weights: dict | None = None,
                        anti_1m: bool = True,
                        transaction_cost: float = 0.0,
-                       tax_belka: float = 0.0) -> dict | None:
+                       tax_belka: float = 0.0,
+                       breadth_threshold: float | None = None,
+                       breadth_sma_window: int = 200) -> dict | None:
     """Backtest rotacji momentum — wspolna logika dla S&P 500, GPW, krypto.
 
     Args:
@@ -941,6 +988,10 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
         tax_belka: stawka Belki na realizowanych zyskach segmentu (np. 0.19 = 19%).
             Skalowane turnoverem — tylko czesc portfela jest "sprzedawana" przy
             rotacji. Default 0.0 (backwards compat).
+        breadth_threshold: jesli ustawione (0-1), w rebalansie sprawdza jaka frakcja
+            tickerow w universe jest powyzej SMA(breadth_sma_window). Gdy < threshold
+            → przechodzi do cash (zerowy zwrot). Filtr regime. Default None = wylaczone.
+        breadth_sma_window: okno SMA do sprawdzania breadth (default 200 dni)
 
     Returns:
         dict z equity curves (dict[str, pd.Series]) i stats (dict)
@@ -963,10 +1014,42 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
     previous_holdings: list[str] = []
     segment_start_eq = start_capital
 
+    # Precompute breadth (% tickers above SMA) for regime filter
+    breadth_series: pd.Series | None = None
+    if breadth_threshold is not None:
+        sma_all = bt_clean.rolling(breadth_sma_window,
+                                    min_periods=max(50, breadth_sma_window // 4)).mean()
+        above = (bt_clean > sma_all).astype(float)
+        breadth_series = above.sum(axis=1) / bt_clean.notna().sum(axis=1)
+
     for i, date in enumerate(dates):
         if i % rebalance_freq == 0:
             idx = bt_clean.index.get_loc(date)
             if idx >= lookback:
+                # Breadth check — defensywnie cash gdy rynek ma zly breadth
+                if breadth_series is not None:
+                    br = breadth_series.iloc[idx]
+                    if pd.notna(br) and br < breadth_threshold:
+                        # Realize outstanding gains/costs, pojdz do cash
+                        if previous_holdings:
+                            turnover = 1.0  # pelne wyjscie
+                            current_eq = mom_equity[-1]
+                            if tax_belka > 0:
+                                seg_gain = current_eq - segment_start_eq
+                                if seg_gain > 0:
+                                    current_eq -= tax_belka * seg_gain
+                            if transaction_cost > 0:
+                                current_eq *= (1 - transaction_cost * turnover)
+                            mom_equity[-1] = current_eq
+                            segment_start_eq = current_eq
+                        current_holdings = []
+                        previous_holdings = []
+                        # przejdz do nastepnego dnia (no reallocation)
+                        if date in daily_rets.index:
+                            mom_equity.append(mom_equity[-1])
+                        else:
+                            mom_equity.append(mom_equity[-1])
+                        continue
                 window_prices = bt_clean.iloc[idx - lookback:idx + 1]
                 rets_now = latest_returns(window_prices)
                 if rank_based:
