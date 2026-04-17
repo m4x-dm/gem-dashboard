@@ -82,7 +82,38 @@ def _render_signals(signals: list, signal_map: dict, title: str = "Historia zmia
 
 # ─── GEM Klasyczny ───────────────────────────────────────────
 if strategy == "GEM Klasyczny":
-    result = backtest_gem(prices, rf, start_capital=start_capital)
+    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+        trend_filter = st.checkbox(
+            "Filtr trendu (AND cena > SMA200)",
+            value=False,
+            help="Dodatkowo wymaga aby wybrane aktywo akcyjne bylo powyzej SMA200. "
+                 "Redukuje whipsawy, obniza CAGR o 1-2pp, poprawia win rate i drawdown.",
+        )
+        vol_on = st.checkbox(
+            "Volatility targeting",
+            value=False,
+            help="Skaluj pozycje do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
+                 "Redukuje wahania portfela — Sharpe rosnie, DD maleje kosztem CAGR "
+                 "w trendach. Dziala tylko gdy sygnal to akcje (nie AGG).",
+        )
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            vol_target_pct = st.slider(
+                "Cel zmiennosci (%)", 8.0, 25.0, 15.0, 0.5,
+                disabled=not vol_on,
+                help="Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie.",
+            ) / 100.0
+        with col_v2:
+            max_lev = st.slider(
+                "Maks. dzwignia", 1.0, 3.0, 1.0, 0.25,
+                disabled=not vol_on,
+                help="1.0 = bez dzwigni (tylko skalowanie w dol). 1.5-2.0 wymaga konta margin "
+                     "i dolicza koszt finansowania ~rf.",
+            )
+    vol_target_val = vol_target_pct if vol_on else None
+    result = backtest_gem(prices, rf, start_capital=start_capital,
+                          trend_filter=trend_filter,
+                          vol_target=vol_target_val, max_leverage=max_lev)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()
@@ -146,7 +177,48 @@ Pelny opis strategii → strona **O strategii GEM** w menu bocznym.
 
 # ─── QQQ + SMA 200 ───────────────────────────────────────────
 elif strategy == "QQQ + SMA 200":
-    result = backtest_sma200(prices, rf, start_capital=start_capital)
+    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            buffer_pct = st.slider(
+                "Bufor / histereza (%)", 0.0, 5.0, 0.0, 0.5,
+                help="Switch do AGG tylko gdy cena < SMA × (1 − bufor); do QQQ tylko gdy "
+                     "cena > SMA × (1 + bufor). Faber rekomenduje 2%. Redukuje whipsawy "
+                     "w rynku bocznym (2015, 2022).",
+            ) / 100.0
+        with col_b:
+            monthly_check = st.checkbox(
+                "Sprawdzanie miesięczne",
+                value=False,
+                help="Sprawdzaj sygnal co ~21 dni zamiast codziennie. Dalej redukuje "
+                     "whipsawy, ale opozni reakcje na gwaltowne zmiany trendu.",
+            )
+        vol_on_sma = st.checkbox(
+            "Volatility targeting",
+            value=False,
+            help="Skaluj pozycje QQQ do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
+                 "Redukuje wahania portfela — Sharpe rosnie, DD maleje kosztem CAGR "
+                 "w trendach. Gdy sygnal = AGG, brak skalowania.",
+        )
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            vol_target_pct_sma = st.slider(
+                "Cel zmiennosci (%) ", 8.0, 25.0, 15.0, 0.5,
+                disabled=not vol_on_sma,
+                key="sma_vol_target",
+                help="Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie.",
+            ) / 100.0
+        with col_v2:
+            max_lev_sma = st.slider(
+                "Maks. dzwignia ", 1.0, 3.0, 1.0, 0.25,
+                disabled=not vol_on_sma,
+                key="sma_max_lev",
+                help="1.0 = bez dzwigni. >1 wymaga konta margin, w tle doliczany koszt ~rf.",
+            )
+    vol_target_val_sma = vol_target_pct_sma if vol_on_sma else None
+    result = backtest_sma200(prices, rf, start_capital=start_capital,
+                              buffer_pct=buffer_pct, monthly_check=monthly_check,
+                              vol_target=vol_target_val_sma, max_leverage=max_lev_sma)
     if result is None:
         st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
         st.stop()

@@ -4,6 +4,31 @@ import pandas as pd
 import numpy as np
 
 
+def calc_realized_vol(prices: pd.Series, window: int = 20,
+                      trading_days: int = 252) -> pd.Series:
+    """Zrealizowana zmiennosc roczna z rolling okna dziennych zwrotow.
+
+    Zwraca sigma * sqrt(252). Do uzycia jako input do vol targetingu —
+    pozycja = target_vol / realized_vol.
+    """
+    daily = prices.pct_change()
+    return daily.rolling(window).std(ddof=0) * np.sqrt(trading_days)
+
+
+def vol_target_position(realized_vol: float, target_vol: float,
+                         max_leverage: float = 1.0,
+                         min_leverage: float = 0.0) -> float:
+    """Oblicz wage pozycji dla celu zmiennosci.
+
+    pos = clamp(target_vol / realized_vol, min_leverage, max_leverage).
+    NaN / zero → zwraca max_leverage (neutralny fallback).
+    """
+    if pd.isna(realized_vol) or realized_vol <= 0:
+        return max_leverage
+    raw = target_vol / realized_vol
+    return max(min_leverage, min(max_leverage, raw))
+
+
 def calc_returns(prices: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Oblicza stopy zwrotu dla roznych okresow. Zwraca dict z kluczami '1M','3M','6M','12M'.
 
@@ -65,7 +90,11 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
 
 
 def composite_score(ret_row: pd.Series) -> float:
-    """Wynik kompozytowy: 12M*50% + 6M*25% + 3M*15% + 1M*10%."""
+    """Wynik kompozytowy: 12M*50% + 6M*25% + 3M*15% + 1M*10%.
+
+    Legacy — suma wazonych surowych zwrotow. Wrazliwy na skew miedzy aktywami
+    (np. krypto 1M -30% dominuje). Preferuj rank_based_score() dla rotacji.
+    """
     weights = {"12M": 0.50, "6M": 0.25, "3M": 0.15, "1M": 0.10}
     score = 0.0
     for period, w in weights.items():
@@ -74,6 +103,49 @@ def composite_score(ret_row: pd.Series) -> float:
             score += val * w
         else:
             return np.nan
+    return score
+
+
+def rank_based_score(rets: pd.DataFrame,
+                     weights: dict | None = None,
+                     anti_1m: bool = True) -> pd.Series:
+    """Ranking percentylowy per okres + wazona suma rankow.
+
+    Dla kazdej kolumny (1M/3M/6M/12M) oblicza rank percentylowy (0-1, wyzej=lepiej)
+    wzgledem innych tickerow. 1M jest flipowany jesli anti_1m=True (short-term reversal
+    effect — Jegadeesh 1990): w 1M nizszy zwrot → wyzszy score.
+
+    Args:
+        rets: DataFrame z kolumnami 1M/3M/6M/12M (index = ticker)
+        weights: wagi dla okresow (default: 12M=0.40, 6M=0.30, 3M=0.20, 1M=0.10)
+        anti_1m: czy odwracac rank 1M (default True)
+
+    Returns:
+        Series z jedna wartoscia score per ticker (0-1). NaN jesli brak wszystkich.
+    """
+    if weights is None:
+        weights = {"12M": 0.40, "6M": 0.30, "3M": 0.20, "1M": 0.10}
+
+    available = [p for p in weights if p in rets.columns]
+    if not available:
+        return pd.Series(np.nan, index=rets.index)
+
+    # Rank percentylowy per kolumna (0-1, z NaN zachowanym)
+    ranks = rets[available].rank(axis=0, pct=True, na_option="keep")
+    if anti_1m and "1M" in ranks.columns:
+        ranks["1M"] = 1.0 - ranks["1M"]
+
+    # Renormalizacja wag po dostepnych okresach
+    total_w = sum(weights[p] for p in available)
+    norm_w = {p: weights[p] / total_w for p in available}
+
+    score = pd.Series(0.0, index=rets.index)
+    mask_any = pd.Series(False, index=rets.index)
+    for period in available:
+        col = ranks[period]
+        mask_any = mask_any | col.notna()
+        score = score + col.fillna(0.5) * norm_w[period]  # NaN → neutralny 0.5
+    score[~mask_any] = np.nan
     return score
 
 
@@ -158,12 +230,34 @@ def gem_classic_signal(prices: pd.DataFrame, risk_free_annual: float) -> dict:
 
 
 def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
-                 start_capital: float = 10000, lookback: int = 273) -> dict:
+                 start_capital: float = 10000, lookback: int = 273,
+                 trend_filter: bool = False,
+                 sma_window: int = 200,
+                 vol_target: float | None = None,
+                 max_leverage: float = 1.0,
+                 vol_window: int = 20) -> dict:
     """Backtest klasycznego GEM vs Buy&Hold QQQ vs ACWI vs AGG.
+
+    Args:
+        prices: DataFrame z cenami (wymagane: QQQ, VEA, EEM, ACWI, AGG)
+        risk_free_annual: roczna stopa wolna w % (np. 4.5)
+        start_capital: kapital poczatkowy
+        lookback: okno momentum w dniach (default 273 = 12M + 1M skip)
+        trend_filter: jesli True, dodatkowo wymaga cena > SMA(sma_window) dla
+            wybranego aktywa akcyjnego; inaczej → AGG. Redukuje whipsawy w
+            rynku bocznym przez AND z filtrem trendu (Faber-style).
+        sma_window: okno SMA dla filtra trendu (default 200 dni)
+        vol_target: jesli ustawione (np. 0.15 = 15% rocznie), skaluj pozycje
+            tak, aby oczekiwana zmiennosc = target. pos = target/realized, clamped
+            do [0, max_leverage]. None = wylaczone (defaultowy full-position).
+            Scalowanie tylko gdy sygnal = akcje; AGG zawsze full.
+        max_leverage: maks. dzwignia przy vol_target (1.0 = bez dzwigni, 2.0 = 2x)
+        vol_window: okno realizowanej zmiennosci (dni, default 20)
 
     Returns dict z:
         equity_gem, equity_qqq, equity_acwi, equity_agg: pd.Series equity curves
-        stats: dict ze statystykami (CAGR, max DD, Sharpe, trades)
+        stats: dict ze statystykami per strategia (CAGR, DD, Sharpe, Sortino,
+               Calmar; dla "GEM" dodatkowo Win Rate, Profit Factor, Trades)
         signals: lista (date, signal) zmian sygnalu
     """
     required = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
@@ -180,99 +274,82 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
     rf_decimal = risk_free_annual / 100.0
     skip = 21
 
-    # --- Ustal poczatkowy sygnal na dates[0] ---
-    idx0 = prices_clean.index.get_loc(dates[0])
-    if idx0 >= lookback and idx0 >= skip:
-        qqq_r0 = prices_clean["QQQ"].iloc[idx0 - skip] / prices_clean["QQQ"].iloc[idx0 - lookback] - 1
-        vea_r0 = prices_clean["VEA"].iloc[idx0 - skip] / prices_clean["VEA"].iloc[idx0 - lookback] - 1
-        eem_r0 = prices_clean["EEM"].iloc[idx0 - skip] / prices_clean["EEM"].iloc[idx0 - lookback] - 1
-        acwi_r0 = prices_clean["ACWI"].iloc[idx0 - skip] / prices_clean["ACWI"].iloc[idx0 - lookback] - 1
-    else:
-        qqq_r0 = vea_r0 = eem_r0 = acwi_r0 = 0
+    equity_assets = ["QQQ", "VEA", "EEM", "ACWI"]
+    sma = (prices_clean[equity_assets].rolling(sma_window, min_periods=max(50, sma_window // 4)).mean()
+           if trend_filter else None)
 
-    if qqq_r0 < rf_decimal:
-        current_signal = "AGG"
-    else:
-        candidates = {"QQQ": qqq_r0, "VEA": vea_r0, "EEM": eem_r0, "ACWI": acwi_r0}
-        current_signal = max(candidates, key=candidates.get)
+    def _resolve_signal(idx: int) -> str:
+        if idx < lookback or idx < skip:
+            return "AGG"
+        qqq_r = prices_clean["QQQ"].iloc[idx - skip] / prices_clean["QQQ"].iloc[idx - lookback] - 1
+        if qqq_r < rf_decimal:
+            return "AGG"
+        candidates = {
+            a: prices_clean[a].iloc[idx - skip] / prices_clean[a].iloc[idx - lookback] - 1
+            for a in equity_assets
+        }
+        best = max(candidates, key=candidates.get)
+        if trend_filter and sma is not None:
+            price_now = prices_clean[best].iloc[idx]
+            sma_now = sma[best].iloc[idx]
+            if pd.notna(sma_now) and price_now < sma_now:
+                return "AGG"
+        return best
+
+    idx0 = prices_clean.index.get_loc(dates[0])
+    current_signal = _resolve_signal(idx0)
     signals_log = [(dates[0], current_signal)]
 
-    # --- GEM equity: startuje od start_capital na dates[0] ---
-    gem_equity = [start_capital]
+    # Vol targeting: precompute realized vol per equity asset (none for AGG)
+    vols = None
+    if vol_target is not None:
+        vols = {a: calc_realized_vol(prices_clean[a], vol_window) for a in equity_assets}
 
+    rf_daily = rf_decimal / 252
+
+    gem_equity = [start_capital]
     for i in range(1, len(dates)):
         date = dates[i]
         idx = prices_clean.index.get_loc(date)
 
-        # Rebalans miesięczny (co ~21 dni)
         if i % 21 == 0:
-            if idx >= lookback and idx >= skip:
-                qqq_ret = prices_clean["QQQ"].iloc[idx - skip] / prices_clean["QQQ"].iloc[idx - lookback] - 1
-                vea_ret = prices_clean["VEA"].iloc[idx - skip] / prices_clean["VEA"].iloc[idx - lookback] - 1
-                eem_ret = prices_clean["EEM"].iloc[idx - skip] / prices_clean["EEM"].iloc[idx - lookback] - 1
-                acwi_ret = prices_clean["ACWI"].iloc[idx - skip] / prices_clean["ACWI"].iloc[idx - lookback] - 1
-            else:
-                qqq_ret = vea_ret = eem_ret = acwi_ret = 0
-
-            if qqq_ret < rf_decimal:
-                new_signal = "AGG"
-            else:
-                candidates = {"QQQ": qqq_ret, "VEA": vea_ret, "EEM": eem_ret, "ACWI": acwi_ret}
-                new_signal = max(candidates, key=candidates.get)
-
+            new_signal = _resolve_signal(idx)
             if new_signal != current_signal:
                 signals_log.append((date, new_signal))
                 current_signal = new_signal
 
-        # Dzienny zwrot wg aktualnego sygnału
         day_ret = daily_returns.loc[date, current_signal]
-        if pd.notna(day_ret):
-            gem_equity.append(gem_equity[-1] * (1 + day_ret))
-        else:
+        if pd.isna(day_ret):
             gem_equity.append(gem_equity[-1])
+            continue
 
-    # Buy & Hold curves (wszystkie startuja od start_capital)
+        if vol_target is not None and current_signal in equity_assets:
+            # uzyj wczorajszej realized vol (brak lookahead)
+            rv_series = vols[current_signal]
+            rv = rv_series.iloc[idx - 1] if idx >= 1 else np.nan
+            pos = vol_target_position(rv, vol_target, max_leverage=max_leverage)
+            port_ret = pos * day_ret + (1 - pos) * rf_daily
+        else:
+            port_ret = day_ret
+
+        gem_equity.append(gem_equity[-1] * (1 + port_ret))
+
     qqq_prices = prices_clean["QQQ"].loc[dates]
-    qqq_equity = start_capital * qqq_prices / qqq_prices.iloc[0]
-
     acwi_prices = prices_clean["ACWI"].loc[dates]
-    acwi_equity = start_capital * acwi_prices / acwi_prices.iloc[0]
-
     agg_prices = prices_clean["AGG"].loc[dates]
-    agg_equity = start_capital * agg_prices / agg_prices.iloc[0]
 
-    # Equity curves jako Series
     eq_gem = pd.Series(gem_equity, index=dates, name="GEM")
-    eq_qqq = pd.Series(qqq_equity.values, index=dates, name="QQQ Buy&Hold")
-    eq_acwi = pd.Series(acwi_equity.values, index=dates, name="ACWI Buy&Hold")
-    eq_agg = pd.Series(agg_equity.values, index=dates, name="AGG Buy&Hold")
+    eq_qqq = pd.Series((start_capital * qqq_prices / qqq_prices.iloc[0]).values, index=dates, name="QQQ Buy&Hold")
+    eq_acwi = pd.Series((start_capital * acwi_prices / acwi_prices.iloc[0]).values, index=dates, name="ACWI Buy&Hold")
+    eq_agg = pd.Series((start_capital * agg_prices / agg_prices.iloc[0]).values, index=dates, name="AGG Buy&Hold")
 
-    # Statystyki
-    stats = {}
-    for name, eq in [("GEM", eq_gem), ("QQQ B&H", eq_qqq), ("ACWI B&H", eq_acwi), ("AGG B&H", eq_agg)]:
-        years = len(eq) / 252
-        total_ret = eq.iloc[-1] / eq.iloc[0] - 1
-        cagr = (eq.iloc[-1] / eq.iloc[0]) ** (1 / years) - 1 if years > 0 else 0
-
-        # Max drawdown
-        running_max = eq.cummax()
-        drawdown = (eq - running_max) / running_max
-        max_dd = drawdown.min()
-
-        # Sharpe (annualized, excess vs risk-free)
-        daily_rets = eq.pct_change().dropna()
-        excess = daily_rets - rf_decimal / 252
-        std = excess.std(ddof=0)
-        sharpe = excess.mean() / std * np.sqrt(252) if std > 0 else 0
-
-        stats[name] = {
-            "CAGR": cagr,
-            "Calkowity zwrot": total_ret,
-            "Max Drawdown": max_dd,
-            "Sharpe": sharpe,
-        }
-
-    stats["GEM"]["Transakcje"] = len(signals_log)
+    stats = {
+        "GEM": calc_stats(eq_gem, 252, rf_decimal),
+        "QQQ B&H": calc_stats(eq_qqq, 252, rf_decimal),
+        "ACWI B&H": calc_stats(eq_acwi, 252, rf_decimal),
+        "AGG B&H": calc_stats(eq_agg, 252, rf_decimal),
+    }
+    stats["GEM"].update(trade_stats(signals_log, eq_gem))
 
     return {
         "equity_gem": eq_gem,
@@ -285,11 +362,32 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
 
 
 def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
-                    start_capital: float = 10000, sma_window: int = 200) -> dict | None:
+                    start_capital: float = 10000, sma_window: int = 200,
+                    buffer_pct: float = 0.0,
+                    monthly_check: bool = False,
+                    vol_target: float | None = None,
+                    max_leverage: float = 1.0,
+                    vol_window: int = 20) -> dict | None:
     """Backtest QQQ + SMA 200: QQQ gdy cena > SMA(200), AGG gdy ponizej.
 
-    Rebalans dzienny (trend following).
-    Returns dict z equity curves, stats, signals — analogicznie do backtest_gem().
+    Args:
+        prices: DataFrame z cenami (wymagane: QQQ, AGG)
+        risk_free_annual: roczna stopa wolna w %
+        start_capital: kapital poczatkowy
+        sma_window: okno SMA (default 200)
+        buffer_pct: histereza (0.01 = 1%). Switch do AGG tylko gdy cena <
+            SMA * (1 - buffer); switch do QQQ tylko gdy cena > SMA * (1 + buffer).
+            Redukuje whipsawy w rynku bocznym — Faber rekomenduje 2%.
+        monthly_check: jesli True, sprawdzaj sygnal tylko co ~21 dni (rebalans
+            miesieczny zamiast dziennego). Dalej redukuje whipsawy kosztem
+            opoznionej reakcji.
+        vol_target: cel rocznej zmiennosci (np. 0.15 = 15%). Pozycja =
+            target/realized, clamped do [0, max_leverage]. None = wylaczone.
+            Scalowanie dziala tylko gdy sygnal = QQQ; AGG zawsze full.
+        max_leverage: maks. dzwignia dla vol_target (1.0 = bez dzwigni)
+        vol_window: okno realizowanej zmiennosci (dni, default 20)
+
+    Returns dict z equity curves, stats (z Sortino/Calmar/Win Rate), signals.
     """
     required = ["QQQ", "AGG"]
     for t in required:
@@ -303,33 +401,53 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
     qqq = prices_clean["QQQ"]
     sma = qqq.rolling(window=sma_window).mean()
 
-    # Start po SMA window
     start_idx = prices_clean.index[sma_window]
     dates = prices_clean.index[prices_clean.index >= start_idx]
     daily_returns = prices_clean.pct_change()
     rf_decimal = risk_free_annual / 100.0
+    upper_mult = 1.0 + buffer_pct
+    lower_mult = 1.0 - buffer_pct
 
-    # Poczatkowy sygnal (na podstawie danych z dnia start_idx — znane przed otwarciem)
+    # Poczatkowy sygnal bez histerezy (pierwsza decyzja)
     current_signal = "QQQ" if qqq.loc[dates[0]] > sma.loc[dates[0]] else "AGG"
     signals_log = [(dates[0], current_signal)]
+
+    # Vol targeting: precompute realized vol na QQQ (AGG niescalowany)
+    qqq_vol = calc_realized_vol(qqq, vol_window) if vol_target is not None else None
+    rf_daily = rf_decimal / 252
 
     equity = [start_capital]
     for i in range(1, len(dates)):
         date = dates[i]
         date_prev = dates[i - 1]
-        # Codzienny check SMA — uzyj WCZORAJSZEGO close (bez lookahead)
-        new_signal = "QQQ" if qqq.loc[date_prev] > sma.loc[date_prev] else "AGG"
-        if new_signal != current_signal:
-            signals_log.append((date, new_signal))
-            current_signal = new_signal
+
+        # Sprawdzamy sygnal codziennie lub co miesiac
+        check_today = (not monthly_check) or (i % 21 == 0)
+        if check_today:
+            p = qqq.loc[date_prev]
+            s = sma.loc[date_prev]
+            if pd.notna(p) and pd.notna(s):
+                if current_signal == "QQQ" and p < s * lower_mult:
+                    current_signal = "AGG"
+                    signals_log.append((date, "AGG"))
+                elif current_signal == "AGG" and p > s * upper_mult:
+                    current_signal = "QQQ"
+                    signals_log.append((date, "QQQ"))
 
         day_ret = daily_returns.loc[date, current_signal]
-        if pd.notna(day_ret):
-            equity.append(equity[-1] * (1 + day_ret))
-        else:
+        if pd.isna(day_ret):
             equity.append(equity[-1])
+            continue
 
-    # Equity curves
+        if vol_target is not None and current_signal == "QQQ":
+            rv = qqq_vol.loc[date_prev]
+            pos = vol_target_position(rv, vol_target, max_leverage=max_leverage)
+            port_ret = pos * day_ret + (1 - pos) * rf_daily
+        else:
+            port_ret = day_ret
+
+        equity.append(equity[-1] * (1 + port_ret))
+
     eq_sma = pd.Series(equity, index=dates, name="QQQ+SMA200")
     qqq_prices = qqq.loc[dates]
     eq_qqq = pd.Series((start_capital * qqq_prices / qqq_prices.iloc[0]).values,
@@ -338,26 +456,12 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
     eq_agg = pd.Series((start_capital * agg_prices / agg_prices.iloc[0]).values,
                         index=dates, name="AGG Buy&Hold")
 
-    # Stats
-    stats = {}
-    for name, eq in [("QQQ+SMA200", eq_sma), ("QQQ B&H", eq_qqq), ("AGG B&H", eq_agg)]:
-        years = len(eq) / 252
-        total_ret = eq.iloc[-1] / eq.iloc[0] - 1
-        cagr = (eq.iloc[-1] / eq.iloc[0]) ** (1 / years) - 1 if years > 0 else 0
-        running_max = eq.cummax()
-        drawdown = (eq - running_max) / running_max
-        max_dd = drawdown.min()
-        daily_rets = eq.pct_change().dropna()
-        excess = daily_rets - rf_decimal / 252
-        std = excess.std(ddof=0)
-        sharpe = excess.mean() / std * np.sqrt(252) if std > 0 else 0
-        stats[name] = {
-            "CAGR": cagr,
-            "Calkowity zwrot": total_ret,
-            "Max Drawdown": max_dd,
-            "Sharpe": sharpe,
-        }
-    stats["QQQ+SMA200"]["Transakcje"] = len(signals_log)
+    stats = {
+        "QQQ+SMA200": calc_stats(eq_sma, 252, rf_decimal),
+        "QQQ B&H": calc_stats(eq_qqq, 252, rf_decimal),
+        "AGG B&H": calc_stats(eq_agg, 252, rf_decimal),
+    }
+    stats["QQQ+SMA200"].update(trade_stats(signals_log, eq_sma))
 
     return {
         "equity_sma": eq_sma,
@@ -452,27 +556,13 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
     eq_agg = pd.Series((start_capital * agg_prices / agg_prices.iloc[0]).values,
                         index=dates, name="AGG Buy&Hold")
 
-    # Stats
-    stats = {}
-    for name, eq in [("TQQQ+Mom", eq_mom), ("TQQQ B&H", eq_tqqq_bh),
-                     ("QQQ B&H", eq_qqq), ("AGG B&H", eq_agg)]:
-        years = len(eq) / 252
-        total_ret = eq.iloc[-1] / eq.iloc[0] - 1
-        cagr = (eq.iloc[-1] / eq.iloc[0]) ** (1 / years) - 1 if years > 0 else 0
-        running_max = eq.cummax()
-        drawdown = (eq - running_max) / running_max
-        max_dd = drawdown.min()
-        daily_rets = eq.pct_change().dropna()
-        excess = daily_rets - rf_decimal / 252
-        std = excess.std(ddof=0)
-        sharpe = excess.mean() / std * np.sqrt(252) if std > 0 else 0
-        stats[name] = {
-            "CAGR": cagr,
-            "Calkowity zwrot": total_ret,
-            "Max Drawdown": max_dd,
-            "Sharpe": sharpe,
-        }
-    stats["TQQQ+Mom"]["Transakcje"] = len(signals_log)
+    stats = {
+        "TQQQ+Mom": calc_stats(eq_mom, 252, rf_decimal),
+        "TQQQ B&H": calc_stats(eq_tqqq_bh, 252, rf_decimal),
+        "QQQ B&H": calc_stats(eq_qqq, 252, rf_decimal),
+        "AGG B&H": calc_stats(eq_agg, 252, rf_decimal),
+    }
+    stats["TQQQ+Mom"].update(trade_stats(signals_log, eq_mom))
 
     return {
         "equity_tqqq_mom": eq_mom,
@@ -662,7 +752,7 @@ def correlation_matrix(prices: pd.DataFrame, period: int = 252) -> pd.DataFrame:
 
 def calc_stats(equity: pd.Series, trading_days: int = 252,
                rf_decimal: float = 0.0) -> dict:
-    """Oblicza statystyki backtestu: CAGR, calkowity zwrot, max DD, Sharpe.
+    """Oblicza statystyki backtestu: CAGR, calkowity zwrot, max DD, Sharpe, Sortino, Calmar.
 
     Args:
         equity: Series z wartoscia portfela
@@ -679,11 +769,70 @@ def calc_stats(equity: pd.Series, trading_days: int = 252,
     excess = dr - rf_decimal / trading_days
     std = excess.std(ddof=0)
     sharpe = excess.mean() / std * np.sqrt(trading_days) if std > 0 else 0
+    downside = excess[excess < 0]
+    dstd = downside.std(ddof=0) if len(downside) > 1 else 0
+    sortino = excess.mean() / dstd * np.sqrt(trading_days) if dstd > 0 else 0
+    calmar = cagr / abs(max_dd) if max_dd < 0 else 0.0
     return {
         "CAGR": cagr,
         "Calkowity zwrot": total_ret,
         "Max Drawdown": max_dd,
         "Sharpe": sharpe,
+        "Sortino": sortino,
+        "Calmar": calmar,
+    }
+
+
+def trade_stats(signals_log: list, equity: pd.Series) -> dict:
+    """Statystyki per transakcja (segment miedzy zmianami sygnalu).
+
+    Liczy zwrot kazdego segmentu od daty wejscia do daty zmiany na nastepny
+    sygnal (ostatni segment konczy sie na ostatniej dacie equity). Pozwala na
+    sensowny "win rate" per sygnal — zwyklym Sharpe dla dni nie daje sie
+    wyliczyc czy strategia generuje dobre czy zle decyzje.
+
+    Args:
+        signals_log: lista (date, signal) z zmianami sygnalu (date wejscia)
+        equity: Series equity curve
+
+    Returns:
+        dict: Win Rate (0-1), Profit Factor, Avg Trade (ulamek), Trades (int)
+    """
+    if not signals_log or len(equity) < 2:
+        return {"Win Rate": 0.0, "Profit Factor": 0.0, "Avg Trade": 0.0, "Trades": 0}
+
+    change_dates = [s[0] for s in signals_log]
+    change_dates.append(equity.index[-1])
+    returns = []
+    for i in range(len(change_dates) - 1):
+        start = change_dates[i]
+        end = change_dates[i + 1]
+        eq_slice = equity.loc[start:end]
+        if len(eq_slice) < 2:
+            continue
+        start_val = eq_slice.iloc[0]
+        end_val = eq_slice.iloc[-1]
+        if start_val > 0:
+            returns.append(end_val / start_val - 1)
+
+    if not returns:
+        return {"Win Rate": 0.0, "Profit Factor": 0.0, "Avg Trade": 0.0, "Trades": 0}
+
+    wins = [r for r in returns if r > 0]
+    losses = [r for r in returns if r < 0]
+    win_rate = len(wins) / len(returns)
+    sum_wins = sum(wins) if wins else 0.0
+    sum_losses = abs(sum(losses)) if losses else 0.0
+    if sum_losses > 0:
+        profit_factor = sum_wins / sum_losses
+    else:
+        profit_factor = float("inf") if sum_wins > 0 else 0.0
+    avg_trade = sum(returns) / len(returns)
+    return {
+        "Win Rate": win_rate,
+        "Profit Factor": profit_factor,
+        "Avg Trade": avg_trade,
+        "Trades": len(returns),
     }
 
 
@@ -692,7 +841,10 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
                        start_capital: float = 10000,
                        trading_days: int = 252,
                        benchmarks: dict[str, str | list[str]] | None = None,
-                       score_func=None) -> dict | None:
+                       score_func=None,
+                       rank_based: bool = False,
+                       rank_weights: dict | None = None,
+                       anti_1m: bool = True) -> dict | None:
     """Backtest rotacji momentum — wspolna logika dla S&P 500, GPW, krypto.
 
     Args:
@@ -703,7 +855,13 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
         start_capital: kapital poczatkowy
         trading_days: dni handlowe/rok
         benchmarks: dict z benchmarkami, np. {"SPY B&H": "SPY", "EW B&H": list_of_tickers}
-        score_func: funkcja do obliczania wyniku (default: composite_score)
+        score_func: funkcja do obliczania wyniku (default: composite_score).
+            Ignorowana gdy rank_based=True.
+        rank_based: jesli True, uzyj rank_based_score() (percentyle per okres + 1M
+            flip jako anti-signal). Bardziej odporny na outliery i skew — preferowany
+            dla rotacji w heterogenicznym universe (akcje GPW, krypto)
+        rank_weights: wagi dla rank scoringu (default: 12M=0.40, 6M=0.30, 3M=0.20, 1M=0.10)
+        anti_1m: czy odwracac rank 1M (default True, uzywane gdy rank_based=True)
 
     Returns:
         dict z equity curves (dict[str, pd.Series]) i stats (dict)
@@ -730,7 +888,10 @@ def backtest_rotation(prices: pd.DataFrame, top_n: int = 3,
             if idx >= lookback:
                 window_prices = bt_clean.iloc[idx - lookback:idx + 1]
                 rets_now = latest_returns(window_prices)
-                rets_now["score"] = rets_now.apply(score_func, axis=1)
+                if rank_based:
+                    rets_now["score"] = rank_based_score(rets_now, rank_weights, anti_1m)
+                else:
+                    rets_now["score"] = rets_now.apply(score_func, axis=1)
                 rets_now = rets_now.dropna(subset=["score"])
                 if len(rets_now) >= top_n:
                     current_holdings = rets_now.nlargest(top_n, "score").index.tolist()

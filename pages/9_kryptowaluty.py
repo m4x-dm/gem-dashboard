@@ -449,6 +449,16 @@ with tab5:
         with col4:
             start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="cr_bt_cap")
 
+        with st.expander("⚙️ Metoda scoringu", expanded=False):
+            rank_based = st.checkbox(
+                "Rank-based score (percentyle + anty-1M)",
+                value=False,
+                key="cr_bt_rank",
+                help="Zamiast wazonej sumy surowych zwrotow (_flexible_score), rankuje "
+                     "tickery per okres (0-1). 1M flipowany jako anti-signal. Szczegolnie "
+                     "odporny dla krypto — duze wahania 1M nie dominuja juz scoringu.",
+            )
+
         bt_tickers = _tickers_for_category(bt_cat)
         # Zawsze dodaj BTC do porownania
         if "BTC-USD" not in bt_tickers:
@@ -492,6 +502,7 @@ with tab5:
                 lookback=lookback, start_capital=start_capital,
                 trading_days=365, benchmarks=bm,
                 score_func=_flexible_score,
+                rank_based=rank_based,
             )
 
             if result is None:

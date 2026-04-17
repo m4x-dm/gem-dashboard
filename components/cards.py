@@ -113,29 +113,71 @@ def macro_card(title: str, current_value: str, unit: str,
 
 
 def stats_table(stats: dict) -> None:
-    """Tabela statystyk backtestu."""
+    """Tabela statystyk backtestu. Pokazuje Sortino/Calmar/Win Rate/Profit Factor
+    gdy sa w dict (backwards compat — brakujace kolumny po prostu pokazuja —)."""
+    has_sortino = any("Sortino" in s for s in stats.values())
+    has_calmar = any("Calmar" in s for s in stats.values())
+    has_winrate = any("Win Rate" in s for s in stats.values())
+    has_pf = any("Profit Factor" in s for s in stats.values())
+
+    headers = ['<th style="text-align:left;padding:clamp(4px,1vw,8px);color:%s">Strategia</th>' % GOLD]
+    for label in ["CAGR", "Max DD", "Sharpe"]:
+        headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">{label}</th>')
+    if has_sortino:
+        headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Sortino</th>')
+    if has_calmar:
+        headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Calmar</th>')
+    if has_winrate:
+        headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Win Rate</th>')
+    if has_pf:
+        headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">PF</th>')
+
     html = (
-        f'<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:clamp(0.7rem,2vw,0.85rem)">'
+        f'<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:clamp(0.65rem,1.8vw,0.8rem)">'
         f'<thead><tr style="border-bottom:2px solid {BORDER}">'
-        f'<th style="text-align:left;padding:clamp(4px,1vw,8px);color:{GOLD}">Strategia</th>'
-        f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">CAGR</th>'
-        f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Calkowity</th>'
-        f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Max DD</th>'
-        f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{GOLD}">Sharpe</th>'
-        f'</tr></thead><tbody>'
+        + "".join(headers)
+        + f'</tr></thead><tbody>'
     )
+
+    def _fmt(val, decimals=2):
+        if val is None or (isinstance(val, float) and (np.isnan(val) or np.isinf(val))):
+            return "—"
+        return f"{val:.{decimals}f}"
+
     for name, s in stats.items():
-        cagr_color = color_for_value(s["CAGR"])
-        dd_color = RED if s["Max Drawdown"] < -0.15 else "#F59E0B" if s["Max Drawdown"] < -0.05 else GREEN
-        html += (
+        cagr_color = color_for_value(s.get("CAGR"))
+        max_dd = s.get("Max Drawdown", 0)
+        dd_color = RED if max_dd < -0.15 else "#F59E0B" if max_dd < -0.05 else GREEN
+        row = (
             f'<tr style="border-bottom:1px solid {BORDER}">'
             f'<td style="padding:clamp(4px,1vw,8px);font-weight:600">{name}</td>'
-            f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{cagr_color};font-weight:600">{fmt_pct(s["CAGR"])}</td>'
-            f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{color_for_value(s["Calkowity zwrot"])}">{fmt_pct(s["Calkowity zwrot"])}</td>'
-            f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{dd_color}">{fmt_pct(s["Max Drawdown"])}</td>'
-            f'<td style="text-align:right;padding:clamp(4px,1vw,8px)">{s["Sharpe"]:.2f}</td>'
-            f'</tr>'
+            f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{cagr_color};font-weight:600">{fmt_pct(s.get("CAGR"))}</td>'
+            f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{dd_color}">{fmt_pct(max_dd)}</td>'
+            f'<td style="text-align:right;padding:clamp(4px,1vw,8px)">{_fmt(s.get("Sharpe"))}</td>'
         )
+        if has_sortino:
+            row += f'<td style="text-align:right;padding:clamp(4px,1vw,8px)">{_fmt(s.get("Sortino"))}</td>'
+        if has_calmar:
+            row += f'<td style="text-align:right;padding:clamp(4px,1vw,8px)">{_fmt(s.get("Calmar"))}</td>'
+        if has_winrate:
+            wr = s.get("Win Rate")
+            wr_color = color_for_value((wr - 0.5) if wr is not None else None)
+            wr_str = fmt_pct(wr) if wr is not None else "—"
+            row += f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{wr_color}">{wr_str}</td>'
+        if has_pf:
+            pf = s.get("Profit Factor")
+            if pf is None:
+                pf_str = "—"
+                pf_color = MUTED
+            elif pf == float("inf"):
+                pf_str = "∞"
+                pf_color = GREEN
+            else:
+                pf_str = f"{pf:.2f}"
+                pf_color = GREEN if pf >= 1.5 else "#F59E0B" if pf >= 1.0 else RED
+            row += f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{pf_color}">{pf_str}</td>'
+        row += '</tr>'
+        html += row
     html += '</tbody></table>'
     st.html(html)
 

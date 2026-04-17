@@ -299,6 +299,16 @@ with tab4:
         with col4:
             start_capital = st.number_input("Kapital (PLN)", value=10000, step=1000, min_value=100, key="bt_cap")
 
+        with st.expander("⚙️ Metoda scoringu", expanded=False):
+            rank_based = st.checkbox(
+                "Rank-based score (percentyle + anty-1M)",
+                value=False,
+                key="gpw_bt_rank",
+                help="Zamiast wazonej sumy surowych zwrotow, rankuje tickery per okres "
+                     "(0-1). 1M flipowany jako anti-signal (short-term reversal). "
+                     "Odporny na outliery i skew miedzy aktywami.",
+            )
+
         bt_tickers = _tickers_for_index(bt_index)
         _tab4_ok = len(bt_tickers) >= top_n
         if not _tab4_ok:
@@ -317,6 +327,7 @@ with tab4:
                 bt_prices[available_cols].dropna(how="all"), top_n=top_n,
                 start_capital=start_capital, trading_days=252,
                 benchmarks={"Equal-Weight B&H": available_cols},
+                rank_based=rank_based,
             )
 
             if result is None:
