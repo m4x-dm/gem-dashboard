@@ -141,3 +141,21 @@ for category, stocks in GPW_CATEGORIES.items():
         GPW_CATEGORY_MAP[ticker] = category
 
 ALL_GPW_TICKERS = list(GPW_NAMES.keys())
+
+# Banki GPW — banki nie raportuja klasycznego EBITDA / EV/EBITDA / FCF.
+# yfinance czesto zwraca None dla tych metryk dla bankow.
+# Tab "Finanse spolki" auto-hide te wskazniki gdy is_bank(ticker) == True.
+# Last verified: 2026-05-15
+GPW_BANKS: set[str] = {
+    # WIG20
+    "ALR.WA",   # Alior Bank
+    "MBK.WA",   # mBank
+    "PEO.WA",   # Bank Pekao
+    "PKO.WA",   # PKO Bank Polski
+    "SPL.WA",   # Santander Bank Polska
+    # mWIG40
+    "BHW.WA",   # Bank Handlowy
+    "BNP.WA",   # BNP Paribas Bank Polska
+    "ING.WA",   # ING Bank Slaski (jesli w universe)
+    "MIL.WA",   # Bank Millennium
+}

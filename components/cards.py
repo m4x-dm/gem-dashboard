@@ -3,10 +3,13 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from components.formatting import (
-    fmt_pct, color_for_value, GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
+    fmt_pct, fmt_number, color_for_value,
+    GOLD, GREEN, RED, MUTED, BG, BG2, BG_CARD, BORDER,
 )
 from components.constants import CHART_COLORS
+from data.financials import format_currency, format_large_number
 
 
 def signal_card(signal_data: dict) -> None:
@@ -369,5 +372,306 @@ def final_value_card(name: str, value: float, start_capital: float,
         f'<div style="font-size:0.75rem;color:{MUTED};text-transform:uppercase">{name}</div>'
         f'<div style="font-size:1.4rem;font-weight:700;color:{GOLD}">{fmt_number(value, 0)} {currency}</div>'
         f'<div style="font-size:0.8rem;color:{gain_color}">{"+" if gain >= 0 else ""}{fmt_number(gain, 0)} {currency}</div>'
+        f'</div>'
+    )
+
+
+# ===========================================================================
+# Tab "Finanse spolki" — 4 cards (ratios, forward consensus, history, recos)
+# Spec: docs/superpowers/specs/2026-05-14-finanse-spolki-design.md
+# ===========================================================================
+
+def _finance_empty(message: str = "Brak danych ze zrodla yfinance") -> None:
+    """Wspolny pusty stan dla 4 finance cards."""
+    st.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};'
+        f'border-radius:12px;padding:32px;text-align:center;color:{MUTED};'
+        f'font-size:0.9rem;min-height:140px;display:flex;align-items:center;'
+        f'justify-content:center">{message}</div>'
+    )
+
+
+def _ratio_cell(label: str, value: str, value_color: str = "#E5E7EB") -> str:
+    """Pojedyncza komorka w grid ratios."""
+    return (
+        f'<div style="background:{BG};border:1px solid {BORDER};border-radius:8px;'
+        f'padding:10px 12px">'
+        f'<div style="font-size:0.65rem;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.06em;margin-bottom:4px">{label}</div>'
+        f'<div style="font-size:0.95rem;font-weight:700;color:{value_color}">{value}</div>'
+        f'</div>'
+    )
+
+
+def ratios_card(snapshot: dict, is_bank: bool = False) -> None:
+    """Grid 4x3 wskaznikow finansowych z yfinance Ticker.info.
+
+    Dla bankow (is_bank=True) ukrywa EBITDA / EV-EBITDA / FCF (label "N/A bank").
+    Pusty snapshot -> info "Brak danych".
+    """
+    if not snapshot:
+        _finance_empty("Brak danych finansowych dla tej spolki")
+        return
+
+    name = snapshot.get("name") or ""
+    sector = snapshot.get("sector") or ""
+    price = snapshot.get("current_price")
+    currency_sym = "zl" if str(snapshot.get("currency", "")).upper() == "PLN" else "$"
+
+    # Header
+    header_html = (
+        f'<div style="margin-bottom:12px">'
+        f'<div style="color:{GOLD};font-size:0.7rem;text-transform:uppercase;'
+        f'letter-spacing:0.08em;font-weight:600;margin-bottom:4px">Ratios snapshot</div>'
+        f'<div style="font-size:0.95rem;color:#E5E7EB;font-weight:600">{name}</div>'
+        f'<div style="font-size:0.75rem;color:{MUTED}">'
+        f'{sector or "—"}'
+        + (f' · {currency_sym}{price:,.2f}' if price else "")
+        + (f' · cap {format_large_number(snapshot.get("market_cap"))}' if snapshot.get("market_cap") else "")
+        + '</div></div>'
+    )
+
+    # Build 12 cells (4 cols x 3 rows). Bank-blocked metryki: ebitda, ev_ebitda, fcf.
+    bank_block = {"ebitda", "ev_ebitda", "fcf"} if is_bank else set()
+
+    def _cell_for(key: str) -> str:
+        label_map = {
+            "pe":             ("PE",         lambda v: fmt_number(v, 1)),
+            "fwd_pe":         ("Fwd PE",     lambda v: fmt_number(v, 1)),
+            "ev_ebitda":      ("EV/EBITDA",  lambda v: fmt_number(v, 1)),
+            "ebitda":         ("EBITDA",     lambda v: format_large_number(v)),
+            "roe":            ("ROE",        lambda v: fmt_pct(v, 1)),
+            "roa":            ("ROA",        lambda v: fmt_pct(v, 1)),
+            "profit_margin":  ("Profit M.",  lambda v: fmt_pct(v, 1)),
+            "gross_margin":   ("Gross M.",   lambda v: fmt_pct(v, 1)),
+            "fcf":            ("FCF",        lambda v: format_large_number(v)),
+            "debt_to_equity": ("Debt/E",     lambda v: fmt_number(v, 1)),
+            "price_to_book":  ("P/B",        lambda v: fmt_number(v, 1)),
+            "dividend_yield": ("Div Yld",    lambda v: f"{v:.2f}%" if v is not None else "—"),
+            "revenue_growth": ("Rev Gr.",    lambda v: fmt_pct(v, 1)),
+            "earnings_growth":("EPS Gr.",    lambda v: fmt_pct(v, 1)),
+        }
+        label, fmt = label_map[key]
+        if key in bank_block:
+            return _ratio_cell(label, "N/A bank", MUTED)
+        value = snapshot.get(key)
+        formatted = fmt(value) if value is not None else "—"
+        color = "#E5E7EB"
+        if key in ("revenue_growth", "earnings_growth") and value is not None:
+            color = color_for_value(value)
+        return _ratio_cell(label, formatted, color)
+
+    keys_grid = [
+        "pe", "fwd_pe", "ev_ebitda", "roe",
+        "ebitda", "fcf", "debt_to_equity", "price_to_book",
+        "profit_margin", "gross_margin", "revenue_growth", "dividend_yield",
+    ]
+    cells_html = "".join(_cell_for(k) for k in keys_grid)
+
+    st.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};'
+        f'border-radius:12px;padding:18px">'
+        f'{header_html}'
+        f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'
+        f'{cells_html}'
+        f'</div></div>'
+    )
+
+
+def forward_consensus_card(df: pd.DataFrame | None) -> None:
+    """Plotly bar chart forward konsensusu EPS analitykow.
+
+    df cols: avg, low, high, num_analysts, growth.
+    Slupek = avg, error bars = low/high, hover = num_analysts + growth %.
+    """
+    if df is None or df.empty:
+        _finance_empty("Brak konsensusu analitykow dla tej spolki")
+        return
+
+    periods = df.index.tolist()
+    avg = df["avg"].fillna(0).tolist()
+    low = df["low"].fillna(df["avg"]).tolist() if "low" in df.columns else avg
+    high = df["high"].fillna(df["avg"]).tolist() if "high" in df.columns else avg
+    n_analysts = df["num_analysts"].fillna(0).astype(int).tolist() if "num_analysts" in df.columns else [0] * len(avg)
+    growth = df["growth"].fillna(0).tolist() if "growth" in df.columns else [0] * len(avg)
+
+    hover = [
+        f"<b>{p}</b><br>Avg: {a:.2f}<br>Low: {l:.2f}<br>High: {h:.2f}<br>"
+        f"Analitykow: {n}<br>Growth: {g*100:+.1f}%"
+        for p, a, l, h, n, g in zip(periods, avg, low, high, n_analysts, growth)
+    ]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=periods,
+        y=avg,
+        marker=dict(color=GOLD, line=dict(color=BORDER, width=1)),
+        error_y=dict(
+            type="data",
+            symmetric=False,
+            array=[h - a for h, a in zip(high, avg)],
+            arrayminus=[a - l for a, l in zip(avg, low)],
+            color=MUTED, thickness=1.5, width=8,
+        ),
+        text=[f"{a:.2f}" for a in avg],
+        textposition="outside",
+        textfont=dict(color="#E5E7EB", size=11),
+        hovertext=hover,
+        hoverinfo="text",
+        name="EPS estimate",
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor=BG_CARD,
+        plot_bgcolor=BG_CARD,
+        title=dict(text="Forward konsensus EPS", font=dict(size=13, color=GOLD)),
+        font=dict(color="#9CA3AF", size=11),
+        xaxis=dict(showgrid=False, color=MUTED),
+        yaxis=dict(gridcolor=BORDER, showgrid=True, color=MUTED, title="EPS estimate"),
+        height=300,
+        margin=dict(l=50, r=20, t=50, b=40),
+        showlegend=False,
+    )
+
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+def earnings_history_card(df: pd.DataFrame | None) -> None:
+    """Tabela ostatnich N kwartalow: Estimate / Actual / Surprise%."""
+    if df is None or df.empty:
+        _finance_empty("Brak historii earnings dla tej spolki")
+        return
+
+    if "surprise_pct" in df.columns:
+        avg_surprise = df["surprise_pct"].dropna().mean()
+        if not pd.isna(avg_surprise):
+            avg_color = color_for_value(avg_surprise / 100)
+            avg_sign = "+" if avg_surprise > 0 else ""
+            avg_label = (
+                f'<span style="color:{MUTED};font-size:0.7rem">Avg surprise: </span>'
+                f'<span style="color:{avg_color};font-weight:700;font-size:0.85rem">'
+                f'{avg_sign}{avg_surprise:.1f}%</span>'
+            )
+        else:
+            avg_label = ""
+    else:
+        avg_label = ""
+
+    header_html = (
+        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+        f'<div style="color:{GOLD};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;'
+        f'font-weight:600">Earnings history</div>{avg_label}</div>'
+    )
+
+    rows_html = ""
+    for idx, row in df.iloc[::-1].iterrows():
+        quarter_label = str(idx)
+        est = row.get("eps_estimate")
+        act = row.get("eps_actual")
+        surp = row.get("surprise_pct")
+
+        est_str = fmt_number(est, 2) if est is not None and not pd.isna(est) else "—"
+        act_str = fmt_number(act, 2) if act is not None and not pd.isna(act) else "—"
+        if surp is not None and not pd.isna(surp):
+            surp_color = color_for_value(surp / 100)
+            surp_str = f"+{surp:.1f}%" if surp > 0 else f"{surp:.1f}%"
+        else:
+            surp_color = MUTED
+            surp_str = "—"
+
+        rows_html += (
+            f'<tr style="border-top:1px solid {BORDER}">'
+            f'<td style="padding:7px 6px;color:#E5E7EB;font-size:0.85rem">{quarter_label}</td>'
+            f'<td style="padding:7px 6px;text-align:right;color:{MUTED};font-size:0.85rem">{est_str}</td>'
+            f'<td style="padding:7px 6px;text-align:right;color:#E5E7EB;font-size:0.85rem">{act_str}</td>'
+            f'<td style="padding:7px 6px;text-align:right;color:{surp_color};font-weight:600;font-size:0.85rem">{surp_str}</td>'
+            f'</tr>'
+        )
+
+    st.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:18px">'
+        f'{header_html}'
+        f'<table style="width:100%;border-collapse:collapse">'
+        f'<thead><tr style="color:{MUTED};font-size:0.7rem;text-transform:uppercase">'
+        f'<th style="text-align:left;padding:4px 6px;font-weight:500">Quarter</th>'
+        f'<th style="text-align:right;padding:4px 6px;font-weight:500">Estimate</th>'
+        f'<th style="text-align:right;padding:4px 6px;font-weight:500">Actual</th>'
+        f'<th style="text-align:right;padding:4px 6px;font-weight:500">Surprise</th>'
+        f'</tr></thead>'
+        f'<tbody>{rows_html}</tbody></table></div>'
+    )
+
+
+def analyst_recos_card(recos: dict) -> None:
+    """Karta z target price + recommendation badge.
+
+    Pusty dict -> "Brak rekomendacji".
+    """
+    if not recos or (recos.get("target_mean") is None and (recos.get("num_analysts") or 0) == 0):
+        _finance_empty("Brak rekomendacji analitykow dla tej spolki")
+        return
+
+    target_mean = recos.get("target_mean")
+    target_median = recos.get("target_median")
+    target_high = recos.get("target_high")
+    target_low = recos.get("target_low")
+    upside = recos.get("upside_pct")
+    reco_key = (recos.get("recommendation_key") or "").lower()
+    num_analysts = recos.get("num_analysts") or 0
+
+    reco_map = {
+        "strong_buy":   ("STRONG BUY",   GREEN),
+        "buy":          ("BUY",          GREEN),
+        "hold":         ("HOLD",         "#F59E0B"),
+        "sell":         ("SELL",         RED),
+        "strong_sell":  ("STRONG SELL",  RED),
+        "underperform": ("UNDERPERFORM", RED),
+        "outperform":   ("OUTPERFORM",   GREEN),
+        "none":         ("—",            MUTED),
+    }
+    reco_label, reco_color = reco_map.get(reco_key, ("—", MUTED))
+
+    target_mean_str = f"${target_mean:,.2f}" if target_mean is not None else "—"
+    upside_str = ""
+    if upside is not None:
+        upside_color = color_for_value(upside / 100)
+        upside_sign = "+" if upside > 0 else ""
+        upside_str = (
+            f'<div style="color:{upside_color};font-size:0.85rem;font-weight:600;margin-top:2px">'
+            f'{upside_sign}{upside:.1f}% upside</div>'
+        )
+
+    def _row(label: str, val: float | None) -> str:
+        val_str = f"${val:,.2f}" if val is not None else "—"
+        return (
+            f'<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0">'
+            f'<span style="color:{MUTED}">{label}</span>'
+            f'<span style="color:#E5E7EB">{val_str}</span></div>'
+        )
+
+    targets_html = _row("High", target_high) + _row("Median", target_median) + _row("Low", target_low)
+
+    badge_html = (
+        f'<div style="background:{BG};border:1px solid {reco_color};border-radius:6px;'
+        f'padding:10px;text-align:center;margin-top:12px">'
+        f'<div style="color:{reco_color};font-size:0.95rem;font-weight:700;letter-spacing:0.05em">{reco_label}</div>'
+        f'<div style="color:{MUTED};font-size:0.65rem;margin-top:4px">'
+        f'Recommendation key (yfinance) · {num_analysts} analitykow</div></div>'
+    )
+
+    st.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:18px">'
+        f'<div style="color:{GOLD};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;'
+        f'font-weight:600;margin-bottom:12px">Analyst recos</div>'
+        f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">'
+        f'<div>'
+        f'<div style="color:{MUTED};font-size:0.7rem">Target mean</div>'
+        f'<div style="font-size:1.5rem;font-weight:700;color:#E5E7EB">{target_mean_str}</div>'
+        f'{upside_str}'
+        f'</div>'
+        f'<div>{targets_html}</div>'
+        f'</div>'
+        f'{badge_html}'
         f'</div>'
     )

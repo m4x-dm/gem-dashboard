@@ -20,7 +20,14 @@ from components.charts import (
     price_chart, momentum_chart, drawdown_chart,
     ranking_bar_chart, correlation_heatmap, equity_chart, rs_chart,
 )
-from components.cards import stats_table, comparison_card, final_value_card
+from components.cards import (
+    stats_table, comparison_card, final_value_card,
+    ratios_card, forward_consensus_card, earnings_history_card, analyst_recos_card,
+)
+from data.financials import (
+    get_ratios_snapshot, get_forward_consensus,
+    get_earnings_history, get_analyst_recos,
+)
 from components.auth import require_premium
 
 st.set_page_config(page_title="S&P 500 — Amerykanskie Akcje", page_icon="🇺🇸", layout="wide")
@@ -45,12 +52,13 @@ def _tickers_for_sector(sector_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "💪 Relative Strength",
+    "💰 Finanse",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -80,6 +88,10 @@ with tab1:
         if _tab1_ok:
             rf = get_risk_free()
             ranking = build_ranking(prices, rf)
+
+            # Zapisz top ticker dla pre-fill selectbox w tabie "Finanse".
+            if len(ranking) > 0:
+                st.session_state["sp_finanse_default"] = str(ranking.index[0])
 
             # Dodaj nazwy i sektor
             ranking["Nazwa"] = ranking.index.map(lambda t: SP500_NAMES.get(t, t))
@@ -448,5 +460,51 @@ with tab5:
             st.warning("Nie udalo sie pobrac danych SPY.")
     else:
         st.info("Wybierz co najmniej 1 spolke.")
+
+# ========================== TAB 6: FINANSE ==========================
+with tab6:
+    @st.fragment
+    def _finanse_fragment():
+        st.markdown("### Wskazniki finansowe + konsensus analitykow")
+        st.caption(
+            "Dane z yfinance (Ticker.info / .earnings_estimate / .earnings_history). "
+            "Cache 24h. Niektore wskazniki moga byc niedostepne dla mniejszych spolek."
+        )
+
+        # Pre-fill z top rankingu (jesli user wczesniej otworzyl tab Ranking) lub fallback.
+        default_ticker = st.session_state.get("sp_finanse_default") or sorted(SP500_NAMES.keys())[0]
+        ticker_options = sorted(SP500_NAMES.keys())
+        try:
+            default_idx = ticker_options.index(default_ticker)
+        except ValueError:
+            default_idx = 0
+
+        ticker = st.selectbox(
+            "Spolka",
+            ticker_options,
+            index=default_idx,
+            format_func=lambda t: f"{t} — {SP500_NAMES.get(t, t)}",
+            key="sp_finanse_ticker",
+        )
+
+        with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
+            snap = get_ratios_snapshot(ticker)
+            cons = get_forward_consensus(ticker)
+            hist = get_earnings_history(ticker)
+            recos = get_analyst_recos(ticker)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            ratios_card(snap, is_bank=False)
+        with col2:
+            forward_consensus_card(cons)
+
+        col3, col4 = st.columns(2)
+        with col3:
+            earnings_history_card(hist)
+        with col4:
+            analyst_recos_card(recos)
+
+    _finanse_fragment()
 
 render_footer()

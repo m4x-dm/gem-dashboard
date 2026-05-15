@@ -40,8 +40,8 @@ pages/
   4_porownanie.py       # Compare 2-4 ETFs/indices + stats + correlation (incl. WIG20/mWIG40/sWIG80)
   5_backtest.py         # Backtest strategii (GEM, QQQ+SMA200, TQQQ+Momentum, porownanie)
   6_info.py             # GEM strategy explanation (Polish)
-  7_sp500.py            # S&P 500 US stocks (5 tabs: ranking, wykresy, porownanie+stats, backtest, RS)
-  8_gpw.py              # Polish stocks GPW (5 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest, RS)
+  7_sp500.py            # S&P 500 US stocks (6 tabs: ranking, wykresy, porownanie+stats, backtest, RS, finanse)
+  8_gpw.py              # Polish stocks GPW (6 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest, RS, finanse)
   9_kryptowaluty.py     # Crypto (7 tabs: ranking, alt/BTC ratio, wykresy, porownanie+stats, backtest, sygnaly TA, RS)
   10_portfolio.py       # Portfolio Builder (ticker selection, weights, backtest, correlation)
   11_screener.py        # Cross-Asset Screener (unified ranking from all 4 universes)
@@ -109,6 +109,9 @@ pages/
 - **Favorites (F8):** Max 8 tickers in `st.session_state["favorites"]`. Sidebar section. Sparklines grid on page 0.
 - **Relative Strength (F6):** `relative_strength(asset, benchmark)` in `momentum.py` — RS=asset/benchmark normalized to 100 + SMA(50,200). `rs_chart()` in `charts.py`. Integrated as new tabs on pages 7 (vs SPY), 8 (vs WIG20), 9 (vs BTC), and as section on page 4.
 - **Side-by-Side (F9):** Page 20 (`pages/20_side_by_side.py`) — two-column comparison of any two assets. Includes price chart, drawdown, stats table, correlation, RS chart. Premium page.
+- **Finanse tab (F11):** 6-ty tab w `pages/7_sp500.py` + `pages/8_gpw.py` (`💰 Finanse`). 4 karty w grid 2×2: ratios snapshot (PE/Fwd PE/EV-EBITDA/EBITDA/ROE/ROA/FCF/Debt-E/P-B/Div Yield/Profit M./Rev Gr.), forward konsensus EPS (Plotly bar chart 4 periods z error bars), earnings history (tabela last 8Q actual vs estimate z surprise %), analyst recos (target mean + upside % + reco badge). Dane z yfinance (`Ticker.info`, `.earnings_estimate`, `.earnings_history`). Cache 24h przez `@st.cache_data(ttl=86400)` w `data/financials.py`. Selectbox pre-fill z `st.session_state["sp_finanse_default"]` / `["gpw_finanse_default"]` ustawionych w ranking tabach. Spec: `docs/superpowers/specs/2026-05-14-finanse-spolki-design.md`.
+- **GPW banks edge case:** `data/gpw_universe.py` eksportuje `GPW_BANKS: set[str]` (PKO/PEO/SPL/MBK/BHW/BNP/ING/MIL/ALR). `data/financials.is_bank(ticker)` lookup. Tab Finanse na GPW page wywołuje `ratios_card(snap, is_bank=is_bank(ticker))` — dla banków EBITDA/EV-EBITDA/FCF ukryte z labelem "N/A bank" (banki używają NII/NIM zamiast EBITDA). Last verified: 2026-05-15.
+- **yfinance Ticker.info gotcha:** `Ticker.info` to OSOBNE API niż `yf.download()` — działa per-ticker bez rate-limit problemów. `earnings_estimate` / `earnings_history` to lazy properties zwracające pandas DataFrame; mogą zwrócić empty DF dla nieznanych tickerów (np. `CCC.WA` 404). Wszystkie 4 funkcje w `data/financials.py` wrapped w `try/except Exception` → return `{}` / `None` (graceful).
 - **PDF Export (F10):** `components/pdf_report.py` — reportlab-based, text+table report (no charts). Font: Arial (Windows) / Helvetica (Linux). Integrated on page 0 via expander with section checkboxes + download button.
 
 ## ETF Universe (37 tickers, 7 categories)

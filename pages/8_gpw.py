@@ -5,7 +5,11 @@ import pandas as pd
 import numpy as np
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.gpw_universe import (
-    ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP, GPW_CATEGORIES,
+    ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP, GPW_CATEGORIES, GPW_BANKS,
+)
+from data.financials import (
+    get_ratios_snapshot, get_forward_consensus,
+    get_earnings_history, get_analyst_recos, is_bank,
 )
 from data.downloader import download_prices, download_single, download_stooq, STOOQ_TICKERS
 from data.momentum import (
@@ -20,7 +24,10 @@ from components.charts import (
     price_chart, momentum_chart, drawdown_chart,
     ranking_bar_chart, correlation_heatmap, equity_chart, rs_chart,
 )
-from components.cards import stats_table, comparison_card, final_value_card
+from components.cards import (
+    stats_table, comparison_card, final_value_card,
+    ratios_card, forward_consensus_card, earnings_history_card, analyst_recos_card,
+)
 from components.auth import require_premium
 
 st.set_page_config(page_title="Polskie Akcje GPW", page_icon="🇵🇱", layout="wide")
@@ -45,12 +52,13 @@ def _tickers_for_index(index_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "💪 Relative Strength",
+    "💰 Finanse",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -80,6 +88,10 @@ with tab1:
         if _tab1_ok:
             rf = get_risk_free()
             ranking = build_ranking(prices, rf)
+
+            # Zapisz top ticker dla pre-fill selectbox w tabie "Finanse".
+            if len(ranking) > 0:
+                st.session_state["gpw_finanse_default"] = str(ranking.index[0])
 
             # Dodaj nazwy i indeks
             ranking["Nazwa"] = ranking.index.map(lambda t: GPW_NAMES.get(t, t))
@@ -439,5 +451,59 @@ with tab5:
             st.warning("Nie udalo sie pobrac danych WIG20.")
     else:
         st.info("Wybierz co najmniej 1 spolke.")
+
+# ========================== TAB 6: FINANSE ==========================
+with tab6:
+    @st.fragment
+    def _finanse_fragment_gpw():
+        st.markdown("### Wskazniki finansowe + konsensus analitykow")
+        st.info(
+            "**GPW info:** Niektore wskazniki sa niedostepne dla mniejszych spolek lub "
+            "sektora bankowego (EBITDA / EV-EBITDA / FCF). Banki maja oznaczenie 'N/A bank'. "
+            "Konsensus analitykow jest typowo dostepny dla WIG20 i wiekszych mWIG40."
+        )
+        st.caption(
+            "Dane z yfinance. Cache 24h. Brakujace wskazniki = '—'."
+        )
+
+        # Pre-fill z top rankingu lub fallback.
+        default_ticker = st.session_state.get("gpw_finanse_default") or sorted(GPW_NAMES.keys())[0]
+        ticker_options = sorted(GPW_NAMES.keys())
+        try:
+            default_idx = ticker_options.index(default_ticker)
+        except ValueError:
+            default_idx = 0
+
+        ticker = st.selectbox(
+            "Spolka",
+            ticker_options,
+            index=default_idx,
+            format_func=lambda t: f"{t} — {GPW_NAMES.get(t, t)}",
+            key="gpw_finanse_ticker",
+        )
+
+        bank_flag = is_bank(ticker)
+        if bank_flag:
+            st.caption(f"🏦 **{ticker}** wykryty jako bank — EBITDA/EV-EBITDA/FCF ukryte.")
+
+        with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
+            snap = get_ratios_snapshot(ticker)
+            cons = get_forward_consensus(ticker)
+            hist = get_earnings_history(ticker)
+            recos = get_analyst_recos(ticker)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            ratios_card(snap, is_bank=bank_flag)
+        with col2:
+            forward_consensus_card(cons)
+
+        col3, col4 = st.columns(2)
+        with col3:
+            earnings_history_card(hist)
+        with col4:
+            analyst_recos_card(recos)
+
+    _finanse_fragment_gpw()
 
 render_footer()
