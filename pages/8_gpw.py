@@ -467,24 +467,26 @@ with tab6:
         )
 
         # Pre-fill z top rankingu lub fallback.
-        default_ticker = st.session_state.get("gpw_finanse_default") or sorted(GPW_NAMES.keys())[0]
+        # WAZNE: NIE uzywaj index= z key= jednoczesnie (powoduje cofanie do default
+        # przy re-run fragmentu). Init w session_state TYLKO przy pierwszym renderze.
         ticker_options = sorted(GPW_NAMES.keys())
-        try:
-            default_idx = ticker_options.index(default_ticker)
-        except ValueError:
-            default_idx = 0
+        if "gpw_finanse_ticker" not in st.session_state:
+            default_ticker = st.session_state.get("gpw_finanse_default") or ticker_options[0]
+            if default_ticker in ticker_options:
+                st.session_state["gpw_finanse_ticker"] = default_ticker
 
         ticker = st.selectbox(
             "Spolka",
             ticker_options,
-            index=default_idx,
             format_func=lambda t: f"{t} — {GPW_NAMES.get(t, t)}",
             key="gpw_finanse_ticker",
         )
 
         bank_flag = is_bank(ticker)
         if bank_flag:
-            st.caption(f"🏦 **{ticker}** wykryty jako bank — EBITDA/EV-EBITDA/FCF ukryte.")
+            st.caption(f"🏦 Wskazniki dla: **{ticker}** — {GPW_NAMES.get(ticker, '')} (bank — EBITDA/EV-EBITDA/FCF ukryte)")
+        else:
+            st.caption(f"Wskazniki dla: **{ticker}** — {GPW_NAMES.get(ticker, '')}")
 
         with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
             snap = get_ratios_snapshot(ticker)

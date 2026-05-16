@@ -472,20 +472,21 @@ with tab6:
         )
 
         # Pre-fill z top rankingu (jesli user wczesniej otworzyl tab Ranking) lub fallback.
-        default_ticker = st.session_state.get("sp_finanse_default") or sorted(SP500_NAMES.keys())[0]
+        # WAZNE: NIE uzywaj index= z key= jednoczesnie (powoduje cofanie do default
+        # przy re-run fragmentu). Init w session_state TYLKO przy pierwszym renderze.
         ticker_options = sorted(SP500_NAMES.keys())
-        try:
-            default_idx = ticker_options.index(default_ticker)
-        except ValueError:
-            default_idx = 0
+        if "sp_finanse_ticker" not in st.session_state:
+            default_ticker = st.session_state.get("sp_finanse_default") or ticker_options[0]
+            if default_ticker in ticker_options:
+                st.session_state["sp_finanse_ticker"] = default_ticker
 
         ticker = st.selectbox(
             "Spolka",
             ticker_options,
-            index=default_idx,
             format_func=lambda t: f"{t} — {SP500_NAMES.get(t, t)}",
             key="sp_finanse_ticker",
         )
+        st.caption(f"Wskazniki dla: **{ticker}** — {SP500_NAMES.get(ticker, '')}")
 
         with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
             snap = get_ratios_snapshot(ticker)
