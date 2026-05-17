@@ -306,10 +306,11 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
             for a in equity_assets
         }
         best = max(candidates, key=candidates.get)
-        if trend_filter and sma is not None:
-            price_now = prices_clean[best].iloc[idx]
-            sma_now = sma[best].iloc[idx]
-            if pd.notna(sma_now) and price_now < sma_now:
+        if trend_filter and sma is not None and idx >= 1:
+            # Uzyj wczorajszej ceny + SMA (no lookahead w decyzji na dzis)
+            price_prev = prices_clean[best].iloc[idx - 1]
+            sma_prev = sma[best].iloc[idx - 1]
+            if pd.notna(sma_prev) and price_prev < sma_prev:
                 return "AGG"
         return best
 
