@@ -19,6 +19,22 @@ from data.gpw_universe import GPW_BANKS
 # ---------------------------------------------------------------------------
 
 @st.cache_data(ttl=86400, show_spinner=False)
+def _fetch_info(ticker: str) -> dict:
+    """Wspolny helper — fetch yfinance Ticker.info raz dla danego tickera.
+
+    Uzywany przez get_ratios_snapshot + get_analyst_recos (oba potrzebuja info).
+    Dzieki cache TTL 24h — 1 API call zamiast 2 per ticker.
+    """
+    try:
+        info = yf.Ticker(ticker).info
+    except Exception:
+        return {}
+    if not info or not isinstance(info, dict):
+        return {}
+    return info
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_ratios_snapshot(ticker: str) -> dict:
     """Pobiera 12 kluczowych wskaznikow z yfinance Ticker.info.
 
@@ -28,12 +44,8 @@ def get_ratios_snapshot(ticker: str) -> dict:
 
     Brakujace pola = None. Pusty dict gdy ticker nieznany / API fail.
     """
-    try:
-        info = yf.Ticker(ticker).info
-    except Exception:
-        return {}
-
-    if not info or not isinstance(info, dict):
+    info = _fetch_info(ticker)
+    if not info:
         return {}
 
     # Sanity check: ticker nieznany jesli brak nawet ceny / EPS
@@ -158,16 +170,13 @@ def get_analyst_recos(ticker: str) -> dict:
     """Rekomendacje analitykow + target prices.
 
     Zwraca dict z kluczami: target_mean, target_median, target_high,
-    target_low, recommendation_key, num_analysts, current_price, upside_pct.
+    target_low, recommendation_key, num_analysts, current_price, upside_pct,
+    currency.
 
     Pusty dict gdy brak analitykow / API fail.
     """
-    try:
-        info = yf.Ticker(ticker).info
-    except Exception:
-        return {}
-
-    if not info or not isinstance(info, dict):
+    info = _fetch_info(ticker)
+    if not info:
         return {}
 
     num_analysts = info.get("numberOfAnalystOpinions") or 0
@@ -191,6 +200,7 @@ def get_analyst_recos(ticker: str) -> dict:
         "num_analysts": num_analysts,
         "current_price": current_price,
         "upside_pct": upside_pct,
+        "currency": info.get("currency"),
     }
 
 

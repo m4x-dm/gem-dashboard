@@ -447,7 +447,7 @@ def ratios_card(snapshot: dict, is_bank: bool = False) -> None:
             "fcf":            ("FCF",        lambda v: format_large_number(v)),
             "debt_to_equity": ("Debt/E",     lambda v: fmt_number(v, 1)),
             "price_to_book":  ("P/B",        lambda v: fmt_number(v, 1)),
-            "dividend_yield": ("Div Yld",    lambda v: f"{v:.2f}%" if v is not None else "—"),
+            "dividend_yield": ("Div Yld",    lambda v: f"{v:.2f}%" if (v is not None and not (isinstance(v, float) and (np.isnan(v) or np.isinf(v)))) else "—"),
             "revenue_growth": ("Rev Gr.",    lambda v: fmt_pct(v, 1)),
             "earnings_growth":("EPS Gr.",    lambda v: fmt_pct(v, 1)),
         }
@@ -619,6 +619,8 @@ def analyst_recos_card(recos: dict) -> None:
     upside = recos.get("upside_pct")
     reco_key = (recos.get("recommendation_key") or "").lower()
     num_analysts = recos.get("num_analysts") or 0
+    # Waluta z yfinance.info — PLN dla GPW, USD dla SP500
+    currency_sym = "zl" if str(recos.get("currency", "")).upper() == "PLN" else "$"
 
     reco_map = {
         "strong_buy":   ("STRONG BUY",   GREEN),
@@ -632,7 +634,7 @@ def analyst_recos_card(recos: dict) -> None:
     }
     reco_label, reco_color = reco_map.get(reco_key, ("—", MUTED))
 
-    target_mean_str = f"${target_mean:,.2f}" if target_mean is not None else "—"
+    target_mean_str = f"{currency_sym}{target_mean:,.2f}" if target_mean is not None else "—"
     upside_str = ""
     if upside is not None:
         upside_color = color_for_value(upside / 100)
@@ -643,7 +645,7 @@ def analyst_recos_card(recos: dict) -> None:
         )
 
     def _row(label: str, val: float | None) -> str:
-        val_str = f"${val:,.2f}" if val is not None else "—"
+        val_str = f"{currency_sym}{val:,.2f}" if val is not None else "—"
         return (
             f'<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0">'
             f'<span style="color:{MUTED}">{label}</span>'
