@@ -55,13 +55,12 @@ for row_start in range(0, len(cards), 3):
             ct = st.container(border=True)
             with ct:
                 if locked:
-                    st.markdown(
+                    st.html(
                         f'<div style="font-size:28px;margin-bottom:4px;">{icon} '
-                        f'<span style="font-size:14px;color:#C9A84C;vertical-align:middle;">🔒 PREMIUM</span></div>',
-                        unsafe_allow_html=True,
+                        f'<span style="font-size:14px;color:#C9A84C;vertical-align:middle;">🔒 PREMIUM</span></div>'
                     )
                 else:
-                    st.markdown(f'<div style="font-size:28px;margin-bottom:4px;">{icon}</div>', unsafe_allow_html=True)
+                    st.html(f'<div style="font-size:28px;margin-bottom:4px;">{icon}</div>')
                 st.page_link(page, label=f"**{title}**", use_container_width=True)
                 st.caption(desc)
 
