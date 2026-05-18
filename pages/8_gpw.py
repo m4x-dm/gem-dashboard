@@ -49,15 +49,111 @@ def _tickers_for_index(index_name: str) -> list[str]:
     return list(GPW_CATEGORIES.get(index_name, {}).keys())
 
 
+# ===========================================================================
+# Screener fundamentalny — helpers (page-local, GPW variant z bank handling)
+# Definicje MUSZA byc PRZED `with tab6:` (Streamlit @st.fragment).
+# ===========================================================================
+
+def _apply_screener_filters(
+    df,
+    *,
+    pe_max, roe_min_pct, ev_ebitda_max, sectors, cap_min_pln, buy_only,
+    div_yld_min_pct, rev_growth_min_pct, debt_eq_max, profit_margin_min_pct, pb_max,
+):
+    """11 filtrow NaN-aware. cap_min_pln w PLN raw (juz przemnozone przez 1e9)."""
+    out = df.copy()
+    out = out[out["pe"].fillna(np.inf) <= pe_max]
+    out = out[out["roe"].fillna(-np.inf) >= roe_min_pct / 100.0]
+    out = out[out["ev_ebitda"].fillna(np.inf) <= ev_ebitda_max]
+    if sectors:
+        out = out[out["sector"].isin(sectors)]
+    out = out[out["market_cap"].fillna(0) >= cap_min_pln]
+    if buy_only:
+        out = out[out["is_buy"]]
+    out = out[out["dividend_yield"].fillna(-np.inf) >= div_yld_min_pct]
+    out = out[out["revenue_growth"].fillna(-np.inf) >= rev_growth_min_pct / 100.0]
+    out = out[out["debt_to_equity"].fillna(np.inf) <= debt_eq_max]
+    out = out[out["profit_margin"].fillna(-np.inf) >= profit_margin_min_pct / 100.0]
+    out = out[out["price_to_book"].fillna(np.inf) <= pb_max]
+    return out
+
+
+def _format_screener_df_gpw(df):
+    """Format dla GPW: bank handling EV/EBITDA + PLN currency w Cap."""
+    from data.financials import format_large_number
+    from data.gpw_universe import GPW_BANKS
+    out = df.copy()
+    out["P/E"] = out["pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    out["Fwd P/E"] = out["fwd_pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    # Bank handling: EV/EBITDA = "N/A bank" zamiast "—"
+    def _ev(idx, v):
+        if idx in GPW_BANKS:
+            return "N/A bank"
+        return f"{v:.1f}" if pd.notna(v) else "—"
+    out["EV/EBITDA"] = [_ev(idx, v) for idx, v in out["ev_ebitda"].items()]
+    out["ROE"] = out["roe"].apply(lambda v: f"{v*100:.0f}%" if pd.notna(v) else "—")
+    out["Marza"] = out["profit_margin"].apply(lambda v: f"{v*100:.1f}%" if pd.notna(v) else "—")
+    out["Div Yld"] = out["dividend_yield"].apply(lambda v: f"{v:.2f}%" if pd.notna(v) else "—")
+    out["Cap"] = out["market_cap"].apply(lambda v: f"zl{format_large_number(v)}" if pd.notna(v) else "—")
+    out["Rev Gr."] = out["revenue_growth"].apply(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "—")
+    out["Reco"] = out["recommendation_key"].fillna("").astype(str).str.upper().str.replace("_", " ")
+    out["Nazwa"] = out["name"]
+    out["Sektor"] = out["sector"].fillna("—")
+    return out[["Nazwa", "Sektor", "P/E", "Fwd P/E", "EV/EBITDA", "ROE", "Marza",
+                "Div Yld", "Rev Gr.", "Cap", "Reco"]]
+
+
+def _render_screener_summary(df, total):
+    """4 summary cards: liczba, med P/E, med ROE, top sektor."""
+    n = len(df)
+    pe_med = df["pe"].median() if "pe" in df.columns and n > 0 else None
+    roe_med = df["roe"].median() if "roe" in df.columns and n > 0 else None
+    top_sec = df["sector"].value_counts().head(1) if "sector" in df.columns else pd.Series(dtype=int)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.html(
+        f'<div style="background:{BG_CARD};border:1px solid {GOLD}40;border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{GOLD};font-size:10px;text-transform:uppercase">Spolek</div>'
+        f'<div style="color:#fff;font-size:18px;font-weight:700">{n} / {total}</div></div>'
+    )
+    pe_text = f"{pe_med:.1f}" if pe_med is not None and pd.notna(pe_med) else "—"
+    c2.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. P/E</div>'
+        f'<div style="color:#fff;font-size:18px;font-weight:700">{pe_text}</div></div>'
+    )
+    roe_text = f"{roe_med*100:.0f}%" if roe_med is not None and pd.notna(roe_med) else "—"
+    c3.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. ROE</div>'
+        f'<div style="color:#71C77E;font-size:18px;font-weight:700">{roe_text}</div></div>'
+    )
+    if not top_sec.empty:
+        sec_name = top_sec.index[0]
+        sec_count = int(top_sec.iloc[0])
+        c4.html(
+            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
+            f'<div style="color:#fff;font-size:12px;font-weight:700;line-height:1.3">{sec_name}<br>'
+            f'<span style="font-size:10px;color:{MUTED}">({sec_count} spolek)</span></div></div>'
+        )
+    else:
+        c4.html(
+            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
+            f'<div style="color:#fff;font-size:18px;font-weight:700">—</div></div>'
+        )
+
+
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "💪 Relative Strength",
+    "📊 Screening",
     "💰 Finanse",
 ])
 
@@ -452,8 +548,121 @@ with tab5:
     else:
         st.info("Wybierz co najmniej 1 spolke.")
 
-# ========================== TAB 6: FINANSE ==========================
+# ========================== TAB 6: SCREENING ==========================
 with tab6:
+    @st.fragment
+    def _screener_fragment_gpw():
+        from data.financials import bulk_fetch_universe, to_screener_df
+        from data.gpw_universe import GPW_CATEGORIES
+
+        st.markdown("### Screening fundamentalny — WIG20 + mWIG40")
+        st.caption(
+            "Pelna tabela 11 wskaznikow. Banki (PKO, PEO, SPL, MBK, BHW, BNP, "
+            "MIL, ING, ALR) pokazuja „N/A bank” w EV/EBITDA — nie raportuja "
+            "klasycznego EBITDA. Dane z yfinance, cache 24h."
+        )
+
+        gpw_universe = list(GPW_CATEGORIES["WIG20"].keys()) + list(GPW_CATEGORIES["mWIG40"].keys())
+
+        with st.spinner("Pobieram dane fundamentalne universe..."):
+            bulk = bulk_fetch_universe(tuple(gpw_universe))
+        df_full = to_screener_df(bulk)
+        if df_full.empty:
+            st.error("Nie udalo sie pobrac danych z yfinance. Sprobuj odswiezyc strone.")
+            return
+
+        if len(bulk) < len(gpw_universe) * 0.7:
+            st.warning(
+                f"⚠️ Pobrano dane dla {len(bulk)}/{len(gpw_universe)} spolek. "
+                f"yfinance ma dziury w pokryciu GPW — to normalne dla mniejszych spolek."
+            )
+
+        # Filtry glowne (6) z PLN i innymi defaultami niz SP500
+        st.markdown("**Filtry glowne**")
+        col1, col2, col3 = st.columns(3)
+        pe_max = col1.slider("P/E max", 5.0, 100.0, 25.0, step=1.0, key="gpw_scr_pe")
+        roe_min = col2.slider("ROE min (%)", 0, 50, 10, key="gpw_scr_roe")
+        ev_ebitda_max = col3.slider("EV/EBITDA max", 1.0, 60.0, 20.0, step=1.0, key="gpw_scr_ev")
+
+        col4, col5, col6 = st.columns(3)
+        available_sectors = sorted([s for s in df_full["sector"].dropna().unique() if s])
+        sectors_sel = col4.multiselect("Sektory", available_sectors, default=available_sectors, key="gpw_scr_sec")
+        cap_min_pln = col5.number_input("Market cap min (mld zl)", 0.0, 500.0, 1.0, step=1.0, key="gpw_scr_cap")
+        buy_only = col6.checkbox("Tylko BUY", value=False, key="gpw_scr_buy")
+
+        with st.expander("Zaawansowane filtry", expanded=False):
+            a1, a2, a3 = st.columns(3)
+            div_yld_min = a1.slider("Div Yield min (%)", 0.0, 15.0, 0.0, key="gpw_scr_div")
+            rev_growth_min = a2.slider("Revenue Growth min (%)", -20, 100, -20, key="gpw_scr_rev")
+            debt_eq_max = a3.slider("Debt/E max", 0, 500, 500, key="gpw_scr_de")
+            a4, a5 = st.columns(2)
+            profit_margin_min = a4.slider("Profit Margin min (%)", -20, 50, -20, key="gpw_scr_pm")
+            pb_max = a5.slider("P/B max", 0.0, 30.0, 30.0, step=0.5, key="gpw_scr_pb")
+
+        df_filtered = _apply_screener_filters(
+            df_full,
+            pe_max=pe_max, roe_min_pct=roe_min, ev_ebitda_max=ev_ebitda_max,
+            sectors=sectors_sel, cap_min_pln=cap_min_pln * 1e9, buy_only=buy_only,
+            div_yld_min_pct=div_yld_min, rev_growth_min_pct=rev_growth_min,
+            debt_eq_max=debt_eq_max, profit_margin_min_pct=profit_margin_min, pb_max=pb_max,
+        )
+
+        if df_filtered.empty:
+            st.info("Brak wynikow po zastosowaniu filtrow. Sprobuj rozluznic kryteria.")
+            return
+
+        sort_options = {
+            "ROE (desc)": ("roe", False),
+            "P/E (asc, tansze)": ("pe", True),
+            "Forward P/E (asc)": ("fwd_pe", True),
+            "EV/EBITDA (asc)": ("ev_ebitda", True),
+            "Profit Margin (desc)": ("profit_margin", False),
+            "Revenue Growth (desc)": ("revenue_growth", False),
+            "Dividend Yield (desc)": ("dividend_yield", False),
+            "Upside % (desc)": ("upside_pct", False),
+            "Market Cap (desc)": ("market_cap", False),
+        }
+        s1, s2, s3 = st.columns([2, 1, 1])
+        sort_label = s1.selectbox("Sortuj wg", list(sort_options.keys()), key="gpw_scr_sort")
+        sort_col, ascending = sort_options[sort_label]
+        top_n_label = s2.selectbox("Top N", ["5", "10", "15", "25", "Wszystkie"], index=2, key="gpw_scr_topn")
+        s3.markdown(f"**Wynikow:** {len(df_filtered)}/{len(df_full)}")
+
+        df_sorted = df_filtered.sort_values(sort_col, ascending=ascending, na_position="last")
+        if top_n_label != "Wszystkie":
+            df_sorted = df_sorted.head(int(top_n_label))
+
+        _render_screener_summary(df_sorted, total=len(df_full))
+        st.markdown("---")
+
+        df_display = _format_screener_df_gpw(df_sorted)
+        sel = st.dataframe(
+            df_display, height=500, use_container_width=True,
+            on_select="rerun", selection_mode="single-row",
+        )
+        if sel and hasattr(sel, "selection") and sel.selection.rows:
+            clicked = df_display.index[sel.selection.rows[0]]
+            st.session_state["gpw_finanse_ticker"] = clicked
+            st.info(f"✓ Wybrano **{clicked}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
+
+        export_df = df_sorted.copy()
+        export_df.index.name = "ticker"
+        csv = export_df.to_csv()
+        st.download_button("📥 Eksport CSV", csv, "gpw_screener.csv", "text/csv", key="gpw_scr_csv")
+
+        st.caption(
+            "💡 Spolki z brakujacym wskaznikiem sa odfiltrowane gdy filtr aktywny."
+        )
+        st.caption(
+            "🏦 Banki nie raportuja klasycznego EBITDA — kolumna EV/EBITDA pokazuje "
+            "„N/A bank”. Filtr EV/EBITDA max wyklucza banki z tabeli."
+        )
+
+    _screener_fragment_gpw()
+
+
+# ========================== TAB 7: FINANSE ==========================
+with tab7:
     @st.fragment
     def _finanse_fragment_gpw():
         st.markdown("### Wskazniki finansowe + konsensus analitykow")
