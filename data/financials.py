@@ -253,3 +253,80 @@ def format_large_number(value: float | None) -> str:
     if abs_v >= 1e3:
         return f"{value / 1e3:.1f}K"
     return f"{value:.2f}"
+
+
+# ---------------------------------------------------------------------------
+# Bulk fetch dla tab Screening (pages 7_sp500 + 8_gpw)
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram dane fundamentalne universe...")
+def bulk_fetch_universe(_tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
+    """Bulk fetch danych fundamentalnych dla calego subset universe.
+
+    Reuses _fetch_info (cache TTL 24h) — pierwsze wywolanie 30-60s dla 100
+    tickerów, kolejne wywolania w 24h instant (cache hit per ticker).
+
+    Args:
+        _tickers_tuple: tuple zamiast list — zeby cache key byl hashable.
+
+    Returns:
+        dict[ticker, {info dict}] — brak rekordu gdy ticker zwrocil 404/timeout.
+    """
+    out: dict[str, dict] = {}
+    tickers = list(_tickers_tuple)
+    for t in tickers:
+        info = _fetch_info(t)  # cached per ticker — drugi run instant
+        if not info:
+            continue
+        # Sanity check: yfinance zwraca dict nawet dla nieistniejacych tickerów
+        # (z 404 w HTTP error). Skip jesli brak kluczowych pol.
+        if (info.get("regularMarketPrice") is None
+                and info.get("currentPrice") is None
+                and info.get("trailingEps") is None):
+            continue
+        out[t] = {
+            "pe": info.get("trailingPE"),
+            "fwd_pe": info.get("forwardPE"),
+            "ev_ebitda": info.get("enterpriseToEbitda"),
+            "ebitda": info.get("ebitda"),
+            "roe": info.get("returnOnEquity"),
+            "profit_margin": info.get("profitMargins"),
+            "gross_margin": info.get("grossMargins"),
+            "debt_to_equity": info.get("debtToEquity"),
+            "price_to_book": info.get("priceToBook"),
+            "dividend_yield": info.get("dividendYield"),
+            "revenue_growth": info.get("revenueGrowth"),
+            "market_cap": info.get("marketCap"),
+            "name": info.get("longName") or info.get("shortName") or t,
+            "sector": info.get("sector"),
+            "currency": info.get("currency"),
+            "num_analysts": info.get("numberOfAnalystOpinions") or 0,
+            "target_mean": info.get("targetMeanPrice"),
+            "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
+            "recommendation_key": info.get("recommendationKey"),
+        }
+    return out
+
+
+def to_screener_df(bulk: dict[str, dict]) -> pd.DataFrame:
+    """Konwersja bulk_fetch_universe wynik -> DataFrame screen-ready.
+
+    Dodaje 2 pochodne kolumny:
+        - upside_pct = (target_mean / current_price - 1) * 100
+        - is_buy = recommendation_key in {"strong_buy", "buy", "outperform"}
+
+    Returns pusty DataFrame gdy bulk = {}.
+    """
+    if not bulk:
+        return pd.DataFrame()
+    df = pd.DataFrame(bulk).T  # ticker = index
+    cp = pd.to_numeric(df["current_price"], errors="coerce")
+    tm = pd.to_numeric(df["target_mean"], errors="coerce")
+    df["upside_pct"] = (tm / cp - 1) * 100
+    df["upside_pct"] = df["upside_pct"].replace([np.inf, -np.inf], np.nan)
+    df["is_buy"] = (
+        df["recommendation_key"].fillna("").astype(str).str.lower()
+        .isin(["strong_buy", "buy", "outperform"])
+    )
+    df.index.name = "ticker"
+    return df
