@@ -49,6 +49,110 @@ def _tickers_for_sector(sector_name: str) -> list[str]:
     return list(SP500_SECTORS.get(sector_name, {}).keys())
 
 
+# ===========================================================================
+# Screener fundamentalny — helpers (page-local, uzywane przez tab Screening)
+# Definicje MUSZA byc PRZED `with tab6:` — Streamlit @st.fragment wykonuje
+# fragment przy linii `_screener_fragment()`, ktora woła te helpery.
+# ===========================================================================
+
+def _apply_screener_filters(
+    df: pd.DataFrame,
+    *,
+    pe_max: float,
+    roe_min_pct: float,
+    ev_ebitda_max: float,
+    sectors: list[str],
+    cap_min_usd: float,
+    buy_only: bool,
+    div_yld_min_pct: float,
+    rev_growth_min_pct: float,
+    debt_eq_max: float,
+    profit_margin_min_pct: float,
+    pb_max: float,
+) -> pd.DataFrame:
+    """Aplikuje 11 filtrow (6 main + 5 advanced). NaN-aware:
+    spolki z brakujacym wskaznikiem sa WYKLUCZONE gdy filtr aktywny.
+    """
+    out = df.copy()
+    # 6 main
+    out = out[out["pe"].fillna(np.inf) <= pe_max]
+    out = out[out["roe"].fillna(-np.inf) >= roe_min_pct / 100.0]
+    out = out[out["ev_ebitda"].fillna(np.inf) <= ev_ebitda_max]
+    if sectors:
+        out = out[out["sector"].isin(sectors)]
+    out = out[out["market_cap"].fillna(0) >= cap_min_usd]
+    if buy_only:
+        out = out[out["is_buy"]]
+    # 5 advanced
+    out = out[out["dividend_yield"].fillna(-np.inf) >= div_yld_min_pct]
+    out = out[out["revenue_growth"].fillna(-np.inf) >= rev_growth_min_pct / 100.0]
+    out = out[out["debt_to_equity"].fillna(np.inf) <= debt_eq_max]
+    out = out[out["profit_margin"].fillna(-np.inf) >= profit_margin_min_pct / 100.0]
+    out = out[out["price_to_book"].fillna(np.inf) <= pb_max]
+    return out
+
+
+def _format_screener_df(df: pd.DataFrame, currency_sym: str = "$") -> pd.DataFrame:
+    """Format kolumn na display strings. Zachowuje ticker jako index."""
+    from data.financials import format_large_number
+    out = df.copy()
+    out["P/E"] = out["pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    out["Fwd P/E"] = out["fwd_pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    out["EV/EBITDA"] = out["ev_ebitda"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    out["ROE"] = out["roe"].apply(lambda v: f"{v*100:.0f}%" if pd.notna(v) else "—")
+    out["Marza"] = out["profit_margin"].apply(lambda v: f"{v*100:.1f}%" if pd.notna(v) else "—")
+    out["Div Yld"] = out["dividend_yield"].apply(lambda v: f"{v:.2f}%" if pd.notna(v) else "—")
+    out["Cap"] = out["market_cap"].apply(lambda v: f"{currency_sym}{format_large_number(v)}" if pd.notna(v) else "—")
+    out["Rev Gr."] = out["revenue_growth"].apply(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "—")
+    out["Reco"] = out["recommendation_key"].fillna("").astype(str).str.upper().str.replace("_", " ")
+    out["Nazwa"] = out["name"]
+    out["Sektor"] = out["sector"].fillna("—")
+    return out[["Nazwa", "Sektor", "P/E", "Fwd P/E", "EV/EBITDA", "ROE", "Marza",
+                "Div Yld", "Rev Gr.", "Cap", "Reco"]]
+
+
+def _render_screener_summary(df: pd.DataFrame, total: int) -> None:
+    """4 summary cards: liczba, median P/E, median ROE, top sektor."""
+    n = len(df)
+    pe_med = df["pe"].median() if "pe" in df.columns and n > 0 else None
+    roe_med = df["roe"].median() if "roe" in df.columns and n > 0 else None
+    top_sec = df["sector"].value_counts().head(1) if "sector" in df.columns else pd.Series(dtype=int)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.html(
+        f'<div style="background:{BG_CARD};border:1px solid {GOLD}40;border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{GOLD};font-size:10px;text-transform:uppercase">Spolek</div>'
+        f'<div style="color:#fff;font-size:18px;font-weight:700">{n} / {total}</div></div>'
+    )
+    pe_text = f"{pe_med:.1f}" if pe_med is not None and pd.notna(pe_med) else "—"
+    c2.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. P/E</div>'
+        f'<div style="color:#fff;font-size:18px;font-weight:700">{pe_text}</div></div>'
+    )
+    roe_text = f"{roe_med*100:.0f}%" if roe_med is not None and pd.notna(roe_med) else "—"
+    c3.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. ROE</div>'
+        f'<div style="color:#71C77E;font-size:18px;font-weight:700">{roe_text}</div></div>'
+    )
+    if not top_sec.empty:
+        sec_name = top_sec.index[0]
+        sec_count = int(top_sec.iloc[0])
+        c4.html(
+            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
+            f'<div style="color:#fff;font-size:12px;font-weight:700;line-height:1.3">{sec_name}<br>'
+            f'<span style="font-size:10px;color:{MUTED}">({sec_count} spolek)</span></div></div>'
+        )
+    else:
+        c4.html(
+            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
+            f'<div style="color:#fff;font-size:18px;font-weight:700">—</div></div>'
+        )
+
+
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
@@ -624,108 +728,6 @@ with tab7:
             analyst_recos_card(recos)
 
     _finanse_fragment()
-
-
-# ===========================================================================
-# Screener fundamentalny — helpers (page-local, uzywane tylko przez tab Screening)
-# ===========================================================================
-
-def _apply_screener_filters(
-    df: pd.DataFrame,
-    *,
-    pe_max: float,
-    roe_min_pct: float,
-    ev_ebitda_max: float,
-    sectors: list[str],
-    cap_min_usd: float,
-    buy_only: bool,
-    div_yld_min_pct: float,
-    rev_growth_min_pct: float,
-    debt_eq_max: float,
-    profit_margin_min_pct: float,
-    pb_max: float,
-) -> pd.DataFrame:
-    """Aplikuje 11 filtrow (6 main + 5 advanced). NaN-aware:
-    spolki z brakujacym wskaznikiem sa WYKLUCZONE gdy filtr aktywny.
-    """
-    out = df.copy()
-    # 6 main
-    out = out[out["pe"].fillna(np.inf) <= pe_max]
-    out = out[out["roe"].fillna(-np.inf) >= roe_min_pct / 100.0]
-    out = out[out["ev_ebitda"].fillna(np.inf) <= ev_ebitda_max]
-    if sectors:
-        out = out[out["sector"].isin(sectors)]
-    out = out[out["market_cap"].fillna(0) >= cap_min_usd]
-    if buy_only:
-        out = out[out["is_buy"]]
-    # 5 advanced
-    out = out[out["dividend_yield"].fillna(-np.inf) >= div_yld_min_pct]
-    out = out[out["revenue_growth"].fillna(-np.inf) >= rev_growth_min_pct / 100.0]
-    out = out[out["debt_to_equity"].fillna(np.inf) <= debt_eq_max]
-    out = out[out["profit_margin"].fillna(-np.inf) >= profit_margin_min_pct / 100.0]
-    out = out[out["price_to_book"].fillna(np.inf) <= pb_max]
-    return out
-
-
-def _format_screener_df(df: pd.DataFrame, currency_sym: str = "$") -> pd.DataFrame:
-    """Format kolumn na display strings. Zachowuje ticker jako index."""
-    from data.financials import format_large_number
-    out = df.copy()
-    out["P/E"] = out["pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
-    out["Fwd P/E"] = out["fwd_pe"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
-    out["EV/EBITDA"] = out["ev_ebitda"].apply(lambda v: f"{v:.1f}" if pd.notna(v) else "—")
-    out["ROE"] = out["roe"].apply(lambda v: f"{v*100:.0f}%" if pd.notna(v) else "—")
-    out["Marza"] = out["profit_margin"].apply(lambda v: f"{v*100:.1f}%" if pd.notna(v) else "—")
-    out["Div Yld"] = out["dividend_yield"].apply(lambda v: f"{v:.2f}%" if pd.notna(v) else "—")
-    out["Cap"] = out["market_cap"].apply(lambda v: f"{currency_sym}{format_large_number(v)}" if pd.notna(v) else "—")
-    out["Rev Gr."] = out["revenue_growth"].apply(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "—")
-    out["Reco"] = out["recommendation_key"].fillna("").astype(str).str.upper().str.replace("_", " ")
-    out["Nazwa"] = out["name"]
-    out["Sektor"] = out["sector"].fillna("—")
-    return out[["Nazwa", "Sektor", "P/E", "Fwd P/E", "EV/EBITDA", "ROE", "Marza",
-                "Div Yld", "Rev Gr.", "Cap", "Reco"]]
-
-
-def _render_screener_summary(df: pd.DataFrame, total: int) -> None:
-    """4 summary cards: liczba, median P/E, median ROE, top sektor."""
-    n = len(df)
-    pe_med = df["pe"].median() if "pe" in df.columns and n > 0 else None
-    roe_med = df["roe"].median() if "roe" in df.columns and n > 0 else None
-    top_sec = df["sector"].value_counts().head(1) if "sector" in df.columns else pd.Series(dtype=int)
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.html(
-        f'<div style="background:{BG_CARD};border:1px solid {GOLD}40;border-radius:8px;padding:10px;text-align:center">'
-        f'<div style="color:{GOLD};font-size:10px;text-transform:uppercase">Spolek</div>'
-        f'<div style="color:#fff;font-size:18px;font-weight:700">{n} / {total}</div></div>'
-    )
-    pe_text = f"{pe_med:.1f}" if pe_med is not None and pd.notna(pe_med) else "—"
-    c2.html(
-        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
-        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. P/E</div>'
-        f'<div style="color:#fff;font-size:18px;font-weight:700">{pe_text}</div></div>'
-    )
-    roe_text = f"{roe_med*100:.0f}%" if roe_med is not None and pd.notna(roe_med) else "—"
-    c3.html(
-        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
-        f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. ROE</div>'
-        f'<div style="color:#71C77E;font-size:18px;font-weight:700">{roe_text}</div></div>'
-    )
-    if not top_sec.empty:
-        sec_name = top_sec.index[0]
-        sec_count = int(top_sec.iloc[0])
-        c4.html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
-            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
-            f'<div style="color:#fff;font-size:12px;font-weight:700;line-height:1.3">{sec_name}<br>'
-            f'<span style="font-size:10px;color:{MUTED}">({sec_count} spolek)</span></div></div>'
-        )
-    else:
-        c4.html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
-            f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
-            f'<div style="color:#fff;font-size:18px;font-weight:700">—</div></div>'
-        )
 
 
 render_footer()
