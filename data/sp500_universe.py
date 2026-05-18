@@ -492,3 +492,24 @@ for sector, stocks in SP500_SECTORS.items():
         SP500_SECTOR_MAP[ticker] = sector
 
 ALL_SP500_TICKERS = list(SP500_NAMES.keys())
+
+
+# Top-100 spółek S&P 500 wg market cap (snapshot 2026-05).
+# Lista statyczna — refresh raz na 6 miesięcy (Q1 + Q3 quarterly results).
+# Używana przez tab "📊 Screening" w pages/7_sp500.py (subset universe dla
+# szybkiego bulk fetch — 100 zamiast 456 tickerów).
+# Last verified: 2026-05-18
+SP500_TOP100: list[str] = [
+    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA", "BRK-B",
+    "JPM", "V", "WMT", "MA", "UNH", "XOM", "JNJ", "PG", "HD", "ORCL",
+    "LLY", "ABBV", "BAC", "AVGO", "COST", "NFLX", "CRM", "CVX", "MRK",
+    "ADBE", "AMD", "PEP", "KO", "TMO", "ACN", "MCD", "LIN", "ABT",
+    "CSCO", "WFC", "DHR", "TXN", "DIS", "VZ", "INTU", "CAT", "PM",
+    "QCOM", "IBM", "AXP", "BX", "AMGN", "GE", "PFE", "ISRG", "RTX",
+    "T", "GS", "NOW", "SPGI", "NEE", "UBER", "BKNG", "PGR", "BLK",
+    "TJX", "HON", "C", "SCHW", "AMAT", "SYK", "LOW", "DE", "ELV",
+    "LMT", "MDT", "MS", "BSX", "REGN", "PLD", "VRTX", "ADP", "GILD",
+    "CB", "ETN", "MMC", "ANET", "ADI", "TMUS", "MU", "SO", "PANW",
+    "BMY", "INTC", "LRCX", "KLAC", "DUK", "CI", "ICE", "AON", "MO",
+    "ZTS",
+]
