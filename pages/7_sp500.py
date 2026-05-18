@@ -52,12 +52,13 @@ def _tickers_for_sector(sector_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "💪 Relative Strength",
+    "📊 Screening",
     "💰 Finanse",
 ])
 
@@ -461,8 +462,124 @@ with tab5:
     else:
         st.info("Wybierz co najmniej 1 spolke.")
 
-# ========================== TAB 6: FINANSE ==========================
+# ========================== TAB 6: SCREENING ==========================
 with tab6:
+    @st.fragment
+    def _screener_fragment():
+        from data.financials import bulk_fetch_universe, to_screener_df
+        from data.sp500_universe import SP500_TOP100
+
+        st.markdown("### Screening fundamentalny — top 100 S&P 500")
+        st.caption(
+            "Pelna tabela 11 wskaznikow (P/E, ROE, EV/EBITDA, marze, FCF, "
+            "div yield, target). Filtruj + sortuj wg kryteriow. "
+            "Dane z yfinance, cache 24h."
+        )
+
+        # Bulk fetch (cached) — pierwsze ladowanie tabu 30-60s
+        with st.spinner("Pobieram dane fundamentalne universe..."):
+            bulk = bulk_fetch_universe(tuple(SP500_TOP100))
+        df_full = to_screener_df(bulk)
+        if df_full.empty:
+            st.error("Nie udalo sie pobrac danych z yfinance. Sprobuj odswiezyc strone.")
+            return
+
+        if len(bulk) < len(SP500_TOP100) * 0.7:
+            st.warning(
+                f"⚠️ Pobrano dane dla {len(bulk)}/{len(SP500_TOP100)} spolek. "
+                f"Yahoo Finance moze byc throttled. Sprobuj odswiezyc za chwile."
+            )
+
+        # 1. Filtry glowne (6 w 3-col × 2-row)
+        st.markdown("**Filtry glowne**")
+        col1, col2, col3 = st.columns(3)
+        pe_max = col1.slider("P/E max", 5.0, 100.0, 25.0, step=1.0, key="sp_scr_pe")
+        roe_min = col2.slider("ROE min (%)", 0, 50, 15, key="sp_scr_roe")
+        ev_ebitda_max = col3.slider("EV/EBITDA max", 1.0, 60.0, 20.0, step=1.0, key="sp_scr_ev")
+
+        col4, col5, col6 = st.columns(3)
+        available_sectors = sorted([s for s in df_full["sector"].dropna().unique() if s])
+        sectors_sel = col4.multiselect("Sektory", available_sectors, default=available_sectors, key="sp_scr_sec")
+        cap_min_b = col5.number_input("Market cap min ($B)", 0.0, 5000.0, 10.0, step=5.0, key="sp_scr_cap")
+        buy_only = col6.checkbox("Tylko BUY", value=False, key="sp_scr_buy",
+                                  help="Tylko spolki z rekomendacja BUY/STRONG_BUY/OUTPERFORM")
+
+        # 2. Expander zaawansowane (5 filtrow)
+        with st.expander("Zaawansowane filtry", expanded=False):
+            a1, a2, a3 = st.columns(3)
+            div_yld_min = a1.slider("Div Yield min (%)", 0.0, 15.0, 0.0, key="sp_scr_div")
+            rev_growth_min = a2.slider("Revenue Growth min (%)", -20, 100, -20, key="sp_scr_rev")
+            debt_eq_max = a3.slider("Debt/E max", 0, 500, 500, key="sp_scr_de")
+            a4, a5 = st.columns(2)
+            profit_margin_min = a4.slider("Profit Margin min (%)", -20, 50, -20, key="sp_scr_pm")
+            pb_max = a5.slider("P/B max", 0.0, 30.0, 30.0, step=0.5, key="sp_scr_pb")
+
+        # 3. Aplikuj filtry
+        df_filtered = _apply_screener_filters(
+            df_full,
+            pe_max=pe_max, roe_min_pct=roe_min, ev_ebitda_max=ev_ebitda_max,
+            sectors=sectors_sel, cap_min_usd=cap_min_b * 1e9, buy_only=buy_only,
+            div_yld_min_pct=div_yld_min, rev_growth_min_pct=rev_growth_min,
+            debt_eq_max=debt_eq_max, profit_margin_min_pct=profit_margin_min, pb_max=pb_max,
+        )
+
+        if df_filtered.empty:
+            st.info("Brak wynikow po zastosowaniu filtrow. Sprobuj rozluznic kryteria.")
+            return
+
+        # 4. Sort + Top N
+        sort_options = {
+            "ROE (desc)": ("roe", False),
+            "P/E (asc, tansze)": ("pe", True),
+            "Forward P/E (asc)": ("fwd_pe", True),
+            "EV/EBITDA (asc)": ("ev_ebitda", True),
+            "Profit Margin (desc)": ("profit_margin", False),
+            "Revenue Growth (desc)": ("revenue_growth", False),
+            "Dividend Yield (desc)": ("dividend_yield", False),
+            "Upside % (desc)": ("upside_pct", False),
+            "Market Cap (desc)": ("market_cap", False),
+        }
+        s1, s2, s3 = st.columns([2, 1, 1])
+        sort_label = s1.selectbox("Sortuj wg", list(sort_options.keys()), key="sp_scr_sort")
+        sort_col, ascending = sort_options[sort_label]
+        top_n_label = s2.selectbox("Top N", ["5", "10", "15", "25", "Wszystkie"], index=2, key="sp_scr_topn")
+        s3.markdown(f"**Wynikow:** {len(df_filtered)}/{len(df_full)}")
+
+        df_sorted = df_filtered.sort_values(sort_col, ascending=ascending, na_position="last")
+        if top_n_label != "Wszystkie":
+            df_sorted = df_sorted.head(int(top_n_label))
+
+        # 5. Summary cards
+        _render_screener_summary(df_sorted, total=len(df_full))
+        st.markdown("---")
+
+        # 6. Tabela
+        df_display = _format_screener_df(df_sorted, currency_sym="$")
+        sel = st.dataframe(
+            df_display, height=500, use_container_width=True,
+            on_select="rerun", selection_mode="single-row",
+        )
+        if sel and hasattr(sel, "selection") and sel.selection.rows:
+            clicked = df_display.index[sel.selection.rows[0]]
+            st.session_state["sp_finanse_ticker"] = clicked
+            st.info(f"✓ Wybrano **{clicked}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
+
+        # 7. CSV export
+        export_df = df_sorted.copy()
+        export_df.index.name = "ticker"
+        csv = export_df.to_csv()
+        st.download_button("📥 Eksport CSV", csv, "sp500_screener.csv", "text/csv", key="sp_scr_csv")
+
+        st.caption(
+            "💡 Spolki z brakujacym wskaznikiem sa odfiltrowane gdy filtr aktywny "
+            "(np. spolka bez P/E nie pojawi sie gdy P/E max < 100)."
+        )
+
+    _screener_fragment()
+
+
+# ========================== TAB 7: FINANSE ==========================
+with tab7:
     @st.fragment
     def _finanse_fragment():
         st.markdown("### Wskazniki finansowe + konsensus analitykow")
