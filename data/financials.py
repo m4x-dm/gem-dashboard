@@ -6,6 +6,8 @@ Wszystkie funkcje wrapped w try/except — fail = None / empty (graceful).
 Uzywane przez tab "Finanse spolki" w pages/7_sp500.py + pages/8_gpw.py.
 """
 
+import time
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -24,14 +26,27 @@ def _fetch_info(ticker: str) -> dict:
 
     Uzywany przez get_ratios_snapshot + get_analyst_recos (oba potrzebuja info).
     Dzieki cache TTL 24h — 1 API call zamiast 2 per ticker.
+
+    Retry: 3 proby z exponential backoff (0.5s -> 1.5s -> 4.5s) — yfinance
+    czesto zwraca rate-limit 429 na Streamlit Cloud (GCP IPs).
+    Sanity check: zwroc {} gdy info nie zawiera nawet podstawowych pol —
+    Yahoo czasem zwraca tzw. "lazy dict" bez danych przy rate-limit.
     """
-    try:
-        info = yf.Ticker(ticker).info
-    except Exception:
-        return {}
-    if not info or not isinstance(info, dict):
-        return {}
-    return info
+    for attempt in range(3):
+        try:
+            info = yf.Ticker(ticker).info
+            if info and isinstance(info, dict):
+                # Yahoo zwraca dict nawet przy rate-limit (z minimalna struktura),
+                # ale brak kluczowych pol = invalid response. Retry.
+                if (info.get("regularMarketPrice") is not None
+                        or info.get("currentPrice") is not None
+                        or info.get("trailingEps") is not None):
+                    return info
+        except Exception:
+            pass
+        if attempt < 2:
+            time.sleep(0.5 * (3 ** attempt))  # 0.5s, 1.5s, 4.5s
+    return {}
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
