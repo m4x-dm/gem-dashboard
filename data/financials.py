@@ -17,6 +17,33 @@ from data.gpw_universe import GPW_BANKS
 
 
 # ---------------------------------------------------------------------------
+# curl_cffi session — browser TLS fingerprint impersonate.
+# Yahoo Finance blokuje requests z domyslnym TLS fingerprint Python'a
+# (Streamlit Cloud GCP IPs). curl_cffi impersonate="chrome" naladuje
+# pelen Chrome TLS handshake — yfinance natywnie wspiera ten pattern
+# przez session arg (NIE requests.Session ktore poprzednio nie dzialalo).
+# ---------------------------------------------------------------------------
+
+_yf_session = None
+
+
+def _get_yf_session():
+    """Lazy-init curl_cffi session z Chrome TLS impersonate.
+
+    Fallback do None (= domyslny yfinance) gdy curl_cffi nie jest dostepny
+    (np. lokalny dev bez tej biblioteki).
+    """
+    global _yf_session
+    if _yf_session is None:
+        try:
+            from curl_cffi import requests as cffi_requests
+            _yf_session = cffi_requests.Session(impersonate="chrome")
+        except ImportError:
+            _yf_session = False  # marker: tried, niedostepne
+    return _yf_session if _yf_session is not False else None
+
+
+# ---------------------------------------------------------------------------
 # Fetch functions (cached 24h)
 # ---------------------------------------------------------------------------
 
@@ -27,17 +54,19 @@ def _fetch_info(ticker: str) -> dict:
     Uzywany przez get_ratios_snapshot + get_analyst_recos (oba potrzebuja info).
     Dzieki cache TTL 24h — 1 API call zamiast 2 per ticker.
 
-    Retry: 3 proby z exponential backoff (0.5s -> 1.5s -> 4.5s) — yfinance
-    czesto zwraca rate-limit 429 na Streamlit Cloud (GCP IPs).
-    Sanity check: zwroc {} gdy info nie zawiera nawet podstawowych pol —
-    Yahoo czasem zwraca tzw. "lazy dict" bez danych przy rate-limit.
+    Strategia anti-rate-limit:
+    1. curl_cffi session z impersonate="chrome" (browser TLS fingerprint)
+       — Yahoo blokuje default Python TLS na Streamlit Cloud GCP IPs.
+    2. 3 proby z exponential backoff (0.5s -> 1.5s -> 4.5s).
+    3. Sanity check: zwroc {} gdy info bez kluczowych pol (lazy dict
+       Yahoo przy rate-limit).
     """
+    session = _get_yf_session()
     for attempt in range(3):
         try:
-            info = yf.Ticker(ticker).info
+            ticker_obj = yf.Ticker(ticker, session=session) if session else yf.Ticker(ticker)
+            info = ticker_obj.info
             if info and isinstance(info, dict):
-                # Yahoo zwraca dict nawet przy rate-limit (z minimalna struktura),
-                # ale brak kluczowych pol = invalid response. Retry.
                 if (info.get("regularMarketPrice") is not None
                         or info.get("currentPrice") is not None
                         or info.get("trailingEps") is not None):
@@ -45,7 +74,7 @@ def _fetch_info(ticker: str) -> dict:
         except Exception:
             pass
         if attempt < 2:
-            time.sleep(0.5 * (3 ** attempt))  # 0.5s, 1.5s, 4.5s
+            time.sleep(0.5 * (3 ** attempt))
     return {}
 
 
