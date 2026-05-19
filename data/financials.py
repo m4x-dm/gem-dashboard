@@ -304,20 +304,22 @@ def format_large_number(value: float | None) -> str:
 # ---------------------------------------------------------------------------
 
 @st.cache_data(ttl=86400, show_spinner="Pobieram dane fundamentalne universe...")
-def bulk_fetch_universe(_tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
+def bulk_fetch_universe(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     """Bulk fetch danych fundamentalnych dla calego subset universe.
 
     Reuses _fetch_info (cache TTL 24h) — pierwsze wywolanie 30-60s dla 100
     tickerów, kolejne wywolania w 24h instant (cache hit per ticker).
 
     Args:
-        _tickers_tuple: tuple zamiast list — zeby cache key byl hashable.
+        tickers_tuple: tuple zamiast list — zeby cache key byl hashable.
+            UWAGA: NIE prefix '_' — Streamlit cache_data ignoruje argumenty
+            z '_' prefix (cross-call collision: SP500 cache zwracany dla GPW!).
 
     Returns:
         dict[ticker, {info dict}] — brak rekordu gdy ticker zwrocil 404/timeout.
     """
     out: dict[str, dict] = {}
-    tickers = list(_tickers_tuple)
+    tickers = list(tickers_tuple)
     for t in tickers:
         info = _fetch_info(t)  # cached per ticker — drugi run instant
         if not info:
