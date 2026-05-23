@@ -178,11 +178,13 @@ relatywnym (porownanie rynkow).
 ### Zasady
 | Krok | Warunek | Akcja |
 |------|---------|-------|
-| 1 | QQQ momentum 12-1 < stopa wolna | → Obligacje (AGG) |
-| 2 | QQQ 12-1 > stopa wolna | → Porownaj QQQ vs VEA vs EEM vs ACWI, kup najlepszy |
+| 1 | QQQ momentum 12M < stopa wolna | → Obligacje (AGG) |
+| 2 | QQQ 12M > stopa wolna | → Porownaj QQQ vs VEA vs EEM vs ACWI, kup najlepszy |
 
 **Rebalans miesięczny** (co 21 dni roboczych). Zawsze 100% w jednym aktywie.
-Momentum 12-1 (skip-month) pomija ostatni miesiac — unika efektu krotkoterminowej rewersji.
+**Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1), ale backtest
+14y na koszyku ETF wykazal +4,6 p.p. CAGR/rok dla czystego 12M (skip-month dziala
+dla pojedynczych akcji, nie dla ETF indeksowych).
 
 ### Zalety
 - **Prosta** — jedna decyzja raz w miesiacu, 5 aktywow
@@ -462,21 +464,21 @@ testowac strategie dalej niz 2010 (rok powstania prawdziwego TQQQ).
 ### Zasady
 | Warunek | Akcja |
 |---------|-------|
-| QQQ momentum 12-1 > stopa wolna | → Trzymaj TQQQ (3x QQQ) |
-| QQQ momentum 12-1 < stopa wolna | → Przejdz do obligacji AGG |
+| QQQ momentum 12M > stopa wolna | → Trzymaj TQQQ (3x QQQ) |
+| QQQ momentum 12M < stopa wolna | → Przejdz do obligacji AGG |
 
 **Rebalans miesięczny** (co 21 dni roboczych) — identyczny timing jak GEM klasyczny.
-Sygnal oparty na momentum 12-1 (skip-month) QQQ vs stopa wolna od ryzyka.
+Sygnal oparty na momentum **12M (no skip)** QQQ vs stopa wolna od ryzyka — od 2026-05-23.
 
 ### Zalety
 - **Potencjal ekstremalnych zyskow** — 3x lewar w silnym trendzie wzrostowym
 - **Ochrona momentum** — wychodzi z lewaru gdy trend sie odwraca
-- **Prosty sygnal** — ten sam momentum 12-1 co GEM, bez dodatkowej zlozonosci
+- **Prosty sygnal** — ten sam momentum 12M co GEM, bez dodatkowej zlozonosci
 
 ### Wady i ryzyka
 - **Ekstremalny drawdown** — nawet z timingiem, max DD moze przekroczyc -50% do -80%
 - **Volatility decay** — 3x lewar dziennie ≠ 3x zwrot w dluzszym okresie (erozja w rynku bocznym)
-- **Opozniony sygnal** — momentum 12-1 reaguje z opoznieniem, lewar poteguje straty w tym oknie
+- **Opozniony sygnal** — momentum 12M reaguje z opoznieniem, lewar poteguje straty w tym oknie
 - **Syntetyczny TQQQ** — nie uwzglednia kosztow lewaru (financing, tracking error rzeczywistego ETF). Model `daily_return × 3` zawyza zwroty w zmiennych okresach — rzeczywisty TQQQ osiaga gorsze wyniki z powodu volatility drag
 - **Nie dla kazdego** — wymaga wysokiej tolerancji na ryzyko i dlugiego horyzontu inwestycyjnego
 
@@ -617,7 +619,7 @@ elif strategy == "Walk-forward GEM":
     if wf is None:
         st.error(
             f"Za malo danych — walk-forward potrzebuje co najmniej "
-            f"~{int(is_years + oos_years) + 1} lat historii + bufor momentum 273 dni. "
+            f"~{int(is_years + oos_years) + 1} lat historii + bufor momentum 252 dni. "
             "Zwieksz okres lub skroc IS/OOS."
         )
         st.stop()

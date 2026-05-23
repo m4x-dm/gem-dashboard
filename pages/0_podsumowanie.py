@@ -279,7 +279,7 @@ if bt_result is not None:
     if show_stats:
         stats_table(show_stats)
 else:
-    st.info("Za malo danych do backtestu GEM (wymagane 273+ sesji).")
+    st.info("Za malo danych do backtestu GEM (wymagane 252+ sesji).")
 
 st.divider()
 

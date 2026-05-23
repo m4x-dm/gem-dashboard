@@ -16,9 +16,9 @@ opisana w ksiazce *"Dual Momentum Investing"* (2014). Laczy dwa rodzaje momentum
 
 ### 1. Momentum absolutny (Absolute Momentum)
 - Porownuje zwrot aktywa z **bezpieczna stopa wolna od ryzyka** (np. T-bill)
-- Jesli zwrot 12M (skip-month) > stopa wolna → **trend wzrostowy**, warto inwestowac
-- Jesli zwrot 12M (skip-month) < stopa wolna → **trend spadkowy**, lepiej przeniesc sie do obligacji
-- **Skip-month (12-1):** zwrot 12M jest liczony od 13 mies. wstecz do 1 mies. wstecz, pomijajac ostatni miesiac (eliminuje efekt krotkoterminowej rewersji — Jegadeesh & Titman 1993)
+- Jesli zwrot 12M > stopa wolna → **trend wzrostowy**, warto inwestowac
+- Jesli zwrot 12M < stopa wolna → **trend spadkowy**, lepiej przeniesc sie do obligacji
+- **Okno 12M (no skip):** zwrot liczony jako `price(t) / price(t-252) - 1` — pelne 12 miesiecy wstecz. **Zmiana 2026-05-23:** poprzednio uzywalismy skip-month (12-1) — `price(t-21)/price(t-273)-1`, ale backtest 14-letni na koszyku ETF (QQQ/VEA/EEM/ACWI/AGG) wykazal +4,6 p.p. CAGR/rok dla czystego 12M (skip-month dziala dla pojedynczych akcji, ale na ETF indeksowych opoznienie sygnalu szkodzi). Dla rankingu **akcji** (S&P 500, GPW, krypto) nadal uzywamy skip-month (Jegadeesh & Titman 1993).
 
 ### 2. Momentum relatywny (Relative Momentum)
 - Porownuje zwroty **dwoch (lub wiecej) aktywow** miedzy soba
@@ -33,7 +33,7 @@ Strategia podejmuje decyzje raz w miesiacu w 3 krokach:
 
 | Krok | Warunek | Akcja |
 |------|---------|-------|
-| 1 | Zwrot QQQ 12M (skip-month) < stopa wolna | → Kup obligacje (AGG) |
+| 1 | Zwrot QQQ 12M < stopa wolna | → Kup obligacje (AGG) |
 | 2 | Porownaj QQQ vs VEA vs EEM vs ACWI | → Kup aktywo z najwyzszym 12M momentum |
 
 **Zawsze jestes w 100% w jednym aktywie** — to strategia typu "all-in/all-out".
@@ -50,19 +50,19 @@ Ten dashboard rozszerza klasyczny GEM o **30+ ETF-ow** z 7 kategorii:
 Kazdy ETF otrzymuje wynik na podstawie wazonej sredniej zwrotow:
 
 ```
-Wynik = 12M (skip-month) × 50% + 6M × 25% + 3M × 15% + 1M × 10%
+Wynik = 12M × 50% + 6M × 25% + 3M × 15% + 1M × 10%
 ```
 
 Wagi faworyzuja **dlugookresowy trend** (12M = 50%), ale uwzgledniaja tez krotsze okresy.
-12M uzywa metody **skip-month (12-1)** — pomija ostatni miesiac, zeby uniknac efektu rewersji.
+**12M dla ETF** = czyste 12 mies. (no skip, od 2026-05-23). **12M dla akcji** (S&P 500, GPW, krypto rotation) = 12-1 skip-month (pomija ostatni miesiac dla neutralizacji rewersji).
 
 ---
 
 ## Jak czytac sygnaly?
 
 ### Momentum absolutny: TAK / NIE
-- **TAK** = zwrot 12M (skip-month) > stopa wolna → trend wzrostowy, warto rozwazyc
-- **NIE** = zwrot 12M (skip-month) < stopa wolna → trend spadkowy, ostroznosc
+- **TAK** = zwrot 12M > stopa wolna → trend wzrostowy, warto rozwazyc
+- **NIE** = zwrot 12M < stopa wolna → trend spadkowy, ostroznosc
 
 ### Wynik kompozytowy
 - **Wyzszy wynik = silniejszy trend wzrostowy**

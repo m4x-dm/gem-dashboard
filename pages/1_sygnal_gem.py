@@ -58,13 +58,19 @@ with st.expander("Jak czytac sygnal GEM?"):
     1. Jesli zwrot QQQ 12M < stopa wolna → **kup obligacje (AGG)**
     2. Jesli momentum dodatni → **kup najlepszy z QQQ / VEA / EEM / ACWI** (porownanie relatywne)
 
-    **Momentum 12-1 (skip-month):** zwrot 12M jest liczony od 13 mies. wstecz do 1 mies. wstecz,
-    pomijajac ostatni miesiac. To eliminuje efekt krotkoterminowej rewersji (short-term reversal).
+    **Momentum 12M (no skip) dla ETF — od 2026-05-23:** zwrot liczony jako
+    `price(t) / price(t-252) - 1` (pelne 12 miesiecy). Backtest 14y na koszyku
+    QQQ/VEA/EEM/ACWI/AGG wykazal +4,6 p.p. CAGR/rok vs poprzedni skip-month (12-1).
+    Skip-month dziala dla pojedynczych akcji, ale na ETF indeksowych opoznienie
+    sygnalu o miesiac szkodzi.
 
     **Rozszerzony ranking** oblicza wynik kompozytowy:
     `12M × 50% + 6M × 25% + 3M × 15% + 1M × 10%`
 
-    **Momentum absolutny:** TAK = zwrot 12M (skip-month) > stopa wolna od ryzyka
+    **Momentum absolutny:** TAK = zwrot 12M > stopa wolna od ryzyka
+
+    **Uwaga:** dla rankingu akcji (S&P 500, GPW, krypto) nadal uzywamy 12-1
+    skip-month — efekt rewersji ma znaczenie dla pojedynczych spolek.
     """)
 
 render_footer()

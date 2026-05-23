@@ -340,7 +340,7 @@ with tab6:
             st.markdown("""
 **GEM vs QQQ+SMA200:**
 - Obie strategie uzywaja QQQ i AGG, wiec korelacja jest zazwyczaj umiarkowana-wysoka
-- Roznica: GEM rebalansuje miesiecznie (momentum 12-1), SMA200 dziennie (trend)
+- Roznica: GEM rebalansuje miesiecznie (momentum 12M no-skip), SMA200 dziennie (trend)
 - Niska korelacja = strategie uzupelniaja sie (dywersyfikacja)
 
 **GEM vs TQQQ+Momentum:**
@@ -357,6 +357,6 @@ with tab6:
 - Korelacja > 0.8 → strategie zachowuja sie podobnie — mala wartosc laczenia
             """)
     else:
-        st.warning("Za malo danych do obliczenia korelacji strategii (wymagane 273+ sesji + okno korelacji).")
+        st.warning("Za malo danych do obliczenia korelacji strategii (wymagane 252+ sesji + okno korelacji).")
 
 render_footer()
