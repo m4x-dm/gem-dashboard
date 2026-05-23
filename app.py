@@ -40,6 +40,7 @@ cards = [
     (18, "🔄", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow", "pages/18_sektory.py"),
     (19, "🔗", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar", "pages/19_intermarket.py"),
     (20, "🔀", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS", "pages/20_side_by_side.py"),
+    (21, "🚀", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight", "pages/21_gem_extended.py"),
 ]
 
 premium = is_premium()
