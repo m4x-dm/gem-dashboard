@@ -230,7 +230,8 @@ def gem_classic_signal(prices: pd.DataFrame, risk_free_annual: float) -> dict:
 
 
 def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
-                 start_capital: float = 10000, lookback: int = 273,
+                 start_capital: float = 10000, lookback: int = 252,
+                 skip: int = 0,
                  trend_filter: bool = False,
                  sma_window: int = 200,
                  vol_target: float | None = None,
@@ -242,11 +243,19 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
                  regime_threshold: float = 30.0) -> dict:
     """Backtest klasycznego GEM vs Buy&Hold QQQ vs ACWI vs AGG.
 
+    UWAGA: Default zmieniony 2026-05-23 z 12M-1 skip-month (lookback=273, skip=21)
+    na czyste 12M no-skip (lookback=252, skip=0). Backtest na universe QQQ/VEA/EEM/
+    ACWI/AGG za 2012-2026 wykazal +4,6 p.p. CAGR/rok, lepszy Sharpe (0,65 vs 0,42),
+    mniejszy MaxDD (-29% vs -36%), PF 15,7 vs 3,8. Skip-month (Jegadeesh & Titman
+    1993) dziala dla akcji indywidualnych — na koszykach ETF tracimy timing.
+    Dla porownania historycznego skip-month uzyj lookback=273, skip=21.
+
     Args:
         prices: DataFrame z cenami (wymagane: QQQ, VEA, EEM, ACWI, AGG)
         risk_free_annual: roczna stopa wolna w % (np. 4.5)
         start_capital: kapital poczatkowy
-        lookback: okno momentum w dniach (default 273 = 12M + 1M skip)
+        lookback: okno momentum w dniach (default 252 = 12M no skip)
+        skip: ile dni pominac od konca (default 0 = no skip; ustaw 21 dla 12M-1)
         trend_filter: jesli True, dodatkowo wymaga cena > SMA(sma_window) dla
             wybranego aktywa akcyjnego; inaczej → AGG. Redukuje whipsawy w
             rynku bocznym przez AND z filtrem trendu (Faber-style).
@@ -281,7 +290,6 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
     dates = prices_clean.index[lookback:]
     daily_returns = prices_clean.pct_change()
     rf_decimal = risk_free_annual / 100.0
-    skip = 21
 
     equity_assets = ["QQQ", "VEA", "EEM", "ACWI"]
     sma = (prices_clean[equity_assets].rolling(sma_window, min_periods=max(50, sma_window // 4)).mean()
@@ -535,7 +543,8 @@ def backtest_sma200(prices: pd.DataFrame, risk_free_annual: float,
 
 
 def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
-                      start_capital: float = 10000, lookback: int = 273,
+                      start_capital: float = 10000, lookback: int = 252,
+                      skip: int = 0,
                       leverage: float = 3.0,
                       expense_ratio: float = 0.0,
                       borrow_spread: float = 0.0,
@@ -543,7 +552,11 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
                       tax_belka: float = 0.0,
                       regime_series: pd.Series | None = None,
                       regime_threshold: float = 30.0) -> dict | None:
-    """Backtest TQQQ + Momentum: syntetyczny leveraged ETF (default 3x QQQ), timing 12-1.
+    """Backtest TQQQ + Momentum: syntetyczny leveraged ETF (default 3x QQQ), timing 12M no skip.
+
+    UWAGA: Default zmieniony 2026-05-23 z 12M-1 skip-month na czyste 12M no-skip
+    (lookback=252, skip=0) — patrz docstring backtest_gem dla uzasadnienia. Dla
+    skip-month historycznej semantyki uzyj lookback=273, skip=21.
 
     Formula realistyczna (gdy expense_ratio/borrow_spread > 0):
         daily_lev = L * qqq_daily - (L-1) * (rf + spread)/252 - expense_ratio/252
@@ -557,7 +570,8 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
         prices: DataFrame z cenami (wymagane: QQQ, AGG)
         risk_free_annual: roczna stopa wolna w %
         start_capital: kapital poczatkowy
-        lookback: okno momentum w dniach (default 273 = 12M + 1M skip)
+        lookback: okno momentum w dniach (default 252 = 12M no skip)
+        skip: ile dni pominac od konca (default 0 = no skip; ustaw 21 dla 12M-1)
         leverage: mnoznik dzwigni (default 3.0 = TQQQ, 2.0 = SSO/QLD, 1.0 = bez)
         expense_ratio: roczny koszt zarzadzania jako ulamek (TQQQ: 0.0088 = 0.88%)
             Default 0.0 = naiwny syntetyk bez kosztow.
@@ -585,8 +599,6 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
     expense_daily = expense_ratio / 252
     # Syntetyczny leveraged ETF z kosztami (financing + ER). Naiwny gdy obydwa = 0.
     tqqq_daily = leverage * qqq_daily - financing_daily - expense_daily
-
-    skip = 21
 
     regime_aligned: pd.Series | None = None
     if regime_series is not None:
@@ -1180,13 +1192,13 @@ def walk_forward_gem(prices: pd.DataFrame, rf: float,
         if t not in prices.columns:
             return None
     prices_clean = prices[required].dropna()
-    if len(prices_clean) < 273 + int(is_years * trading_days) + int(oos_years * trading_days):
+    if len(prices_clean) < 252 + int(is_years * trading_days) + int(oos_years * trading_days):
         return None
 
     is_days = int(is_years * trading_days)
     oos_days = int(oos_years * trading_days)
     step_days = int(step_years * trading_days)
-    lookback = 273
+    lookback = 252
     rf_decimal = rf / 100.0
 
     folds = []

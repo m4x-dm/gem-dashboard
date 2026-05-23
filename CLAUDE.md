@@ -60,11 +60,12 @@ pages/
 - **Theme:** Gold `#C9A84C` accent, dark bg `#0B0E1A` — matches inwestowanie.edu.pl
 - **Risk-free rate:** ^IRX (13-week T-bill) auto-fetched, with manual override in sidebar
 - **GEM logic:** Classic (QQQ/VEA/EEM/ACWI/AGG) + Extended (31 ETFs, composite score)
-- **Momentum 12-1 (skip-month):** 12M return = price(t-21) / price(t-273) - 1, i.e. from 13 months ago to 1 month ago. Skips last month to avoid short-term reversal effect (Jegadeesh & Titman 1993). Implemented in `calc_returns()` and `backtest_gem()`. Periods 1M/3M/6M remain standard (no skip).
-- **Composite score:** 12M(skip-month)×50% + 6M×25% + 3M×15% + 1M×10%
+- **Momentum 12M dla ETF (no skip) — od 2026-05-23:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). Powód: backtest 14y (2012-2026) na QQQ/VEA/EEM/ACWI/AGG wykazał +4,6 p.p. CAGR/rok (15,8% vs 11,2%), lepszy Sharpe (0,65 vs 0,42), mniejszy MaxDD (-29% vs -36%), PF 15,7 vs 3,8 — czyste 12m wygrywa zdecydowanie na koszykach ETF. Skip-month (Jegadeesh & Titman 1993) działa dla akcji indywidualnych — neutralizuje short-term reversal — ale na ETF indeksowych ten efekt znika, a opóźnienie sygnału o miesiąc szkodzi. Backwards compat: `backtest_gem(prices, rf, lookback=273, skip=21)` reprodukuje stary wynik.
+- **Momentum 12-1 (skip-month) dla AKCJI indywidualnych:** `latest_returns()`, `calc_returns()` i `backtest_rotation()` (S&P 500 / GPW / krypto top N) DALEJ używają 12M-1 skip-month: `price(t-21) / price(t-273) - 1`, czyli zwrot od 13 mies. wstecz do 1 mies. wstecz. Akademicki konsensus pozostaje aktualny dla pojedynczych spółek.
+- **Composite score:** 12M×50% + 6M×25% + 3M×15% + 1M×10% (12M=no-skip dla ETF w backtest_gem/tqqq, =skip-month dla rotation akcji przez latest_returns)
 - **Backtest GEM:** Monthly rebalancing, GEM vs QQQ B&H vs ACWI B&H vs AGG B&H. Strategy selector: GEM Klasyczny, QQQ+SMA200, TQQQ+Momentum, Porownanie wszystkich
 - **Backtest QQQ+SMA200:** Daily trend following — QQQ when price > SMA(200), AGG otherwise. `backtest_sma200()` in `momentum.py`
-- **Backtest TQQQ+Momentum:** Synthetic TQQQ (QQQ daily return × 3), monthly momentum timing (QQQ 12-1 > rf → TQQQ, else AGG). `backtest_tqqq_mom()` in `momentum.py`
+- **Backtest TQQQ+Momentum:** Synthetic TQQQ (QQQ daily return × 3), monthly momentum timing (QQQ 12M no-skip > rf → TQQQ, else AGG). `backtest_tqqq_mom()` in `momentum.py`. **Od 2026-05-23 default zmieniony z 12M-1 skip-month na czyste 12M.**
 - **Backtest GPW:** Momentum rotation (top N stocks) vs equal-weight B&H
 - **Backtest Crypto:** Momentum rotation (top N) vs BTC B&H vs equal-weight B&H (365 trading days/year)
 - **Backtest S&P 500:** Momentum rotation (top N) vs equal-weight B&H vs SPY B&H (252 trading days/year)
