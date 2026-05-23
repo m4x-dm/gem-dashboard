@@ -66,6 +66,7 @@ pages/
 - **Backtest GEM:** Monthly rebalancing, GEM vs QQQ B&H vs ACWI B&H vs AGG B&H. Strategy selector: GEM Klasyczny, QQQ+SMA200, TQQQ+Momentum, Porownanie wszystkich
 - **Backtest QQQ+SMA200:** Daily trend following — QQQ when price > SMA(200), AGG otherwise. `backtest_sma200()` in `momentum.py`
 - **Backtest TQQQ+Momentum:** Synthetic TQQQ (QQQ daily return × 3), monthly momentum timing (QQQ 12M no-skip > rf → TQQQ, else AGG). `backtest_tqqq_mom()` in `momentum.py`. **Od 2026-05-23 default zmieniony z 12M-1 skip-month na czyste 12M.**
+- **GEM Extended (page 21):** Rozszerzenie GEM o konfigurowalne universe (do 10+ ETF + krypto), top N equal-weight, safe_asset fallback (AGG/TLT/IEF/BIL/SHV/BND). `backtest_gem_extended()` w `momentum.py`. 5 presets (5-ETF baseline / 8-ETF gold-REIT-TLT / 3 z BTC). Backtest 11.5y (2014-2026) z BTC + 9 ETF Top-2: CAGR 42,8% / Sharpe 1,10 / MaxDD -52% (vs baseline 5-ETF: CAGR 15,8% / Sharpe 0,65 / MaxDD -29%). Strona ma duży disclaimer expander: hindsight bias (BTC), -50%+ DD, survivorship bias, deviation from Antonacci GEM philosophy. Commit 794bdd3.
 - **Backtest GPW:** Momentum rotation (top N stocks) vs equal-weight B&H
 - **Backtest Crypto:** Momentum rotation (top N) vs BTC B&H vs equal-weight B&H (365 trading days/year)
 - **Backtest S&P 500:** Momentum rotation (top N) vs equal-weight B&H vs SPY B&H (252 trading days/year)
