@@ -37,7 +37,7 @@ period_map = {
     "10 lat": "10y",
     "Maksymalny": "max",
 }
-period_label = st.selectbox("Okres", list(period_map.keys()), index=0)
+period_label = st.selectbox("Okres", list(period_map.keys()), index=4)
 period = period_map[period_label]
 is_strategy_view = period_label == "Strategia 12-1"
 
