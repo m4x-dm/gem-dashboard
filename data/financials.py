@@ -7,6 +7,7 @@ Uzywane przez tab "Finanse spolki" w pages/7_sp500.py + pages/8_gpw.py.
 """
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import streamlit as st
 import yfinance as yf
@@ -643,3 +644,98 @@ def fetch_earnings_trend(ticker: str) -> pd.DataFrame | None:
         out["revision_pct"] = float("nan")
 
     return out
+
+
+def _fetch_earnings_for_one(ticker: str, retries: int = 3) -> dict | None:
+    """Pobiera earnings history dla 1 tickera z retry (exp backoff 1s, 2s, 4s).
+
+    Zwraca dict gotowy do bulk DF row (ticker, last_q_label, eps_estimate, ...).
+    None gdy brak danych nawet po retry.
+    """
+    df = None
+    for attempt in range(retries):
+        try:
+            df = get_earnings_history(ticker, n_quarters=8)
+            if df is None or df.empty:
+                return None
+            break
+        except Exception:
+            if attempt == retries - 1:
+                return None
+            time.sleep(2 ** attempt)  # 1s, 2s, 4s
+
+    if df is None or df.empty:
+        return None
+
+    last_row = df.iloc[-1]
+    last_date = df.index[-1] if len(df.index) > 0 else None
+
+    return {
+        "ticker": ticker,
+        "last_q_label": _quarter_label(last_date),
+        "eps_estimate": last_row.get("eps_estimate", float("nan")),
+        "eps_actual": last_row.get("eps_actual", float("nan")),
+        "eps_surprise_pct": last_row.get("surprise_pct", float("nan")),
+        "beat_streak": _compute_beat_streak(df),
+    }
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram historie earnings dla universe...")
+def bulk_fetch_earnings_history(
+    tickers_tuple: tuple[str, ...],
+    max_workers: int = 8,
+) -> pd.DataFrame:
+    """Bulk fetch earnings history dla universe (~570-620 spolek).
+
+    Cache 24h przez @st.cache_data.
+    NaN rows dla tickerow ktore nie maja danych yfinance.
+
+    Returns DataFrame z kolumnami:
+        ticker, last_q_label, eps_estimate, eps_actual,
+        eps_surprise_pct, beat_streak
+
+    Sort: po eps_surprise_pct DESC, NaN na koncu.
+    """
+    results: list[dict] = []
+    total = len(tickers_tuple)
+    progress_bar = st.progress(0.0, text=f"Pobieram 0/{total}...")
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ticker = {
+            executor.submit(_fetch_earnings_for_one, t): t
+            for t in tickers_tuple
+        }
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                row = future.result()
+            except Exception:
+                row = None
+
+            if row is None:
+                # NaN row dla tickerow bez danych
+                row = {
+                    "ticker": ticker,
+                    "last_q_label": "",
+                    "eps_estimate": float("nan"),
+                    "eps_actual": float("nan"),
+                    "eps_surprise_pct": float("nan"),
+                    "beat_streak": 0,
+                }
+            results.append(row)
+            completed += 1
+            progress_bar.progress(
+                completed / total,
+                text=f"Pobieram {completed}/{total}: {ticker}",
+            )
+
+    progress_bar.empty()
+    df = pd.DataFrame(results)
+    # Sort: tickery z danymi najpierw (po surprise DESC), NaN rows na koncu
+    df = df.sort_values(
+        by=["eps_surprise_pct"],
+        ascending=False,
+        na_position="last",
+    ).reset_index(drop=True)
+    return df

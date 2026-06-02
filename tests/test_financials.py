@@ -129,3 +129,47 @@ def test_fetch_earnings_trend_returns_df_with_required_columns():
     assert "rev_estimate" in result.columns
     assert "revision_pct" in result.columns
     assert len(result) == 4  # 0q, +1q, 0y, +1y
+
+
+def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
+    """Mock get_earnings_history dla 3 tickerow.
+
+    Test pokrywa:
+    - kolumny output DF (ticker, last_q_label, eps_estimate/actual,
+      eps_surprise_pct, beat_streak)
+    - beat_streak liczone z mock data (BEAT=4, MISS=0)
+    - NaN row dla tickera bez danych (EMPTY)
+    """
+    def mock_earnings_history(ticker, n_quarters=8):
+        if ticker == "EMPTY":
+            return None
+        return pd.DataFrame({
+            "eps_estimate": [1.0, 1.1, 1.2, 1.3],
+            "eps_actual": [1.1, 1.2, 1.3, 1.4 if ticker == "BEAT" else 1.2],
+            "surprise_pct": [10.0, 9.1, 8.3, 7.7 if ticker == "BEAT" else -7.7],
+        }, index=pd.to_datetime(["2025-09-30", "2025-12-31", "2026-03-31", "2026-06-30"]))
+
+    # st.progress mock — nie chcemy bombic w testach
+    mock_progress = MagicMock()
+    mock_progress.progress = MagicMock()
+    mock_progress.empty = MagicMock()
+
+    from data.financials import bulk_fetch_earnings_history
+    with patch("data.financials.get_earnings_history", side_effect=mock_earnings_history), \
+         patch("data.financials.st.progress", return_value=mock_progress):
+        result = bulk_fetch_earnings_history(("BEAT", "MISS", "EMPTY"))
+
+    assert isinstance(result, pd.DataFrame)
+    expected_cols = {
+        "ticker", "last_q_label", "eps_estimate", "eps_actual",
+        "eps_surprise_pct", "beat_streak",
+    }
+    assert expected_cols.issubset(set(result.columns))
+    # BEAT i MISS w wynikach (EMPTY moze byc NaN row)
+    assert "BEAT" in result["ticker"].values
+    # BEAT ma streak 4 (wszystkie 4 kwartaly beat)
+    beat_row = result[result["ticker"] == "BEAT"].iloc[0]
+    assert beat_row["beat_streak"] == 4
+    # MISS ma streak 0 (ostatni kwartal miss)
+    miss_row = result[result["ticker"] == "MISS"].iloc[0]
+    assert miss_row["beat_streak"] == 0
