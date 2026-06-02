@@ -260,6 +260,45 @@ def is_bank(ticker: str) -> bool:
     return ticker in GPW_BANKS
 
 
+def _quarter_label(date) -> str:
+    """Konwertuje datę raportu na label "QX'YY".
+
+    "2026-03-31" -> "Q1'26", "2025-12-31" -> "Q4'25".
+    NaT/None -> "".
+    """
+    if date is None or pd.isna(date):
+        return ""
+    ts = pd.Timestamp(date)
+    q = (ts.month - 1) // 3 + 1
+    yy = ts.year % 100
+    return f"Q{q}'{yy:02d}"
+
+
+def _compute_beat_streak(df: pd.DataFrame) -> int:
+    """Liczy ile kolejnych OSTATNICH kwartalow EPS pobil estimate.
+
+    df: DataFrame z kolumnami eps_estimate, eps_actual,
+        posortowany rosnaco po dacie (najnowszy na dole).
+    Returns: int 0-N (max dlugosc df).
+    """
+    if df is None or df.empty:
+        return 0
+    if "eps_estimate" not in df.columns or "eps_actual" not in df.columns:
+        return 0
+    streak = 0
+    # Iterujemy od najnowszego (dol DF) w gore
+    for _, row in df.iloc[::-1].iterrows():
+        est = row["eps_estimate"]
+        act = row["eps_actual"]
+        if pd.isna(est) or pd.isna(act):
+            break
+        if act > est:
+            streak += 1
+        else:
+            break
+    return streak
+
+
 def format_currency(value: float | None, ticker: str) -> str:
     """Formatuje wartosc waluty wedlug suffix tickera.
 
