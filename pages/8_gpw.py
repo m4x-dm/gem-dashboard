@@ -730,11 +730,18 @@ with tab8:
         st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
         st.caption("⚠️ Czesc spolek GPW (small-cap) nie ma pelnych danych w yfinance — gaps to oczekiwane.")
 
+        # Pending view request — consume z session_state (pop = read+delete)
+        # Streamlit zabrania settowania session_state widget keys; uzywamy
+        # osobnej zmiennej i `index=` parametru.
+        pending = st.session_state.pop("gpw_pending_view", None)
+        default_index = 1 if pending == "deep_dive" else 0
+
         view = st.radio(
             "Widok",
             options=["🔍 Screener", "🏢 Deep dive"],
             horizontal=True,
-            key="gpw_sprawozdania_view",
+            index=default_index,
+            key="gpw_sprawozdania_view_radio",
         )
 
         universe = ALL_GPW_TICKERS
@@ -743,7 +750,7 @@ with tab8:
             selected = render_sprawozdania_screener(universe, market="GPW")
             if selected:
                 st.session_state["gpw_deep_dive_ticker"] = selected
-                st.session_state["gpw_sprawozdania_view"] = "🏢 Deep dive"
+                st.session_state["gpw_pending_view"] = "deep_dive"
                 st.rerun()
         else:
             ticker = st.session_state.get("gpw_deep_dive_ticker", "")

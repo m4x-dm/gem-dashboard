@@ -741,11 +741,18 @@ with tab8:
     def _sprawozdania_fragment():
         st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
 
+        # Pending view request — consume z session_state (pop = read+delete)
+        # Streamlit zabrania settowania session_state widget keys; uzywamy
+        # osobnej zmiennej i `index=` parametru.
+        pending = st.session_state.pop("sp500_pending_view", None)
+        default_index = 1 if pending == "deep_dive" else 0
+
         view = st.radio(
             "Widok",
             options=["🔍 Screener", "🏢 Deep dive"],
             horizontal=True,
-            key="sp500_sprawozdania_view",
+            index=default_index,
+            key="sp500_sprawozdania_view_radio",
         )
 
         universe = ALL_SP500_TICKERS
@@ -753,9 +760,9 @@ with tab8:
         if view == "🔍 Screener":
             selected = render_sprawozdania_screener(universe, market="SP500")
             if selected:
-                # Zapisz wybor i przerzuc na deep dive (rerun)
+                # Zapisz wybor + pending request na deep dive view, rerun
                 st.session_state["sp500_deep_dive_ticker"] = selected
-                st.session_state["sp500_sprawozdania_view"] = "🏢 Deep dive"
+                st.session_state["sp500_pending_view"] = "deep_dive"
                 st.rerun()
         else:
             ticker = st.session_state.get("sp500_deep_dive_ticker", "")
