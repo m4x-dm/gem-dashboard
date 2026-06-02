@@ -94,3 +94,38 @@ def test_fetch_quarterly_statements_returns_none_on_empty():
         result = fetch_quarterly_statements("EMPTY_TEST")
 
     assert result is None
+
+
+def test_fetch_earnings_trend_returns_df_with_required_columns():
+    """Mock eps_trend + earnings_estimate + revenue_estimate od yfinance."""
+    mock_trend = pd.DataFrame({
+        "current": [1.50, 1.65, 6.80, 7.40],
+        "7daysAgo": [1.49, 1.64, 6.78, 7.38],
+        "30daysAgo": [1.45, 1.60, 6.75, 7.30],
+        "60daysAgo": [1.40, 1.55, 6.70, 7.20],
+        "90daysAgo": [1.35, 1.50, 6.65, 7.10],
+    }, index=["0q", "+1q", "0y", "+1y"])
+    mock_estimate = pd.DataFrame({
+        "avg": [1.50, 1.65, 6.80, 7.40],
+        "growth": [0.08, 0.10, 0.12, 0.09],
+    }, index=["0q", "+1q", "0y", "+1y"])
+    mock_rev_est = pd.DataFrame({
+        "avg": [95.4e9, 100e9, 410e9, 440e9],
+    }, index=["0q", "+1q", "0y", "+1y"])
+
+    mock_ticker = MagicMock()
+    mock_ticker.eps_trend = mock_trend
+    mock_ticker.earnings_estimate = mock_estimate
+    mock_ticker.revenue_estimate = mock_rev_est
+
+    from data.financials import fetch_earnings_trend
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_earnings_trend("AAPL_TEST")
+
+    assert result is not None
+    assert "eps_current" in result.columns
+    assert "eps_30d_ago" in result.columns
+    assert "eps_growth_yoy" in result.columns
+    assert "rev_estimate" in result.columns
+    assert "revision_pct" in result.columns
+    assert len(result) == 4  # 0q, +1q, 0y, +1y

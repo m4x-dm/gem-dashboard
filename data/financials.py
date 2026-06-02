@@ -580,3 +580,66 @@ def fetch_annual_statements(ticker: str, n_years: int = 4) -> dict[str, pd.DataF
         pass
 
     return statements
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_earnings_trend(ticker: str) -> pd.DataFrame | None:
+    """Forward consensus + rewizje konsensusu analitykow.
+
+    Laczy 3 yfinance endpointy:
+        - eps_trend — historyczne rewizje EPS (current, 7d, 30d, 60d, 90d temu)
+        - earnings_estimate — forward consensus + YoY growth
+        - revenue_estimate — forward Revenue consensus
+
+    Zwraca DataFrame z indeksem (0q, +1q, 0y, +1y) i kolumnami:
+        - eps_current — aktualna prognoza EPS
+        - eps_7d_ago, eps_30d_ago, eps_60d_ago, eps_90d_ago
+        - eps_growth_yoy — wzrost % vs rok wczesniej
+        - rev_estimate — prognoza Revenue ($)
+        - revision_pct — (eps_current - eps_30d_ago) / abs(eps_30d_ago) * 100
+
+    None gdy brak eps_trend (kluczowe zrodlo).
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        trend = t.eps_trend
+        eps_est = t.earnings_estimate
+        rev_est = t.revenue_estimate
+    except Exception:
+        return None
+
+    if trend is None or trend.empty:
+        return None
+
+    out = pd.DataFrame(index=trend.index)
+    rename_trend = {
+        "current": "eps_current",
+        "7daysAgo": "eps_7d_ago",
+        "30daysAgo": "eps_30d_ago",
+        "60daysAgo": "eps_60d_ago",
+        "90daysAgo": "eps_90d_ago",
+    }
+    for src, dst in rename_trend.items():
+        if src in trend.columns:
+            out[dst] = trend[src]
+
+    # Growth YoY z earnings_estimate
+    if eps_est is not None and not eps_est.empty and "growth" in eps_est.columns:
+        out["eps_growth_yoy"] = eps_est["growth"]
+    else:
+        out["eps_growth_yoy"] = float("nan")
+
+    # Revenue estimate
+    if rev_est is not None and not rev_est.empty and "avg" in rev_est.columns:
+        out["rev_estimate"] = rev_est["avg"]
+    else:
+        out["rev_estimate"] = float("nan")
+
+    # Revision % (current vs 30d ago)
+    if "eps_current" in out.columns and "eps_30d_ago" in out.columns:
+        denom = out["eps_30d_ago"].replace(0, np.nan)
+        out["revision_pct"] = (out["eps_current"] - out["eps_30d_ago"]) / denom.abs() * 100
+    else:
+        out["revision_pct"] = float("nan")
+
+    return out
