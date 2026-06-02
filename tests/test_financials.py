@@ -55,3 +55,42 @@ def test_compute_beat_streak_empty_or_nan():
     assert _compute_beat_streak(pd.DataFrame()) == 0
     df = pd.DataFrame({"eps_estimate": [float("nan")], "eps_actual": [1.0]})
     assert _compute_beat_streak(df) == 0
+
+
+from unittest.mock import patch, MagicMock
+
+
+def test_fetch_quarterly_statements_returns_dict_with_3_keys():
+    """Mock yfinance Ticker, zwracamy DataFrame dla kazdego statement."""
+    mock_is = pd.DataFrame({"AAPL Q1": [100, 50]}, index=["Revenue", "Net Income"])
+    mock_bs = pd.DataFrame({"AAPL Q1": [1000, 500]}, index=["Total Assets", "Total Equity"])
+    mock_cf = pd.DataFrame({"AAPL Q1": [80, -10]}, index=["Operating CF", "CapEx"])
+
+    mock_ticker = MagicMock()
+    mock_ticker.quarterly_income_stmt = mock_is
+    mock_ticker.quarterly_balance_sheet = mock_bs
+    mock_ticker.quarterly_cashflow = mock_cf
+
+    from data.financials import fetch_quarterly_statements
+    # Cache lookup miss -> fetch from yfinance
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+         patch("data.financials._cache_path_q", return_value=None):
+        result = fetch_quarterly_statements("AAPL_TEST")
+
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {"income_stmt", "balance_sheet", "cashflow"}
+    assert "Revenue" in result["income_stmt"].index
+
+
+def test_fetch_quarterly_statements_returns_none_on_empty():
+    mock_ticker = MagicMock()
+    mock_ticker.quarterly_income_stmt = pd.DataFrame()
+    mock_ticker.quarterly_balance_sheet = pd.DataFrame()
+    mock_ticker.quarterly_cashflow = pd.DataFrame()
+
+    from data.financials import fetch_quarterly_statements
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+         patch("data.financials._cache_path_q", return_value=None):
+        result = fetch_quarterly_statements("EMPTY_TEST")
+
+    assert result is None

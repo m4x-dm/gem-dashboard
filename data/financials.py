@@ -415,3 +415,168 @@ def to_screener_df(bulk: dict[str, dict]) -> pd.DataFrame:
     )
     df.index.name = "ticker"
     return df
+
+
+# ---------------------------------------------------------------------------
+# Sprawozdania kwartalne / roczne — parquet cache 24h.
+# yfinance Ticker.quarterly_income_stmt / .quarterly_balance_sheet /
+# .quarterly_cashflow zwracaja DataFrame (rows=metryki, cols=daty).
+# ---------------------------------------------------------------------------
+
+from pathlib import Path
+
+CACHE_DIR = Path(__file__).parent / "cache" / "financials"
+CACHE_TTL_SECONDS = 86400  # 24h
+
+
+def _cache_path_q(ticker: str) -> Path | None:
+    """Sciezka cache file dla quarterly statements. None jesli stale/missing."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR / f"{ticker}_q.parquet"
+    if not path.exists():
+        return None
+    age = pd.Timestamp.now().timestamp() - path.stat().st_mtime
+    if age > CACHE_TTL_SECONDS:
+        return None
+    return path
+
+
+def _cache_path_a(ticker: str) -> Path | None:
+    """Sciezka cache file dla annual statements."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR / f"{ticker}_a.parquet"
+    if not path.exists():
+        return None
+    age = pd.Timestamp.now().timestamp() - path.stat().st_mtime
+    if age > CACHE_TTL_SECONDS:
+        return None
+    return path
+
+
+def _save_statements_to_parquet(path: Path, statements: dict[str, pd.DataFrame]) -> None:
+    """Zapisuje dict 3 DF do jednego parquet z multi-level index."""
+    # Tylko niepuste DF, zeby pd.concat nie wybuchl
+    non_empty = {k: v for k, v in statements.items() if v is not None and not v.empty}
+    if not non_empty:
+        return
+    # Wymuszamy string kolumny (Timestamp -> ISO string) bo parquet
+    # nie radzi sobie z heterogenicznymi kolumnami z dat
+    normalized = {}
+    for k, df in non_empty.items():
+        df_copy = df.copy()
+        df_copy.columns = [str(c) for c in df_copy.columns]
+        normalized[k] = df_copy
+    combined = pd.concat(
+        normalized,
+        keys=list(normalized.keys()),
+        names=["statement", "metric"],
+    )
+    combined.to_parquet(path, engine="pyarrow")
+
+
+def _load_statements_from_parquet(path: Path) -> dict[str, pd.DataFrame]:
+    """Wczytuje cache parquet i rozdziela na 3 statements."""
+    combined = pd.read_parquet(path, engine="pyarrow")
+    out = {}
+    for stmt in ["income_stmt", "balance_sheet", "cashflow"]:
+        if stmt in combined.index.get_level_values("statement"):
+            out[stmt] = combined.xs(stmt, level="statement")
+    return out
+
+
+def fetch_quarterly_statements(ticker: str, n_quarters: int = 8) -> dict[str, pd.DataFrame] | None:
+    """Pobiera kwartalne IS/BS/CF dla tickera (ostatnie N kwartalow).
+
+    Returns: dict {"income_stmt": DF, "balance_sheet": DF, "cashflow": DF}
+        DF: wiersze = metryki, kolumny = kwartaly (najnowsze pierwsze).
+    None gdy brak danych.
+
+    Cache 24h w `data/cache/financials/{ticker}_q.parquet`.
+    """
+    # Try cache first
+    cache_path = _cache_path_q(ticker)
+    if cache_path is not None:
+        try:
+            return _load_statements_from_parquet(cache_path)
+        except Exception:
+            pass  # Corrupt cache -> re-fetch
+
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        is_df = t.quarterly_income_stmt
+        bs_df = t.quarterly_balance_sheet
+        cf_df = t.quarterly_cashflow
+    except Exception:
+        return None
+
+    def _is_empty(df):
+        return df is None or df.empty
+
+    if _is_empty(is_df) and _is_empty(bs_df) and _is_empty(cf_df):
+        return None
+
+    def _trim(df):
+        if df is None or df.empty:
+            return df
+        return df.iloc[:, :n_quarters]
+
+    statements = {
+        "income_stmt": _trim(is_df) if is_df is not None else pd.DataFrame(),
+        "balance_sheet": _trim(bs_df) if bs_df is not None else pd.DataFrame(),
+        "cashflow": _trim(cf_df) if cf_df is not None else pd.DataFrame(),
+    }
+
+    # Save cache (best effort)
+    cache_save_path = CACHE_DIR / f"{ticker}_q.parquet"
+    try:
+        _save_statements_to_parquet(cache_save_path, statements)
+    except Exception:
+        pass
+
+    return statements
+
+
+def fetch_annual_statements(ticker: str, n_years: int = 4) -> dict[str, pd.DataFrame] | None:
+    """Pobiera roczne IS/BS/CF dla tickera (ostatnie N lat).
+
+    Analogiczne do `fetch_quarterly_statements`.
+    """
+    cache_path = _cache_path_a(ticker)
+    if cache_path is not None:
+        try:
+            return _load_statements_from_parquet(cache_path)
+        except Exception:
+            pass
+
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        is_df = t.income_stmt
+        bs_df = t.balance_sheet
+        cf_df = t.cashflow
+    except Exception:
+        return None
+
+    def _is_empty(df):
+        return df is None or df.empty
+
+    if _is_empty(is_df) and _is_empty(bs_df) and _is_empty(cf_df):
+        return None
+
+    def _trim(df):
+        if df is None or df.empty:
+            return df
+        return df.iloc[:, :n_years]
+
+    statements = {
+        "income_stmt": _trim(is_df) if is_df is not None else pd.DataFrame(),
+        "balance_sheet": _trim(bs_df) if bs_df is not None else pd.DataFrame(),
+        "cashflow": _trim(cf_df) if cf_df is not None else pd.DataFrame(),
+    }
+
+    cache_save_path = CACHE_DIR / f"{ticker}_a.parquet"
+    try:
+        _save_statements_to_parquet(cache_save_path, statements)
+    except Exception:
+        pass
+
+    return statements
