@@ -159,3 +159,15 @@ GPW_BANKS: set[str] = {
     "ING.WA",   # ING Bank Slaski (jesli w universe)
     "MIL.WA",   # Bank Millennium
 }
+
+
+def get_gpw_universe() -> list[str]:
+    """Spłaszczona lista tickerów GPW z `GPW_CATEGORIES`.
+
+    `GPW_CATEGORIES` to dict {indeks: {ticker: nazwa}} (WIG20/mWIG40/sWIG80).
+    Zwraca posortowaną listę 140 tickerów z sufiksem .WA, bez duplikatów.
+    """
+    tickers: list[str] = []
+    for index_dict in GPW_CATEGORIES.values():
+        tickers.extend(index_dict.keys())
+    return sorted(set(tickers))

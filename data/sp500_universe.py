@@ -513,3 +513,16 @@ SP500_TOP100: list[str] = [
     "BMY", "INTC", "LRCX", "KLAC", "DUK", "CI", "ICE", "AON", "MO",
     "ZTS",
 ]
+
+
+def get_sp500_universe() -> list[str]:
+    """Spłaszczona lista tickerów SP500 z `SP500_SECTORS`.
+
+    `SP500_SECTORS` to dict {sektor: {ticker: nazwa}}. Funkcja zwraca
+    listę wszystkich tickerów ze wszystkich sektorów (~503 spółki),
+    posortowane alfabetycznie, bez duplikatów.
+    """
+    tickers: list[str] = []
+    for sector_dict in SP500_SECTORS.values():
+        tickers.extend(sector_dict.keys())
+    return sorted(set(tickers))
