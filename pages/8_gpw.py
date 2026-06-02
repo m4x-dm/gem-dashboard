@@ -11,6 +11,10 @@ from data.financials import (
     get_ratios_snapshot, get_forward_consensus,
     get_earnings_history, get_analyst_recos, is_bank,
 )
+from components.financials_ui import (
+    render_sprawozdania_screener,
+    render_sprawozdania_deep_dive,
+)
 from data.downloader import download_prices, download_single, download_stooq, STOOQ_TICKERS
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
@@ -147,7 +151,7 @@ def _render_screener_summary(df, total):
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
@@ -155,6 +159,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "💪 Relative Strength",
     "📊 Screening",
     "💰 Finanse",
+    "📈 Sprawozdania Q",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -716,5 +721,40 @@ with tab7:
             analyst_recos_card(recos)
 
     _finanse_fragment_gpw()
+
+
+# ========================== TAB 8: SPRAWOZDANIA Q ==========================
+with tab8:
+    @st.fragment
+    def _sprawozdania_fragment_gpw():
+        st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
+        st.caption("⚠️ Czesc spolek GPW (small-cap) nie ma pelnych danych w yfinance — gaps to oczekiwane.")
+
+        view = st.radio(
+            "Widok",
+            options=["🔍 Screener", "🏢 Deep dive"],
+            horizontal=True,
+            key="gpw_sprawozdania_view",
+        )
+
+        universe = ALL_GPW_TICKERS
+
+        if view == "🔍 Screener":
+            selected = render_sprawozdania_screener(universe, market="GPW")
+            if selected:
+                st.session_state["gpw_deep_dive_ticker"] = selected
+                st.session_state["gpw_sprawozdania_view"] = "🏢 Deep dive"
+                st.rerun()
+        else:
+            ticker = st.session_state.get("gpw_deep_dive_ticker", "")
+            if not ticker:
+                ticker = st.selectbox(
+                    "Ticker",
+                    options=[""] + universe,
+                    key="gpw_deep_dive_manual",
+                )
+            render_sprawozdania_deep_dive(ticker, market="GPW")
+
+    _sprawozdania_fragment_gpw()
 
 render_footer()
