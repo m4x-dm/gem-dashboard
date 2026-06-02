@@ -207,8 +207,10 @@ def _format_statement_df(df: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             new_cols.append(str(col))
     out.columns = new_cols
-    # Format wartosci B/M
-    out = out.applymap(
+    # Format wartosci B/M.
+    # pandas 2.1+ deprecated DataFrame.applymap (usuniete w 3.0 — Streamlit
+    # Cloud), zastapione przez DataFrame.map (cell-wise).
+    out = out.map(
         lambda v: format_large_number(v) if isinstance(v, (int, float)) else v
     )
     return out
