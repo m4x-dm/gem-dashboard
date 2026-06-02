@@ -28,6 +28,10 @@ from data.financials import (
     get_ratios_snapshot, get_forward_consensus,
     get_earnings_history, get_analyst_recos,
 )
+from components.financials_ui import (
+    render_sprawozdania_screener,
+    render_sprawozdania_deep_dive,
+)
 from components.auth import require_premium
 
 st.set_page_config(page_title="S&P 500 — Amerykanskie Akcje", page_icon="🇺🇸", layout="wide")
@@ -156,7 +160,7 @@ def _render_screener_summary(df: pd.DataFrame, total: int) -> None:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
@@ -164,6 +168,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "💪 Relative Strength",
     "📊 Screening",
     "💰 Finanse",
+    "📈 Sprawozdania Q",
 ])
 
 # ========================== TAB 1: RANKING ==========================
@@ -728,6 +733,41 @@ with tab7:
             analyst_recos_card(recos)
 
     _finanse_fragment()
+
+
+# ========================== TAB 8: SPRAWOZDANIA Q ==========================
+with tab8:
+    @st.fragment
+    def _sprawozdania_fragment():
+        st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
+
+        view = st.radio(
+            "Widok",
+            options=["🔍 Screener", "🏢 Deep dive"],
+            horizontal=True,
+            key="sp500_sprawozdania_view",
+        )
+
+        universe = ALL_SP500_TICKERS
+
+        if view == "🔍 Screener":
+            selected = render_sprawozdania_screener(universe, market="SP500")
+            if selected:
+                # Zapisz wybor i przerzuc na deep dive (rerun)
+                st.session_state["sp500_deep_dive_ticker"] = selected
+                st.session_state["sp500_sprawozdania_view"] = "🏢 Deep dive"
+                st.rerun()
+        else:
+            ticker = st.session_state.get("sp500_deep_dive_ticker", "")
+            if not ticker:
+                ticker = st.selectbox(
+                    "Ticker",
+                    options=[""] + universe,
+                    key="sp500_deep_dive_manual",
+                )
+            render_sprawozdania_deep_dive(ticker, market="SP500")
+
+    _sprawozdania_fragment()
 
 
 render_footer()
