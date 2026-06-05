@@ -153,6 +153,42 @@ def test_normalize_transaction_type_other_kept():
     assert _normalize_transaction_type("Other (Acquisition)") == "Other"
 
 
+def test_fetch_insider_transactions_normalizes_types():
+    """Mock yfinance insider_transactions — normalize Type column."""
+    mock_df = pd.DataFrame({
+        "Insider": ["TIMOTHY D. COOK", "LUCA MAESTRI", "ELON MUSK"],
+        "Position": ["CEO", "CFO", "CEO"],
+        "Transaction": ["Sale (Non Open Market)", "Purchase", "Exercise of Options"],
+        "Shares": [100000, 5000, 250000],
+        "Value": [20_000_000, 1_000_000, 50_000_000],
+    }, index=pd.to_datetime(["2026-05-15", "2026-04-20", "2026-03-10"]))
+
+    mock_ticker = MagicMock()
+    mock_ticker.insider_transactions = mock_df
+
+    from data.financials import fetch_insider_transactions
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_transactions("AAPL_TEST")
+
+    assert result is not None
+    assert "Type" in result.columns
+    types = result["Type"].tolist()
+    assert "Sell" in types
+    assert "Buy" in types
+    assert "Exercise of Options" in types
+
+
+def test_fetch_insider_transactions_returns_none_on_empty():
+    mock_ticker = MagicMock()
+    mock_ticker.insider_transactions = pd.DataFrame()
+
+    from data.financials import fetch_insider_transactions
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_transactions("EMPTY_TEST")
+
+    assert result is None
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 

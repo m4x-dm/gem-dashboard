@@ -1056,3 +1056,48 @@ def _normalize_transaction_type(raw: str) -> str:
     if "purchase" in raw_lower or "buy" in raw_lower:
         return "Buy"
     return raw_str.split("(")[0].strip()
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
+    """Historia transakcji insiderow (CEO/CFO/...) ostatnie ~6 mc.
+
+    yfinance Ticker.insider_transactions zwraca DF z indeksem DatetimeIndex
+    + kolumnami: Insider, Position, Transaction, Shares, Value, URL.
+
+    Returns DF z znormalizowanymi kolumnami:
+        Insider, Position, Type (Buy/Sell/Other), Shares, Value
+    Indeks: DatetimeIndex (data raportu).
+    None gdy brak danych.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.insider_transactions
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+
+    out = df.copy()
+
+    # Normalize Type column (yfinance moze uzyc 'Transaction', 'Type' lub 'Action')
+    type_col = None
+    for cand in ["Transaction", "Type", "Action"]:
+        if cand in out.columns:
+            type_col = cand
+            break
+    if type_col is None:
+        return None
+
+    out["Type"] = out[type_col].apply(_normalize_transaction_type)
+
+    keep = []
+    for cand in ["Insider", "Position", "Type", "Shares", "Value"]:
+        if cand in out.columns:
+            keep.append(cand)
+    if not keep or "Type" not in keep:
+        return None
+    out = out[keep]
+
+    return out
