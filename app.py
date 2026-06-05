@@ -42,6 +42,7 @@ cards = [
     (20, "🔀", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS", "pages/20_side_by_side.py"),
     (21, "🚀", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight", "pages/21_gem_extended.py"),
     (22, "📅", "Earnings Calendar", "Kalendarz nadchodzacych raportow SP500+GPW (±28 dni) z watchlist i cross-link do F13", "pages/22_earnings_calendar.py"),
+    (23, "👥", "Insider Screener", "Bulk insider screener SP500 — kto kupuje, kto sprzedaje, sektorowa heatmapa, cross-link do F13", "pages/23_insider_screener.py"),
 ]
 
 premium = is_premium()
