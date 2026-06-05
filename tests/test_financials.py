@@ -131,6 +131,28 @@ def test_fetch_earnings_trend_returns_df_with_required_columns():
     assert len(result) == 4  # 0q, +1q, 0y, +1y
 
 
+def test_normalize_transaction_type_sale_variants():
+    from data.financials import _normalize_transaction_type
+    assert _normalize_transaction_type("Sale") == "Sell"
+    assert _normalize_transaction_type("Sale (Non Open Market)") == "Sell"
+    assert _normalize_transaction_type("Sale at Public Offering") == "Sell"
+    assert _normalize_transaction_type("Sell") == "Sell"
+
+
+def test_normalize_transaction_type_purchase():
+    from data.financials import _normalize_transaction_type
+    assert _normalize_transaction_type("Purchase") == "Buy"
+    assert _normalize_transaction_type("Buy") == "Buy"
+    assert _normalize_transaction_type("Purchase (Open Market)") == "Buy"
+
+
+def test_normalize_transaction_type_other_kept():
+    from data.financials import _normalize_transaction_type
+    assert _normalize_transaction_type("Exercise of Options") == "Exercise of Options"
+    assert _normalize_transaction_type("Conversion") == "Conversion"
+    assert _normalize_transaction_type("Other (Acquisition)") == "Other"
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 

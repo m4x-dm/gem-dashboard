@@ -1035,3 +1035,24 @@ def bulk_fetch_earnings_calendar(
     out["sector"] = out["ticker"].map(_sector_for)
 
     return out
+
+
+# ---------------------------------------------------------------------------
+# Insider Trading & Institutional Holdings (F15)
+# ---------------------------------------------------------------------------
+
+def _normalize_transaction_type(raw: str) -> str:
+    """Mapuje yfinance transaction type na ujednolicony Buy/Sell.
+
+    Sale variants ("Sale", "Sale (Non Open Market)", "Sell") -> "Sell"
+    Purchase variants ("Purchase", "Buy") -> "Buy"
+    Pozostale (Exercise of Options, Conversion, Other) zostawione,
+    z odcietym suffix w nawiasie (np. "Other (Acquisition)" -> "Other").
+    """
+    raw_str = str(raw)
+    raw_lower = raw_str.lower()
+    if "sale" in raw_lower or "sell" in raw_lower:
+        return "Sell"
+    if "purchase" in raw_lower or "buy" in raw_lower:
+        return "Buy"
+    return raw_str.split("(")[0].strip()
