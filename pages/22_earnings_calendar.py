@@ -47,6 +47,99 @@ def _navigate_to_deep_dive(ticker: str) -> None:
         st.warning(f"Deep dive niedostepny dla ETF/UNKNOWN ({ticker}).")
 
 
+def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -> None:
+    """Renderuje Plotly calendar heatmap 8 tygodni.
+
+    Komorka = jeden dzien (Pon-Pt, weekendy ukryte).
+    Kolor = ilosc raportow tego dnia (gold scale).
+    Dzis = czerwona ramka.
+    """
+    today_norm = pd.Timestamp.now().normalize()
+    start = today_norm - pd.Timedelta(weeks=weeks_back)
+    end = today_norm + pd.Timedelta(weeks=weeks_fwd)
+
+    # Aggregate: data -> lista tickerow
+    by_day = df.groupby(df["date"].dt.normalize())["ticker"].apply(list).to_dict()
+
+    # Build matrix: rows = tygodnie, cols = dni (Pon-Pt)
+    matrix = []
+    week_labels = []
+    cell_data = []
+    current_week_start = start - pd.Timedelta(days=start.weekday())  # poniedzialek
+
+    while current_week_start <= end:
+        row = []
+        row_data = []
+        for dow in range(5):  # Pon-Pt
+            day = current_week_start + pd.Timedelta(days=dow)
+            if day < start or day > end:
+                row.append(None)
+                row_data.append(None)
+                continue
+            tickers_for_day = by_day.get(day, [])
+            row.append(len(tickers_for_day))
+            row_data.append(tickers_for_day)
+
+        # Label tygodnia: numer relatywny do dziś
+        week_diff = (current_week_start - today_norm).days // 7
+        week_labels.append(f"T{week_diff:+d}")
+        matrix.append(row)
+        cell_data.append(row_data)
+        current_week_start += pd.Timedelta(weeks=1)
+
+    # Hover text builder
+    hover_text = []
+    for week_row in cell_data:
+        hover_row = []
+        for cell_tickers in week_row:
+            if cell_tickers is None or len(cell_tickers) == 0:
+                hover_row.append("")
+            else:
+                preview = cell_tickers[:5]
+                more = len(cell_tickers) - 5
+                hover = f"{len(cell_tickers)} raporty:<br>" + "<br>".join(f"• {t}" for t in preview)
+                if more > 0:
+                    hover += f"<br>+ {more} wiecej"
+                hover_row.append(hover)
+        hover_text.append(hover_row)
+
+    fig = go.Figure(go.Heatmap(
+        z=matrix,
+        x=["Pon", "Wt", "Sr", "Cz", "Pt"],
+        y=week_labels,
+        colorscale=[[0, "#1F2937"], [0.5, "#C9A84C"], [1, "#FFD700"]],
+        showscale=True,
+        colorbar=dict(title="Raporty"),
+        hovertext=hover_text,
+        hovertemplate="%{hovertext}<extra></extra>",
+        zmin=0,
+    ))
+
+    # Dzis = ramka (annotacja)
+    today_dow = today_norm.weekday()
+    if today_dow < 5:  # tylko Pon-Pt
+        try:
+            t0_idx = week_labels.index("T+0")
+            fig.add_shape(
+                type="rect",
+                x0=today_dow - 0.5, x1=today_dow + 0.5,
+                y0=t0_idx - 0.5, y1=t0_idx + 0.5,
+                line=dict(color="#EF4444", width=2),
+                fillcolor="rgba(0,0,0,0)",
+            )
+        except ValueError:
+            pass
+
+    fig.update_layout(
+        title="Kalendarz miesiecy — 8 tygodni (T-3 do T+4)",
+        template="plotly_dark",
+        height=400,
+        yaxis=dict(autorange="reversed"),  # T-3 na gorze
+        margin=dict(l=40, r=40, t=60, b=40),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
 # ---------------------------------------------------------------------------
 # Page config + auth + sidebar
 # ---------------------------------------------------------------------------
@@ -177,7 +270,15 @@ c4.metric("Avg surprise %", f"{avg_surprise:+.1f}%" if pd.notna(avg_surprise) el
 
 st.markdown("---")
 
-# Placeholder dla Task 5 (heatmapa) i Task 6 (tabela) i Task 7 (cross-link)
-st.info("🚧 Heatmapa, tabela i cross-link dodane w kolejnych taskach.")
+# ---------------------------------------------------------------------------
+# HEATMAPA (8 tygodni)
+# ---------------------------------------------------------------------------
+
+_render_heatmap(filtered)
+
+st.markdown("---")
+
+# Placeholder dla Task 6 (tabela) i Task 7 (cross-link)
+st.info("🚧 Tabela i cross-link dodane w kolejnych taskach.")
 
 render_footer()
