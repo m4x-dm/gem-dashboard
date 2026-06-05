@@ -356,6 +356,55 @@ def test_compute_buy_streak_empty():
     assert _compute_buy_streak(pd.DataFrame()) == 0
 
 
+def test_aggregate_insider_for_ticker_full_data():
+    """Mock 3 endpoint — transactions + institutional + ratios."""
+    mock_transactions = pd.DataFrame({
+        "Insider": ["TIM COOK", "LUCA MAESTRI", "ELON MUSK"],
+        "Position": ["CEO", "CFO", "Other"],
+        "Type": ["Buy", "Sell", "Buy"],
+        "Shares": [5000, 10000, 3000],
+        "Value": [1_000_000, 2_000_000, 600_000],
+    }, index=pd.to_datetime(["2026-05-15", "2026-04-20", "2026-03-10"]))
+
+    mock_institutional = pd.DataFrame({
+        "Holder": ["Vanguard Group Inc", "BlackRock Inc."],
+        "% Out": [8.2, 6.5],
+        "Shares": [1_300_000_000, 1_000_000_000],
+    })
+
+    from data.financials import _aggregate_insider_for_ticker
+    with patch("data.financials.fetch_insider_transactions", return_value=mock_transactions), \
+         patch("data.financials.fetch_institutional_holders", return_value=mock_institutional), \
+         patch("data.financials.get_ratios_snapshot", return_value={
+             "name": "Apple Inc.",
+             "sector": "Information Technology",
+             "market_cap": 3_400_000_000_000,
+         }):
+        result = _aggregate_insider_for_ticker("AAPL")
+
+    assert result is not None
+    assert result["ticker"] == "AAPL"
+    # Net: 1.6M buy - 2M sell = -400k
+    assert result["net_value_6m"] == -400_000
+    assert result["n_buys"] == 2
+    assert result["n_sells"] == 1
+    assert result["top_buyer"] == "TIM COOK"  # 1M > 600k
+    assert result["top_seller"] == "LUCA MAESTRI"
+    assert result["top_institutional"] == "Vanguard Group Inc"
+    # net < 0 ale n_sells = 1 (< 2) → 🟡 mixed
+    assert result["sentiment"] == "🟡"
+
+
+def test_aggregate_insider_returns_none_when_no_data():
+    """Wszystkie 3 fetch None → return None."""
+    from data.financials import _aggregate_insider_for_ticker
+    with patch("data.financials.fetch_insider_transactions", return_value=None), \
+         patch("data.financials.fetch_institutional_holders", return_value=None), \
+         patch("data.financials.get_ratios_snapshot", return_value=None):
+        result = _aggregate_insider_for_ticker("EMPTY_TEST")
+    assert result is None
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 

@@ -1260,3 +1260,108 @@ def _compute_buy_streak(transactions: pd.DataFrame) -> int:
         else:
             break
     return streak
+
+
+def _aggregate_insider_for_ticker(ticker: str) -> dict | None:
+    """Agregat insider activity dla 1 tickera.
+
+    Pobiera (z fallback chain F15):
+    - fetch_insider_transactions (6mc historia)
+    - fetch_institutional_holders (top 10 fundusz)
+    - get_ratios_snapshot (sektor + market_cap z Ticker.info, F11)
+
+    Returns dict z 16 polami lub None gdy oba endpointy puste.
+
+    Fallback sektor + nazwa: jesli ratios None, uzywamy SP500_SECTOR_MAP
+    + SP500_NAMES (static).
+
+    Sentiment:
+    - 🟢 net > 0 i n_buys >= 2
+    - 🔴 net < 0 i n_sells >= 2
+    - 🟡 mixed (jedna transakcja lub net mieszany)
+    - ⚪ brak danych
+    """
+    transactions = fetch_insider_transactions(ticker)
+    institutional = fetch_institutional_holders(ticker)
+    ratios = get_ratios_snapshot(ticker)
+
+    sector = None
+    name = None
+    market_cap = None
+    if ratios is not None:
+        sector = ratios.get("sector")
+        name = ratios.get("name")
+        market_cap = ratios.get("market_cap")
+    if not sector:
+        from data.sp500_universe import SP500_SECTOR_MAP, SP500_NAMES
+        sector = SP500_SECTOR_MAP.get(ticker, "—")
+        if not name:
+            name = SP500_NAMES.get(ticker, ticker)
+
+    row = {
+        "ticker": ticker,
+        "name": name or ticker,
+        "sector": sector,
+        "market_cap": market_cap,
+        "net_value_6m": float("nan"),
+        "n_buys": 0,
+        "n_sells": 0,
+        "avg_buy_size": float("nan"),
+        "avg_sell_size": float("nan"),
+        "top_buyer": "—",
+        "top_buyer_value": float("nan"),
+        "top_seller": "—",
+        "top_seller_value": float("nan"),
+        "top_institutional": "—",
+        "top_inst_pct": float("nan"),
+        "sentiment": "⚪",
+        "beat_streak_buys": 0,
+    }
+
+    # Insider transactions agregat
+    if transactions is not None and not transactions.empty and "Type" in transactions.columns:
+        buys = transactions[transactions["Type"] == "Buy"]
+        sells = transactions[transactions["Type"] == "Sell"]
+        buy_value = float(buys["Value"].sum()) if "Value" in buys.columns else 0.0
+        sell_value = float(sells["Value"].sum()) if "Value" in sells.columns else 0.0
+        net = buy_value - sell_value
+        row["net_value_6m"] = net
+        row["n_buys"] = len(buys)
+        row["n_sells"] = len(sells)
+        row["avg_buy_size"] = float(buys["Value"].mean()) if len(buys) > 0 else float("nan")
+        row["avg_sell_size"] = float(sells["Value"].mean()) if len(sells) > 0 else float("nan")
+
+        if len(buys) > 0:
+            top_b = buys.nlargest(1, "Value").iloc[0]
+            row["top_buyer"] = str(top_b.get("Insider", "—"))[:40]
+            row["top_buyer_value"] = float(top_b.get("Value", 0))
+        if len(sells) > 0:
+            top_s = sells.nlargest(1, "Value").iloc[0]
+            row["top_seller"] = str(top_s.get("Insider", "—"))[:40]
+            row["top_seller_value"] = float(top_s.get("Value", 0))
+
+        if pd.notna(net):
+            if net > 0 and row["n_buys"] >= 2:
+                row["sentiment"] = "🟢"
+            elif net < 0 and row["n_sells"] >= 2:
+                row["sentiment"] = "🔴"
+            else:
+                row["sentiment"] = "🟡"
+
+        row["beat_streak_buys"] = _compute_buy_streak(transactions)
+
+    # Institutional top fund
+    if institutional is not None and not institutional.empty:
+        if "Holder" in institutional.columns and "% Out" in institutional.columns:
+            top_inst = institutional.iloc[0]
+            row["top_institutional"] = str(top_inst.get("Holder", "—"))[:40]
+            try:
+                row["top_inst_pct"] = float(top_inst.get("% Out", float("nan")))
+            except Exception:
+                pass
+
+    if (transactions is None or transactions.empty) and \
+       (institutional is None or institutional.empty):
+        return None
+
+    return row
