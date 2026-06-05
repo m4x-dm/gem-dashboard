@@ -85,3 +85,70 @@ def test_get_etf_set_contains_known():
     assert "QQQ" in etf_set
     # AAPL nie powinien byc w ETF set
     assert "AAPL" not in etf_set
+
+
+def test_fetch_earnings_dates_normalizes_columns():
+    """Mock yfinance Ticker.earnings_dates — normalize columns."""
+    mock_df = pd.DataFrame({
+        "EPS Estimate": [1.5, 1.6],
+        "Reported EPS": [1.65, None],
+        "Surprise(%)": [10.0, None],
+    }, index=pd.to_datetime(["2026-05-01", "2026-07-30"]))
+
+    mock_ticker = MagicMock()
+    mock_ticker.earnings_dates = mock_df
+
+    from data.financials import fetch_earnings_dates
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+         patch("data.financials._cache_path_earnings_dates", return_value=None):
+        result = fetch_earnings_dates("AAPL_TEST")
+
+    assert result is not None
+    assert "eps_estimate" in result.columns
+    assert "eps_actual" in result.columns
+    assert "eps_surprise_pct" in result.columns
+    assert "is_future" in result.columns
+    assert "q_label" in result.columns
+
+
+def test_fetch_earnings_dates_returns_none_on_empty():
+    mock_ticker = MagicMock()
+    mock_ticker.earnings_dates = pd.DataFrame()
+
+    from data.financials import fetch_earnings_dates
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+         patch("data.financials._cache_path_earnings_dates", return_value=None):
+        result = fetch_earnings_dates("EMPTY_TEST")
+
+    assert result is None
+
+
+def test_bulk_fetch_filters_etf():
+    """ETF tickery nie powinny byc fetchowane (no earnings, oszczedza calls)."""
+    fetch_calls = []
+
+    def mock_fetch(ticker, **kwargs):
+        fetch_calls.append(ticker)
+        return pd.DataFrame({
+            "eps_estimate": [1.5],
+            "eps_actual": [1.6],
+            "eps_surprise_pct": [6.7],
+            "is_future": [False],
+            "q_label": ["Q2'26"],
+        }, index=pd.to_datetime(["2026-05-01"]))
+
+    mock_progress = MagicMock()
+    mock_progress.progress = MagicMock()
+    mock_progress.empty = MagicMock()
+
+    from data.financials import bulk_fetch_earnings_calendar
+    with patch("data.financials.fetch_earnings_dates", side_effect=mock_fetch), \
+         patch("data.financials.st.progress", return_value=mock_progress):
+        result = bulk_fetch_earnings_calendar(("AAPL", "VOO", "QQQ", "MSFT"))
+
+    # VOO, QQQ filtered out — tylko AAPL, MSFT wywołane
+    assert "VOO" not in fetch_calls
+    assert "QQQ" not in fetch_calls
+    assert "AAPL" in fetch_calls
+    assert "MSFT" in fetch_calls
+    assert set(result["ticker"].unique()).issubset({"AAPL", "MSFT"})

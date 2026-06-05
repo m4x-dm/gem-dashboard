@@ -796,3 +796,208 @@ def _detect_market(ticker: str) -> str:
     if ticker in _get_etf_set():
         return "ETF"
     return "UNKNOWN"
+
+
+# ---------------------------------------------------------------------------
+# Earnings Calendar — fetch_earnings_dates + bulk_fetch
+# ---------------------------------------------------------------------------
+
+CACHE_DIR_EARNINGS_DATES = Path(__file__).parent / "cache" / "earnings_dates"
+
+
+def _cache_path_earnings_dates(ticker: str) -> Path | None:
+    """Sciezka cache file dla earnings_dates. None jesli stale/missing."""
+    CACHE_DIR_EARNINGS_DATES.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR_EARNINGS_DATES / f"{ticker}.parquet"
+    if not path.exists():
+        return None
+    age = pd.Timestamp.now().timestamp() - path.stat().st_mtime
+    if age > CACHE_TTL_SECONDS:
+        return None
+    return path
+
+
+def fetch_earnings_dates(ticker: str) -> pd.DataFrame | None:
+    """Pobiera earnings dates (historia + future) dla tickera.
+
+    yfinance Ticker.earnings_dates zwraca DF z indeksem DatetimeIndex
+    + kolumnami: "EPS Estimate", "Reported EPS", "Surprise(%)".
+
+    Returns DF z normalizowanymi kolumnami:
+        eps_estimate, eps_actual, eps_surprise_pct, is_future, q_label
+    Indeks: DatetimeIndex (tz_localize(None).normalize()).
+    None gdy brak danych.
+
+    Cache parquet 24h.
+    """
+    # Try cache first
+    cache_path = _cache_path_earnings_dates(ticker)
+    if cache_path is not None:
+        try:
+            return pd.read_parquet(cache_path, engine="pyarrow")
+        except Exception:
+            pass
+
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.earnings_dates
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+
+    out = df.copy()
+    # Normalize index: tz-aware -> naive, normalize do daty
+    out.index = pd.to_datetime(out.index).tz_localize(None).normalize()
+
+    rename = {
+        "EPS Estimate": "eps_estimate",
+        "Reported EPS": "eps_actual",
+        "Surprise(%)": "eps_surprise_pct",
+    }
+    out = out.rename(columns={c: rename[c] for c in out.columns if c in rename})
+
+    keep = [c for c in ["eps_estimate", "eps_actual", "eps_surprise_pct"] if c in out.columns]
+    if not keep:
+        return None
+    out = out[keep]
+
+    # Dodatkowe kolumny
+    today = pd.Timestamp.now().normalize()
+    out["is_future"] = out.index > today
+    out["q_label"] = [_quarter_label(d) for d in out.index]
+
+    # Save cache (best effort)
+    cache_save_path = CACHE_DIR_EARNINGS_DATES / f"{ticker}.parquet"
+    try:
+        out.to_parquet(cache_save_path, engine="pyarrow")
+    except Exception:
+        pass
+
+    return out
+
+
+def _fetch_calendar_for_one(ticker: str, retries: int = 3) -> pd.DataFrame | None:
+    """Pobiera earnings_dates dla 1 tickera z retry. Zwraca DF lub None."""
+    df = None
+    for attempt in range(retries):
+        try:
+            df = fetch_earnings_dates(ticker)
+            if df is None or df.empty:
+                return None
+            break
+        except Exception:
+            if attempt == retries - 1:
+                return None
+            time.sleep(2 ** attempt)
+
+    if df is None or df.empty:
+        return None
+    return df
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram kalendarz earnings...")
+def bulk_fetch_earnings_calendar(
+    tickers_tuple: tuple[str, ...],
+    max_workers: int = 8,
+    window_days: int = 28,
+) -> pd.DataFrame:
+    """Bulk fetch earnings dates dla universe.
+
+    Filtruje ETF z input (no earnings). Window: data ± window_days od dzis.
+
+    Returns DataFrame z kolumnami:
+        ticker, date, q_label, eps_estimate, eps_actual,
+        eps_surprise_pct, is_future, market, name, sector
+    """
+    # Filter ETF (no earnings)
+    etf_set = _get_etf_set()
+    eligible = [t for t in tickers_tuple if t not in etf_set]
+
+    if not eligible:
+        return pd.DataFrame()
+
+    today = pd.Timestamp.now().normalize()
+    window_start = today - pd.Timedelta(days=window_days)
+    window_end = today + pd.Timedelta(days=window_days)
+
+    rows: list[dict] = []
+    total = len(eligible)
+    progress_bar = st.progress(0.0, text=f"Pobieram 0/{total}...")
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ticker = {
+            executor.submit(_fetch_calendar_for_one, t): t
+            for t in eligible
+        }
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                df = future.result()
+            except Exception:
+                df = None
+
+            if df is not None and not df.empty:
+                # Filter window
+                in_window = df[(df.index >= window_start) & (df.index <= window_end)]
+                for date, row in in_window.iterrows():
+                    rows.append({
+                        "ticker": ticker,
+                        "date": date,
+                        "q_label": row.get("q_label", ""),
+                        "eps_estimate": row.get("eps_estimate", float("nan")),
+                        "eps_actual": row.get("eps_actual", float("nan")),
+                        "eps_surprise_pct": row.get("eps_surprise_pct", float("nan")),
+                        "is_future": bool(row.get("is_future", False)),
+                        "market": _detect_market(ticker),
+                    })
+
+            completed += 1
+            progress_bar.progress(
+                completed / total,
+                text=f"Pobieram {completed}/{total}: {ticker}",
+            )
+
+    progress_bar.empty()
+
+    if not rows:
+        return pd.DataFrame(columns=[
+            "ticker", "date", "q_label", "eps_estimate", "eps_actual",
+            "eps_surprise_pct", "is_future", "market", "name", "sector",
+        ])
+
+    out = pd.DataFrame(rows)
+    out["_abs_days"] = (out["date"] - today).abs()
+    out = out.sort_values("_abs_days").drop(columns=["_abs_days"]).reset_index(drop=True)
+
+    # Lookup name + sector
+    from data.sp500_universe import SP500_NAMES, SP500_SECTOR_MAP
+    from data.gpw_universe import GPW_CATEGORIES
+
+    gpw_names = {}
+    gpw_index = {}
+    for idx_name, idx_dict in GPW_CATEGORIES.items():
+        for tk, nm in idx_dict.items():
+            gpw_names[tk] = nm
+            gpw_index[tk] = idx_name
+
+    def _name_for(t):
+        if t in SP500_NAMES:
+            return SP500_NAMES[t]
+        if t in gpw_names:
+            return gpw_names[t]
+        return t
+
+    def _sector_for(t):
+        if t in SP500_SECTOR_MAP:
+            return SP500_SECTOR_MAP[t]
+        if t in gpw_index:
+            return gpw_index[t]
+        return "—"
+
+    out["name"] = out["ticker"].map(_name_for)
+    out["sector"] = out["ticker"].map(_sector_for)
+
+    return out
