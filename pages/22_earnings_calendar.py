@@ -381,7 +381,27 @@ _render_calendar_table(sorted_df, watchlist, ls)
 
 st.markdown("---")
 
-# Placeholder dla Task 7 (cross-link)
-st.info("🚧 Cross-link dodany w kolejnym tasku.")
+# ---------------------------------------------------------------------------
+# CROSS-LINK do F13 Sprawozdania Q deep dive
+# ---------------------------------------------------------------------------
+
+st.markdown("### 📈 Deep dive (Sprawozdania Q)")
+col_sel, col_btn = st.columns([3, 1])
+with col_sel:
+    selected_ticker = st.selectbox(
+        "Wybierz ticker do deep dive:",
+        options=[""] + sorted_df["ticker"].tolist(),
+        key="calendar_deep_dive_select",
+    )
+with col_btn:
+    st.write("")  # spacer
+    go_btn = st.button(
+        "📈 Pokaz szczegoly",
+        key="calendar_deep_dive_btn",
+        disabled=not selected_ticker,
+    )
+
+if go_btn and selected_ticker:
+    _navigate_to_deep_dive(selected_ticker)
 
 render_footer()
