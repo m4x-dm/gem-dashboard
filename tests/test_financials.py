@@ -189,6 +189,48 @@ def test_fetch_insider_transactions_returns_none_on_empty():
     assert result is None
 
 
+def test_fetch_insider_purchases_returns_df():
+    """Mock yfinance insider_purchases — agregat 6mc."""
+    mock_df = pd.DataFrame({
+        "Insider Purchases Last 6m": [
+            "Purchases", "Sales", "Net Shares Purchased (Sold)",
+            "Total Insider Shares Held", "% Net Shares Purchased (Sold)",
+        ],
+        "Shares": [5000, 100000, -95000, 3280000, -2.9],
+        "Trans": [12, 47, -35, None, None],
+    })
+
+    mock_ticker = MagicMock()
+    mock_ticker.insider_purchases = mock_df
+
+    from data.financials import fetch_insider_purchases
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_purchases("AAPL_TEST")
+
+    assert result is not None
+    assert not result.empty
+
+
+def test_fetch_insider_roster_holders_returns_df():
+    mock_df = pd.DataFrame({
+        "Name": ["Timothy D. Cook", "Luca Maestri"],
+        "Position": ["CEO", "CFO"],
+        "Most Recent Transaction": ["Sale", "Sale"],
+        "Latest Transaction Date": pd.to_datetime(["2026-05-15", "2026-04-20"]),
+        "Shares Owned Directly": [3_280_000, 850_000],
+    })
+
+    mock_ticker = MagicMock()
+    mock_ticker.insider_roster_holders = mock_df
+
+    from data.financials import fetch_insider_roster_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_roster_holders("AAPL_TEST")
+
+    assert result is not None
+    assert len(result) == 2
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 

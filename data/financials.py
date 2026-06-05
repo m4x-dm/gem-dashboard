@@ -1101,3 +1101,41 @@ def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     out = out[keep]
 
     return out
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_insider_purchases(ticker: str) -> pd.DataFrame | None:
+    """Insider purchases summary (agregat 6 mc).
+
+    yfinance Ticker.insider_purchases zwraca DF z metrykami:
+    Total Purchases, Total Sales, Net Shares Purchased/Sold,
+    Total Insider Shares Held, % Net Shares Purchased/Sold.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.insider_purchases
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+    return df
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_insider_roster_holders(ticker: str) -> pd.DataFrame | None:
+    """Roster insiderow — kto z zarzadu trzyma ile akcji.
+
+    yfinance Ticker.insider_roster_holders: Name, Position,
+    Most Recent Transaction, Latest Transaction Date,
+    Shares Owned Directly, Shares Owned Indirectly.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.insider_roster_holders
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+    return df
