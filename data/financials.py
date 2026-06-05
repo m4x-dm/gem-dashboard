@@ -1365,3 +1365,57 @@ def _aggregate_insider_for_ticker(ticker: str) -> dict | None:
         return None
 
     return row
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram bulk insider screener (~5-7 min cold cache)...")
+def bulk_fetch_insider_screener(
+    tickers_tuple: tuple[str, ...],
+    max_workers: int = 8,
+) -> pd.DataFrame:
+    """Bulk insider screener — agregat per spolka z ThreadPool.
+
+    Filtruje ETF (z _get_etf_set, F14 reuse).
+    Default sort: net_value_6m DESC, NaN na koncu.
+
+    Returns DataFrame 16-kolumnowy lub pusty.
+    """
+    etf_set = _get_etf_set()
+    eligible = [t for t in tickers_tuple if t not in etf_set]
+
+    rows: list[dict] = []
+    total = len(eligible)
+    progress_bar = st.progress(0.0, text=f"Pobieram 0/{total}...")
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ticker = {
+            executor.submit(_aggregate_insider_for_ticker, t): t
+            for t in eligible
+        }
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                row = future.result()
+            except Exception:
+                row = None
+            if row is not None:
+                rows.append(row)
+            completed += 1
+            progress_bar.progress(
+                completed / total,
+                text=f"Pobieram {completed}/{total}: {ticker}",
+            )
+
+    progress_bar.empty()
+
+    if not rows:
+        return pd.DataFrame(columns=[
+            "ticker", "name", "sector", "market_cap", "net_value_6m",
+            "n_buys", "n_sells", "avg_buy_size", "avg_sell_size",
+            "top_buyer", "top_buyer_value", "top_seller", "top_seller_value",
+            "top_institutional", "top_inst_pct", "sentiment", "beat_streak_buys",
+        ])
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values(by="net_value_6m", ascending=False, na_position="last").reset_index(drop=True)
+    return df

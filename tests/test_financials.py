@@ -405,6 +405,39 @@ def test_aggregate_insider_returns_none_when_no_data():
     assert result is None
 
 
+def test_bulk_fetch_insider_screener_filters_etf():
+    """ETF nie powinny byc fetchowane (no insider data)."""
+    fetch_calls = []
+
+    def mock_agg(ticker):
+        fetch_calls.append(ticker)
+        return {
+            "ticker": ticker, "name": ticker, "sector": "—", "market_cap": None,
+            "net_value_6m": 1_000_000, "n_buys": 1, "n_sells": 0,
+            "avg_buy_size": float("nan"), "avg_sell_size": float("nan"),
+            "top_buyer": "—", "top_buyer_value": float("nan"),
+            "top_seller": "—", "top_seller_value": float("nan"),
+            "top_institutional": "—", "top_inst_pct": float("nan"),
+            "sentiment": "🟢", "beat_streak_buys": 0,
+        }
+
+    mock_progress = MagicMock()
+    mock_progress.progress = MagicMock()
+    mock_progress.empty = MagicMock()
+
+    from data.financials import bulk_fetch_insider_screener
+    with patch("data.financials._aggregate_insider_for_ticker", side_effect=mock_agg), \
+         patch("data.financials.st.progress", return_value=mock_progress):
+        result = bulk_fetch_insider_screener(("AAPL", "VOO", "MSFT", "QQQ"))
+
+    # ETF (VOO, QQQ) filtered out
+    assert "VOO" not in fetch_calls
+    assert "QQQ" not in fetch_calls
+    assert "AAPL" in fetch_calls
+    assert "MSFT" in fetch_calls
+    assert len(result) == 2
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 
