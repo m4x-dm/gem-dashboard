@@ -1058,25 +1058,62 @@ def _normalize_transaction_type(raw: str) -> str:
     return raw_str.split("(")[0].strip()
 
 
+def _try_insider_endpoint(ticker: str, attr_name: str) -> pd.DataFrame | dict | None:
+    """Probuje yfinance endpoint via property + get_* method fallback.
+
+    Niektore endpointy (insider_*, *_holders) sa flaky na Streamlit Cloud
+    — czasem property zwraca None ale get_* method dziala (rozne URL pod
+    spodem). Probujemy oba sposoby. Plus probujemy z curl_cffi session
+    i bez session (czasem session blokuje pewne endpointy).
+    """
+    for use_session in (True, False):
+        try:
+            session = _get_yf_session() if use_session else None
+            t = yf.Ticker(ticker, session=session)
+            # Try property first
+            val = getattr(t, attr_name, None)
+            if val is not None:
+                if isinstance(val, pd.DataFrame):
+                    if not val.empty:
+                        return val
+                elif isinstance(val, dict):
+                    if val:
+                        return val
+                else:
+                    return val
+            # Fallback: get_* method
+            method_name = f"get_{attr_name}"
+            method = getattr(t, method_name, None)
+            if method is not None and callable(method):
+                val = method()
+                if val is not None:
+                    if isinstance(val, pd.DataFrame):
+                        if not val.empty:
+                            return val
+                    elif isinstance(val, dict):
+                        if val:
+                            return val
+                    else:
+                        return val
+        except Exception:
+            continue
+    return None
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     """Historia transakcji insiderow (CEO/CFO/...) ostatnie ~6 mc.
-
-    yfinance Ticker.insider_transactions zwraca DF z indeksem DatetimeIndex
-    + kolumnami: Insider, Position, Transaction, Shares, Value, URL.
 
     Returns DF z znormalizowanymi kolumnami:
         Insider, Position, Type (Buy/Sell/Other), Shares, Value
     Indeks: DatetimeIndex (data raportu).
     None gdy brak danych.
-    """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.insider_transactions
-    except Exception:
-        return None
 
-    if df is None or df.empty:
+    Uzywa _try_insider_endpoint (property + get_* + bez session fallback)
+    bo yfinance insider endpointy sa flaky na Streamlit Cloud.
+    """
+    df = _try_insider_endpoint(ticker, "insider_transactions")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
 
     out = df.copy()
@@ -1107,72 +1144,37 @@ def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
 def fetch_insider_purchases(ticker: str) -> pd.DataFrame | None:
     """Insider purchases summary (agregat 6 mc).
 
-    yfinance Ticker.insider_purchases zwraca DF z metrykami:
-    Total Purchases, Total Sales, Net Shares Purchased/Sold,
-    Total Insider Shares Held, % Net Shares Purchased/Sold.
+    Uses _try_insider_endpoint (property + get_* + bez session fallback).
     """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.insider_purchases
-    except Exception:
-        return None
-
-    if df is None or df.empty:
+    df = _try_insider_endpoint(ticker, "insider_purchases")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_insider_roster_holders(ticker: str) -> pd.DataFrame | None:
-    """Roster insiderow — kto z zarzadu trzyma ile akcji.
-
-    yfinance Ticker.insider_roster_holders: Name, Position,
-    Most Recent Transaction, Latest Transaction Date,
-    Shares Owned Directly, Shares Owned Indirectly.
-    """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.insider_roster_holders
-    except Exception:
-        return None
-
-    if df is None or df.empty:
+    """Roster insiderow — kto z zarzadu trzyma ile akcji."""
+    df = _try_insider_endpoint(ticker, "insider_roster_holders")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_institutional_holders(ticker: str) -> pd.DataFrame | None:
-    """Top 10 funduszy instytucjonalnych (BlackRock, Vanguard, etc.).
-
-    yfinance Ticker.institutional_holders: Holder, Shares, Date Reported,
-    % Out, Value.
-    """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.institutional_holders
-    except Exception:
-        return None
-
-    if df is None or df.empty:
+    """Top 10 funduszy instytucjonalnych."""
+    df = _try_insider_endpoint(ticker, "institutional_holders")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_mutualfund_holders(ticker: str) -> pd.DataFrame | None:
-    """Top 10 mutual funds.
-
-    yfinance Ticker.mutualfund_holders — taka sama struktura co
-    institutional_holders.
-    """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.mutualfund_holders
-    except Exception:
-        return None
-
-    if df is None or df.empty:
+    """Top 10 mutual funds."""
+    df = _try_insider_endpoint(ticker, "mutualfund_holders")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df
 
@@ -1183,15 +1185,12 @@ def fetch_major_holders(ticker: str) -> dict | None:
 
     yfinance Ticker.major_holders moze zwrocic dict ALBO DataFrame
     (rozne wersje). Defensywny parser obsluguje oba formaty.
+    Uses _try_insider_endpoint (property + get_* + bez session fallback).
 
     Returns dict: {insider_pct, institutional_pct, institutional_count, float_pct}
     None gdy wszystkie pola brak.
     """
-    try:
-        t = yf.Ticker(ticker, session=_get_yf_session())
-        raw = t.major_holders
-    except Exception:
-        return None
+    raw = _try_insider_endpoint(ticker, "major_holders")
 
     if raw is None:
         return None

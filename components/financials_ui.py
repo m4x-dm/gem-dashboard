@@ -482,12 +482,41 @@ def _render_insiders_tab(ticker: str) -> None:
     institutional = fetch_institutional_holders(ticker)
     mutual = fetch_mutualfund_holders(ticker)
 
-    if all(x is None for x in [major, purchases, transactions, roster, institutional, mutual]):
-        st.info(
-            "⚠️ Brak danych insider/institutional dla tego tickera.\n\n"
-            "Dla spolek GPW raporty biezace ida przez ESPI (poza zakresem yfinance).\n"
-            "Sprawdz recznie: https://www.gpw.pl/komunikaty-spolek"
-        )
+    # Diagnostyka — sprawdz ktore endpointy zwrocily dane
+    endpoint_status = {
+        "Major Holders": major is not None,
+        "Insider Purchases": purchases is not None and not (isinstance(purchases, pd.DataFrame) and purchases.empty),
+        "Insider Transactions": transactions is not None and not transactions.empty,
+        "Insider Roster": roster is not None and not roster.empty,
+        "Institutional Holders": institutional is not None and not institutional.empty,
+        "Mutual Fund Holders": mutual is not None and not mutual.empty,
+    }
+    n_ok = sum(endpoint_status.values())
+
+    if n_ok == 0:
+        is_gpw = ticker.endswith(".WA")
+        if is_gpw:
+            st.info(
+                "⚠️ Brak danych insider/institutional dla tego tickera GPW.\n\n"
+                "Raporty biezace polskich spolek ida przez ESPI (poza zakresem yfinance).\n"
+                "Sprawdz recznie: https://www.gpw.pl/komunikaty-spolek"
+            )
+        else:
+            st.warning(
+                f"⚠️ yfinance nie zwrocil danych insider/institutional dla {ticker}.\n\n"
+                "**Mozliwe przyczyny:**\n"
+                "- Yahoo Finance czasowo blokuje insider endpointy (rate limit / API change)\n"
+                "- Streamlit Cloud IP jest na czarnej liscie Yahoo\n"
+                "- Sproboj ponownie za kilka minut (cache 24h)\n\n"
+                "**Alternatywne zrodla:**\n"
+                f"- SEC EDGAR (Form 4): https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type=4\n"
+                f"- Finviz: https://finviz.com/quote.ashx?t={ticker}\n"
+                f"- OpenInsider: http://openinsider.com/screener?s={ticker}"
+            )
+        with st.expander("🔍 Diagnostyka yfinance endpointow"):
+            for name, ok in endpoint_status.items():
+                icon = "✅" if ok else "❌"
+                st.write(f"{icon} {name}")
         return
 
     # ============== SEKCJA 1: Major Holders (4 metric cards) ==============
