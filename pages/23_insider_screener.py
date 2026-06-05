@@ -304,7 +304,45 @@ else:
 
 st.markdown("---")
 
-# Placeholder dla Task 8
-st.info("🚧 Cross-link i CSV dodane w kolejnym tasku.")
+# ---------------------------------------------------------------------------
+# CROSS-LINK do F13 Sprawozdania Q deep dive Insiders sub-tab
+# ---------------------------------------------------------------------------
+
+st.markdown("### 📈 Deep dive (F13 Insiders)")
+col_sel, col_btn = st.columns([3, 1])
+with col_sel:
+    selected_ticker = st.selectbox(
+        "Wybierz ticker do deep dive:",
+        options=[""] + filtered["ticker"].tolist(),
+        key="insider_screener_deep_dive_select",
+    )
+with col_btn:
+    st.write("")  # spacer
+    go_btn = st.button(
+        "📈 Pokaz szczegoly",
+        key="insider_screener_deep_dive_btn",
+        disabled=not selected_ticker,
+    )
+
+if go_btn and selected_ticker:
+    # Pattern session_state z F14 hotfix (b1f8502): pending flag NIE widget key
+    st.session_state["sp500_deep_dive_ticker"] = selected_ticker
+    st.session_state["sp500_pending_view"] = "deep_dive"
+    st.switch_page("pages/7_sp500.py")
+
+st.markdown("---")
+
+# ---------------------------------------------------------------------------
+# CSV EXPORT
+# ---------------------------------------------------------------------------
+
+csv = filtered.to_csv(index=False).encode("utf-8")
+st.download_button(
+    "📥 Eksport CSV (screener)",
+    data=csv,
+    file_name=f"insider_screener_sp500_{pd.Timestamp.now():%Y%m%d}.csv",
+    mime="text/csv",
+    key="insider_screener_csv",
+)
 
 render_footer()
