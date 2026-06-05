@@ -1139,3 +1139,39 @@ def fetch_insider_roster_holders(ticker: str) -> pd.DataFrame | None:
     if df is None or df.empty:
         return None
     return df
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_institutional_holders(ticker: str) -> pd.DataFrame | None:
+    """Top 10 funduszy instytucjonalnych (BlackRock, Vanguard, etc.).
+
+    yfinance Ticker.institutional_holders: Holder, Shares, Date Reported,
+    % Out, Value.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.institutional_holders
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+    return df
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_mutualfund_holders(ticker: str) -> pd.DataFrame | None:
+    """Top 10 mutual funds.
+
+    yfinance Ticker.mutualfund_holders — taka sama struktura co
+    institutional_holders.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        df = t.mutualfund_holders
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+    return df

@@ -231,6 +231,47 @@ def test_fetch_insider_roster_holders_returns_df():
     assert len(result) == 2
 
 
+def test_fetch_institutional_holders_returns_df():
+    mock_df = pd.DataFrame({
+        "Holder": ["Vanguard Group Inc", "BlackRock Inc.", "Berkshire Hathaway Inc"],
+        "Shares": [1_300_000_000, 1_000_000_000, 890_000_000],
+        "Date Reported": pd.to_datetime(["2026-03-31", "2026-03-31", "2026-03-31"]),
+        "% Out": [8.2, 6.5, 5.5],
+        "Value": [260_000_000_000, 200_000_000_000, 178_000_000_000],
+    })
+
+    mock_ticker = MagicMock()
+    mock_ticker.institutional_holders = mock_df
+
+    from data.financials import fetch_institutional_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_institutional_holders("AAPL_TEST")
+
+    assert result is not None
+    assert "Holder" in result.columns
+    assert len(result) == 3
+
+
+def test_fetch_mutualfund_holders_returns_df():
+    mock_df = pd.DataFrame({
+        "Holder": ["Vanguard Total Market", "SPDR S&P 500 ETF"],
+        "Shares": [365_000_000, 285_000_000],
+        "Date Reported": pd.to_datetime(["2026-03-31", "2026-03-31"]),
+        "% Out": [2.3, 1.8],
+        "Value": [73_000_000_000, 57_000_000_000],
+    })
+
+    mock_ticker = MagicMock()
+    mock_ticker.mutualfund_holders = mock_df
+
+    from data.financials import fetch_mutualfund_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_mutualfund_holders("AAPL_TEST")
+
+    assert result is not None
+    assert len(result) == 2
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 
