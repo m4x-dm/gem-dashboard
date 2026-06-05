@@ -272,6 +272,62 @@ def test_fetch_mutualfund_holders_returns_df():
     assert len(result) == 2
 
 
+def test_fetch_major_holders_dict_format():
+    """yfinance zwraca dict (newer versions)."""
+    mock_dict = {
+        "insidersPercentHeld": 0.0007,
+        "institutionsPercentHeld": 0.625,
+        "institutionsCount": 4892,
+        "institutionsFloatPercentHeld": 0.9993,
+    }
+    mock_ticker = MagicMock()
+    mock_ticker.major_holders = mock_dict
+
+    from data.financials import fetch_major_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_major_holders("AAPL_TEST")
+
+    assert result is not None
+    assert result["insider_pct"] == 0.0007
+    assert result["institutional_pct"] == 0.625
+    assert result["institutional_count"] == 4892
+    assert result["float_pct"] == 0.9993
+
+
+def test_fetch_major_holders_df_format():
+    """yfinance zwraca DataFrame (older versions) — defensywny parser."""
+    mock_df = pd.DataFrame(
+        {"Value": [0.0007, 0.625, 4892, 0.9993]},
+        index=[
+            "% of Shares Held by All Insider",
+            "% of Shares Held by Institutions",
+            "Number of Institutions Holding Shares",
+            "% of Float Held by Institutions",
+        ],
+    )
+    mock_ticker = MagicMock()
+    mock_ticker.major_holders = mock_df
+
+    from data.financials import fetch_major_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_major_holders("AAPL_TEST")
+
+    assert result is not None
+    assert result["insider_pct"] == 0.0007
+    assert result["institutional_pct"] == 0.625
+
+
+def test_fetch_major_holders_returns_none_when_all_empty():
+    mock_ticker = MagicMock()
+    mock_ticker.major_holders = None
+
+    from data.financials import fetch_major_holders
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_major_holders("EMPTY_TEST")
+
+    assert result is None
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 

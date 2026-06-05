@@ -1175,3 +1175,54 @@ def fetch_mutualfund_holders(ticker: str) -> pd.DataFrame | None:
     if df is None or df.empty:
         return None
     return df
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_major_holders(ticker: str) -> dict | None:
+    """Major Holders breakdown — % insider/institutional/count/float.
+
+    yfinance Ticker.major_holders moze zwrocic dict ALBO DataFrame
+    (rozne wersje). Defensywny parser obsluguje oba formaty.
+
+    Returns dict: {insider_pct, institutional_pct, institutional_count, float_pct}
+    None gdy wszystkie pola brak.
+    """
+    try:
+        t = yf.Ticker(ticker, session=_get_yf_session())
+        raw = t.major_holders
+    except Exception:
+        return None
+
+    if raw is None:
+        return None
+
+    out = {
+        "insider_pct": None,
+        "institutional_pct": None,
+        "institutional_count": None,
+        "float_pct": None,
+    }
+
+    if isinstance(raw, dict):
+        out["insider_pct"] = raw.get("insidersPercentHeld")
+        out["institutional_pct"] = raw.get("institutionsPercentHeld")
+        out["institutional_count"] = raw.get("institutionsCount")
+        out["float_pct"] = raw.get("institutionsFloatPercentHeld")
+    elif isinstance(raw, pd.DataFrame) and not raw.empty:
+        idx_map = {
+            "% of shares held by all insider": "insider_pct",
+            "% of shares held by institutions": "institutional_pct",
+            "number of institutions holding shares": "institutional_count",
+            "% of float held by institutions": "float_pct",
+        }
+        value_col = raw.columns[0]
+        for idx in raw.index:
+            idx_lower = str(idx).lower()
+            for needle, our_key in idx_map.items():
+                if needle in idx_lower:
+                    out[our_key] = raw.loc[idx, value_col]
+                    break
+
+    if all(v is None for v in out.values()):
+        return None
+    return out
