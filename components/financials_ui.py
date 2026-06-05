@@ -647,11 +647,12 @@ def render_sprawozdania_deep_dive(ticker: str, market: str) -> None:
     st.markdown("---")
 
     # 4 SUB-TABY
-    sub1, sub2, sub3, sub4 = st.tabs([
+    sub1, sub2, sub3, sub4, sub5 = st.tabs([
         "📊 Beat/Miss historia",
         "📑 Income Statement",
         "💰 Balance Sheet",
         "💵 Cash Flow",
+        "👥 Insiders",
     ])
     with sub1:
         _render_beat_miss_tab(ticker)
@@ -661,3 +662,5 @@ def render_sprawozdania_deep_dive(ticker: str, market: str) -> None:
         _render_balance_sheet_tab(ticker)
     with sub4:
         _render_cashflow_tab(ticker)
+    with sub5:
+        _render_insiders_tab(ticker)
