@@ -140,6 +140,99 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _apply_sort(df: pd.DataFrame, sort_by: str) -> pd.DataFrame:
+    """Sortowanie tabeli wedlug wybranej opcji."""
+    today_norm = pd.Timestamp.now().normalize()
+    if sort_by == "Data (najblizej dzis)":
+        df = df.copy()
+        df["_abs_days"] = (df["date"] - today_norm).abs()
+        return df.sort_values("_abs_days").drop(columns=["_abs_days"])
+    if sort_by == "Data (chronologicznie)":
+        return df.sort_values("date")
+    if sort_by == "EPS surprise % (past)":
+        return df.sort_values("eps_surprise_pct", ascending=False, na_position="last")
+    if sort_by == "Ticker A-Z":
+        return df.sort_values("ticker")
+    return df
+
+
+def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) -> None:
+    """Renderuje tabele st.data_editor z checkbox watchlist + CSV export.
+
+    Po edycji checkboxa: diff vs current watchlist, toggle w localStorage,
+    st.rerun() dla refresh state.
+    """
+    if df.empty:
+        st.info("Brak wynikow po filtrach.")
+        return
+
+    df = df.copy()
+    df["status"] = df.apply(
+        lambda r: _status_badge(r["date"], r.get("eps_actual"), r.get("eps_estimate")),
+        axis=1,
+    )
+    df["in_watchlist"] = df["ticker"].isin(watchlist_set)
+
+    display_cols = [
+        "in_watchlist", "ticker", "name", "market", "sector",
+        "date", "q_label", "eps_estimate", "eps_actual",
+        "eps_surprise_pct", "status",
+    ]
+    display = df[display_cols].copy()
+    display = display.rename(columns={
+        "in_watchlist": "⭐",
+        "ticker": "Ticker",
+        "name": "Nazwa",
+        "market": "Market",
+        "sector": "Sektor",
+        "date": "Data",
+        "q_label": "Q",
+        "eps_estimate": "EPS est",
+        "eps_actual": "EPS act",
+        "eps_surprise_pct": "Δ%",
+        "status": "Status",
+    })
+
+    # Edytowalny tylko ⭐
+    disabled_cols = [c for c in display.columns if c != "⭐"]
+
+    edited = st.data_editor(
+        display,
+        column_config={
+            "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
+            "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+            "Market": st.column_config.TextColumn("Market", width="small"),
+            "Q": st.column_config.TextColumn("Q", width="small"),
+            "EPS est": st.column_config.NumberColumn("EPS est", format="%.2f", width="small"),
+            "EPS act": st.column_config.NumberColumn("EPS act", format="%.2f", width="small"),
+            "Δ%": st.column_config.NumberColumn("Δ%", format="%+.1f%%", width="small"),
+            "Data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", width="medium"),
+            "Status": st.column_config.TextColumn("Status", width="medium"),
+        },
+        disabled=disabled_cols,
+        hide_index=True,
+        use_container_width=True,
+        key="calendar_table",
+    )
+
+    # Diff toggles -> save do localStorage
+    diff_mask = edited["⭐"] != display["⭐"]
+    if diff_mask.any():
+        for _, row in edited[diff_mask].iterrows():
+            toggle_ticker(ls_obj, row["Ticker"])
+        st.rerun()
+
+    # CSV export
+    csv = display.drop(columns=["⭐"]).to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "📥 Eksport CSV",
+        data=csv,
+        file_name="earnings_calendar.csv",
+        mime="text/csv",
+        key="calendar_csv",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Page config + auth + sidebar
 # ---------------------------------------------------------------------------
@@ -278,7 +371,17 @@ _render_heatmap(filtered)
 
 st.markdown("---")
 
-# Placeholder dla Task 6 (tabela) i Task 7 (cross-link)
-st.info("🚧 Tabela i cross-link dodane w kolejnych taskach.")
+# ---------------------------------------------------------------------------
+# TABELA (data_editor z checkbox watchlist)
+# ---------------------------------------------------------------------------
+
+st.markdown("### 📋 Tabela raportow")
+sorted_df = _apply_sort(filtered, sort_by)
+_render_calendar_table(sorted_df, watchlist, ls)
+
+st.markdown("---")
+
+# Placeholder dla Task 7 (cross-link)
+st.info("🚧 Cross-link dodany w kolejnym tasku.")
 
 render_footer()
