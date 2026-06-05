@@ -739,3 +739,60 @@ def bulk_fetch_earnings_history(
         na_position="last",
     ).reset_index(drop=True)
     return df
+
+
+# ---------------------------------------------------------------------------
+# Earnings Calendar helpers (page 22)
+# ---------------------------------------------------------------------------
+
+def _status_badge(date, eps_act, eps_est) -> str:
+    """Badge stanu raportu: Future (🔜/⏰/📅), Past (✅/❌/⚪), DZIŚ (🔥).
+
+    date: datetime/Timestamp daty raportu
+    eps_act, eps_est: floaty lub None
+    """
+    today = pd.Timestamp.now().normalize()
+    ts = pd.Timestamp(date).normalize()
+    days_diff = (ts - today).days
+
+    if days_diff == 0:
+        return "🔥 DZIŚ"
+    if days_diff > 0:  # Future
+        if days_diff <= 7:
+            return f"🔜 W {days_diff}d"
+        if days_diff <= 14:
+            return f"⏰ W {days_diff}d"
+        return f"📅 {ts.strftime('%d.%m')}"
+    # Past
+    abs_diff = abs(days_diff)
+    if pd.notna(eps_act) and pd.notna(eps_est):
+        if eps_act > eps_est:
+            return f"✅ Beat ({abs_diff}d temu)"
+        return f"❌ Miss ({abs_diff}d temu)"
+    return f"⚪ {abs_diff}d temu"
+
+
+def _get_etf_set() -> set[str]:
+    """Set tickerow ETF z data/etf_universe.py — uzywany do filtrowania
+    ETF z earnings calendar (ETF nie maja earnings, tylko distributions).
+    """
+    from data.etf_universe import ETF_NAMES
+    return set(ETF_NAMES.keys())
+
+
+def _detect_market(ticker: str) -> str:
+    """Lookup ticker -> 'SP500' / 'GPW' / 'ETF' / 'UNKNOWN'.
+
+    Kolejnosc: SP500 (najwieksze coverage), potem .WA suffix dla GPW,
+    potem ETF set. Fallback na 'UNKNOWN' gdy brak w zadnym.
+    """
+    from data.sp500_universe import ALL_SP500_TICKERS
+    from data.gpw_universe import ALL_GPW_TICKERS
+
+    if ticker in ALL_SP500_TICKERS:
+        return "SP500"
+    if ticker in ALL_GPW_TICKERS or ticker.endswith(".WA"):
+        return "GPW"
+    if ticker in _get_etf_set():
+        return "ETF"
+    return "UNKNOWN"
