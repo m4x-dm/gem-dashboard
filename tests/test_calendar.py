@@ -152,3 +152,37 @@ def test_bulk_fetch_filters_etf():
     assert "AAPL" in fetch_calls
     assert "MSFT" in fetch_calls
     assert set(result["ticker"].unique()).issubset({"AAPL", "MSFT"})
+
+
+def test_watchlist_get_empty():
+    from components.watchlist import get_watchlist
+    ls_mock = MagicMock()
+    ls_mock.getItem.return_value = None
+    result = get_watchlist(ls_mock)
+    assert result == set()
+
+
+def test_watchlist_get_corrupt_json():
+    from components.watchlist import get_watchlist
+    ls_mock = MagicMock()
+    ls_mock.getItem.return_value = "!@#invalid"
+    result = get_watchlist(ls_mock)
+    assert result == set()
+
+
+def test_watchlist_toggle_add():
+    from components.watchlist import toggle_ticker, WATCHLIST_KEY
+    ls_mock = MagicMock()
+    ls_mock.getItem.return_value = "[]"
+    result = toggle_ticker(ls_mock, "AAPL")
+    assert result is True
+    ls_mock.setItem.assert_called_with(WATCHLIST_KEY, '["AAPL"]')
+
+
+def test_watchlist_toggle_remove():
+    from components.watchlist import toggle_ticker, WATCHLIST_KEY
+    ls_mock = MagicMock()
+    ls_mock.getItem.return_value = '["AAPL", "MSFT"]'
+    result = toggle_ticker(ls_mock, "AAPL")
+    assert result is False
+    ls_mock.setItem.assert_called_with(WATCHLIST_KEY, '["MSFT"]')
