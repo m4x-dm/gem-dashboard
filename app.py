@@ -41,6 +41,7 @@ cards = [
     (19, "🔗", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar", "pages/19_intermarket.py"),
     (20, "🔀", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS", "pages/20_side_by_side.py"),
     (21, "🚀", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight", "pages/21_gem_extended.py"),
+    (22, "📅", "Earnings Calendar", "Kalendarz nadchodzacych raportow SP500+GPW (±28 dni) z watchlist i cross-link do F13", "pages/22_earnings_calendar.py"),
 ]
 
 premium = is_premium()
