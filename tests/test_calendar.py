@@ -87,19 +87,25 @@ def test_get_etf_set_contains_known():
     assert "AAPL" not in etf_set
 
 
-def test_fetch_earnings_dates_normalizes_columns():
-    """Mock yfinance Ticker.earnings_dates — normalize columns."""
-    mock_df = pd.DataFrame({
-        "EPS Estimate": [1.5, 1.6],
-        "Reported EPS": [1.65, None],
-        "Surprise(%)": [10.0, None],
-    }, index=pd.to_datetime(["2026-05-01", "2026-07-30"]))
+def test_fetch_earnings_dates_combines_history_and_calendar():
+    """Refactor: combine get_earnings_history + Ticker.calendar."""
+    mock_hist = pd.DataFrame({
+        "eps_estimate": [1.5, 1.6],
+        "eps_actual": [1.65, 1.55],
+        "surprise_pct": [10.0, -3.1],
+    }, index=pd.to_datetime(["2025-12-15", "2026-03-15"]))
 
+    next_date_future = pd.Timestamp.now().normalize() + pd.Timedelta(days=14)
+    mock_calendar = {
+        "Earnings Date": [next_date_future],
+        "Earnings Average": 1.72,
+    }
     mock_ticker = MagicMock()
-    mock_ticker.earnings_dates = mock_df
+    mock_ticker.calendar = mock_calendar
 
     from data.financials import fetch_earnings_dates
-    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+    with patch("data.financials.get_earnings_history", return_value=mock_hist), \
+         patch("data.financials.yf.Ticker", return_value=mock_ticker), \
          patch("data.financials._cache_path_earnings_dates", return_value=None):
         result = fetch_earnings_dates("AAPL_TEST")
 
@@ -109,18 +115,49 @@ def test_fetch_earnings_dates_normalizes_columns():
     assert "eps_surprise_pct" in result.columns
     assert "is_future" in result.columns
     assert "q_label" in result.columns
+    # 2 historyczne + 1 future = 3 rows
+    assert len(result) == 3
+    # Future row ma is_future = True, eps_actual = NaN
+    future_rows = result[result["is_future"]]
+    assert len(future_rows) == 1
+    assert pd.isna(future_rows["eps_actual"].iloc[0])
+    assert future_rows["eps_estimate"].iloc[0] == 1.72
 
 
-def test_fetch_earnings_dates_returns_none_on_empty():
+def test_fetch_earnings_dates_returns_none_when_no_data():
+    """Brak history + brak calendar -> None."""
     mock_ticker = MagicMock()
-    mock_ticker.earnings_dates = pd.DataFrame()
+    mock_ticker.calendar = None
 
     from data.financials import fetch_earnings_dates
-    with patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+    with patch("data.financials.get_earnings_history", return_value=None), \
+         patch("data.financials.yf.Ticker", return_value=mock_ticker), \
          patch("data.financials._cache_path_earnings_dates", return_value=None):
         result = fetch_earnings_dates("EMPTY_TEST")
 
     assert result is None
+
+
+def test_fetch_earnings_dates_history_only_no_calendar():
+    """Tylko historyczne (brak calendar) -> zwraca tylko hist."""
+    mock_hist = pd.DataFrame({
+        "eps_estimate": [1.5],
+        "eps_actual": [1.65],
+        "surprise_pct": [10.0],
+    }, index=pd.to_datetime(["2026-04-15"]))
+
+    mock_ticker = MagicMock()
+    mock_ticker.calendar = None  # brak calendar
+
+    from data.financials import fetch_earnings_dates
+    with patch("data.financials.get_earnings_history", return_value=mock_hist), \
+         patch("data.financials.yf.Ticker", return_value=mock_ticker), \
+         patch("data.financials._cache_path_earnings_dates", return_value=None):
+        result = fetch_earnings_dates("HIST_ONLY_TEST")
+
+    assert result is not None
+    assert len(result) == 1
+    assert not result["is_future"].iloc[0]
 
 
 def test_bulk_fetch_filters_etf():

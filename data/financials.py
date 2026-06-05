@@ -818,15 +818,17 @@ def _cache_path_earnings_dates(ticker: str) -> Path | None:
 
 
 def fetch_earnings_dates(ticker: str) -> pd.DataFrame | None:
-    """Pobiera earnings dates (historia + future) dla tickera.
+    """Pobiera earnings dates (historia + future 1) dla tickera.
 
-    yfinance Ticker.earnings_dates zwraca DF z indeksem DatetimeIndex
-    + kolumnami: "EPS Estimate", "Reported EPS", "Surprise(%)".
+    UWAGA: Ticker.earnings_dates jest flaky (Yahoo czesto blokuje ten endpoint
+    — cichy fail empty DF). Uzywamy stabilnej kombinacji:
+    - get_earnings_history (sprawdzony w F13) -> historyczne 8 Q (eps_est/act/surprise)
+    - Ticker.calendar -> najblizsza data nadchodzacego raportu + eps estimate
 
-    Returns DF z normalizowanymi kolumnami:
+    Returns DF z kolumnami:
         eps_estimate, eps_actual, eps_surprise_pct, is_future, q_label
-    Indeks: DatetimeIndex (tz_localize(None).normalize()).
-    None gdy brak danych.
+    Indeks: DatetimeIndex (znormalizowany, naive).
+    None gdy brak danych ani historycznych ani forward.
 
     Cache parquet 24h.
     """
@@ -838,35 +840,67 @@ def fetch_earnings_dates(ticker: str) -> pd.DataFrame | None:
         except Exception:
             pass
 
+    today = pd.Timestamp.now().normalize()
+    rows: list[dict] = []
+
+    # 1. Historyczne — get_earnings_history (sprawdzony F13 endpoint)
+    try:
+        hist = get_earnings_history(ticker, n_quarters=8)
+    except Exception:
+        hist = None
+    if hist is not None and not hist.empty:
+        for date, row in hist.iterrows():
+            ts = pd.Timestamp(date).tz_localize(None).normalize() if pd.Timestamp(date).tz is not None else pd.Timestamp(date).normalize()
+            rows.append({
+                "_date": ts,
+                "eps_estimate": row.get("eps_estimate", float("nan")),
+                "eps_actual": row.get("eps_actual", float("nan")),
+                "eps_surprise_pct": row.get("surprise_pct", float("nan")),
+                "is_future": ts > today,
+                "q_label": _quarter_label(ts),
+            })
+
+    # 2. Future — Ticker.calendar (next 1 raport)
+    next_date = None
+    next_eps_est = float("nan")
     try:
         t = yf.Ticker(ticker, session=_get_yf_session())
-        df = t.earnings_dates
+        cal = t.calendar
+        if cal is not None:
+            if isinstance(cal, dict):
+                ed = cal.get("Earnings Date")
+                if ed:
+                    raw = ed[0] if isinstance(ed, list) and ed else ed
+                    next_date = pd.Timestamp(raw).normalize()
+                eps_avg = cal.get("Earnings Average")
+                if eps_avg is not None:
+                    next_eps_est = float(eps_avg) if not isinstance(eps_avg, list) else (float(eps_avg[0]) if eps_avg else float("nan"))
+            elif isinstance(cal, pd.DataFrame) and not cal.empty:
+                if "Earnings Date" in cal.columns:
+                    next_date = pd.Timestamp(cal["Earnings Date"].iloc[0]).normalize()
+                if "Earnings Average" in cal.columns:
+                    next_eps_est = float(cal["Earnings Average"].iloc[0])
     except Exception:
+        pass
+
+    # Dodaj future row tylko jesli data jest w przyszlosci I nie ma jej juz w historycznych
+    if next_date is not None and next_date > today:
+        existing_dates = {r["_date"] for r in rows}
+        if next_date not in existing_dates:
+            rows.append({
+                "_date": next_date,
+                "eps_estimate": next_eps_est,
+                "eps_actual": float("nan"),
+                "eps_surprise_pct": float("nan"),
+                "is_future": True,
+                "q_label": _quarter_label(next_date),
+            })
+
+    if not rows:
         return None
 
-    if df is None or df.empty:
-        return None
-
-    out = df.copy()
-    # Normalize index: tz-aware -> naive, normalize do daty
-    out.index = pd.to_datetime(out.index).tz_localize(None).normalize()
-
-    rename = {
-        "EPS Estimate": "eps_estimate",
-        "Reported EPS": "eps_actual",
-        "Surprise(%)": "eps_surprise_pct",
-    }
-    out = out.rename(columns={c: rename[c] for c in out.columns if c in rename})
-
-    keep = [c for c in ["eps_estimate", "eps_actual", "eps_surprise_pct"] if c in out.columns]
-    if not keep:
-        return None
-    out = out[keep]
-
-    # Dodatkowe kolumny
-    today = pd.Timestamp.now().normalize()
-    out["is_future"] = out.index > today
-    out["q_label"] = [_quarter_label(d) for d in out.index]
+    out = pd.DataFrame(rows).set_index("_date").sort_index()
+    out.index.name = None
 
     # Save cache (best effort)
     cache_save_path = CACHE_DIR_EARNINGS_DATES / f"{ticker}.parquet"
