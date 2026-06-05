@@ -273,7 +273,38 @@ st.dataframe(
 
 st.markdown("---")
 
-# Placeholder dla Task 7-8
-st.info("🚧 Heatmapa, cross-link i CSV dodane w kolejnych taskach.")
+# ---------------------------------------------------------------------------
+# SEKCJA 3: Sektorowa heatmapa (Plotly horizontal bar)
+# ---------------------------------------------------------------------------
+
+st.markdown("### 🏭 Net insider activity per sektor")
+
+sector_agg = filtered.groupby("sector")["net_value_6m"].sum().sort_values()
+if not sector_agg.empty:
+    colors_sec = [GREEN if v > 0 else RED for v in sector_agg.values]
+    fig_sec = go.Figure(go.Bar(
+        x=sector_agg.values,
+        y=sector_agg.index,
+        orientation="h",
+        marker_color=colors_sec,
+        text=[format_large_number(v) for v in sector_agg.values],
+        textposition="outside",
+    ))
+    fig_sec.update_layout(
+        title="Sum net insider value 6 mc per sektor",
+        template="plotly_dark",
+        height=400,
+        xaxis_title="Sum Net Value USD",
+        margin=dict(l=40, r=80, t=60, b=40),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_sec, use_container_width=True)
+else:
+    st.caption("Brak danych sektorowych po filtrach.")
+
+st.markdown("---")
+
+# Placeholder dla Task 8
+st.info("🚧 Cross-link i CSV dodane w kolejnym tasku.")
 
 render_footer()
