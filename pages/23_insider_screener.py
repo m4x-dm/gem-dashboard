@@ -168,7 +168,72 @@ c4.metric("Avg Net 6mc", format_large_number(avg_net) if pd.notna(avg_net) else 
 
 st.markdown("---")
 
-# Placeholder dla Task 5-8
-st.info("🚧 Top movers, tabela, heatmapa, cross-link i CSV dodane w kolejnych taskach.")
+# ---------------------------------------------------------------------------
+# SEKCJA 1: Top Buyers + Top Sellers (2 bar charts side-by-side)
+# ---------------------------------------------------------------------------
+
+st.markdown("### 📈 Top movers")
+col_b, col_s = st.columns(2)
+
+with col_b:
+    top_buyers = filtered.nlargest(10, "net_value_6m")
+    if not top_buyers.empty and top_buyers["net_value_6m"].max() > 0:
+        labels_b = [
+            f"{t} — {n[:25]}"
+            for t, n in zip(top_buyers["ticker"], top_buyers["name"])
+        ]
+        fig_b = go.Figure(go.Bar(
+            x=top_buyers["net_value_6m"],
+            y=labels_b,
+            orientation="h",
+            marker_color=GREEN,
+            text=[format_large_number(v) for v in top_buyers["net_value_6m"]],
+            textposition="outside",
+        ))
+        fig_b.update_layout(
+            title="Top 10 Net Buyers (6 mc)",
+            template="plotly_dark",
+            height=380,
+            yaxis=dict(autorange="reversed"),
+            xaxis_title="Net Value USD",
+            margin=dict(l=40, r=80, t=60, b=40),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_b, use_container_width=True)
+    else:
+        st.caption("Brak net buyers po filtrach.")
+
+with col_s:
+    top_sellers = filtered.nsmallest(10, "net_value_6m")
+    if not top_sellers.empty and top_sellers["net_value_6m"].min() < 0:
+        labels_s = [
+            f"{t} — {n[:25]}"
+            for t, n in zip(top_sellers["ticker"], top_sellers["name"])
+        ]
+        fig_s = go.Figure(go.Bar(
+            x=top_sellers["net_value_6m"],
+            y=labels_s,
+            orientation="h",
+            marker_color=RED,
+            text=[format_large_number(v) for v in top_sellers["net_value_6m"]],
+            textposition="outside",
+        ))
+        fig_s.update_layout(
+            title="Top 10 Net Sellers (6 mc)",
+            template="plotly_dark",
+            height=380,
+            yaxis=dict(autorange="reversed"),
+            xaxis_title="Net Value USD",
+            margin=dict(l=40, r=80, t=60, b=40),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_s, use_container_width=True)
+    else:
+        st.caption("Brak net sellers po filtrach.")
+
+st.markdown("---")
+
+# Placeholder dla Task 6-8
+st.info("🚧 Tabela, heatmapa, cross-link i CSV dodane w kolejnych taskach.")
 
 render_footer()
