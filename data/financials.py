@@ -1225,3 +1225,38 @@ def fetch_major_holders(ticker: str) -> dict | None:
     if all(v is None for v in out.values()):
         return None
     return out
+
+
+# ---------------------------------------------------------------------------
+# Bulk Insider Screener (F16)
+# ---------------------------------------------------------------------------
+
+def _compute_buy_streak(transactions: pd.DataFrame) -> int:
+    """Liczy kolejne ostatnie miesiace gdzie buy_value > sell_value.
+
+    Iteruje od najnowszego miesiaca wstecz. Stop na pierwszym miesiacu
+    gdzie buy <= sell. Max 6 miesiecy.
+
+    Exercise/Conversion ignorowane (informacyjne, nie wplywaja).
+
+    Returns: int 0-6.
+    """
+    if transactions is None or transactions.empty:
+        return 0
+    if "Type" not in transactions.columns or "Value" not in transactions.columns:
+        return 0
+
+    df = transactions.copy()
+    df["_yearmonth"] = pd.to_datetime(df.index).to_period("M")
+    months_sorted = sorted(df["_yearmonth"].unique(), reverse=True)
+
+    streak = 0
+    for ym in months_sorted[:6]:
+        month_df = df[df["_yearmonth"] == ym]
+        buy = float(month_df[month_df["Type"] == "Buy"]["Value"].sum())
+        sell = float(month_df[month_df["Type"] == "Sell"]["Value"].sum())
+        if buy > sell:
+            streak += 1
+        else:
+            break
+    return streak

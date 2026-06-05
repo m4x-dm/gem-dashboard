@@ -328,6 +328,34 @@ def test_fetch_major_holders_returns_none_when_all_empty():
     assert result is None
 
 
+def test_compute_buy_streak_full_buys():
+    """Wszystkie 6 ostatnich miesięcy buy > sell → streak 6."""
+    df = pd.DataFrame({
+        "Type": ["Buy"] * 6,
+        "Value": [1_000_000] * 6,
+    }, index=pd.to_datetime([
+        "2026-05-15", "2026-04-15", "2026-03-15",
+        "2026-02-15", "2026-01-15", "2025-12-15",
+    ]))
+    from data.financials import _compute_buy_streak
+    assert _compute_buy_streak(df) == 6
+
+
+def test_compute_buy_streak_breaks_on_sell_month():
+    """Ostatnie 2 buy, potem sell — streak 2."""
+    df = pd.DataFrame({
+        "Type": ["Buy", "Buy", "Sell"],
+        "Value": [1_000_000, 1_000_000, 5_000_000],
+    }, index=pd.to_datetime(["2026-05-15", "2026-04-15", "2026-03-15"]))
+    from data.financials import _compute_buy_streak
+    assert _compute_buy_streak(df) == 2
+
+
+def test_compute_buy_streak_empty():
+    from data.financials import _compute_buy_streak
+    assert _compute_buy_streak(pd.DataFrame()) == 0
+
+
 def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     """Mock get_earnings_history dla 3 tickerow.
 
