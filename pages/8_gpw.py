@@ -38,6 +38,14 @@ st.set_page_config(page_title="Polskie Akcje GPW", page_icon="🇵🇱", layout=
 setup_sidebar()
 if not require_premium(8): st.stop()
 
+# Cross-link hint (z F14 Earnings Calendar)
+_pending_dd_ticker = st.session_state.get("gpw_deep_dive_ticker")
+if st.session_state.get("gpw_pending_view") == "deep_dive" and _pending_dd_ticker:
+    st.info(
+        f"📈 **Cross-link z innej strony:** wybrany ticker `{_pending_dd_ticker}`. "
+        f"Kliknij ostatni tab **'📈 Sprawozdania Q'** (8-my) zeby wejsc w deep dive."
+    )
+
 st.markdown("# 🇵🇱 Polskie Akcje GPW")
 
 # ---------------------------------------------------------------------------

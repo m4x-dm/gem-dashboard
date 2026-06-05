@@ -38,6 +38,15 @@ st.set_page_config(page_title="S&P 500 — Amerykanskie Akcje", page_icon="🇺�
 setup_sidebar()
 if not require_premium(7): st.stop()
 
+# Cross-link hint: gdy user przyszedl z F14/F16 z pre-set tickerem,
+# Streamlit nie umie pre-select tab programowo -> wskazujemy gdzie kliknac
+_pending_dd_ticker = st.session_state.get("sp500_deep_dive_ticker")
+if st.session_state.get("sp500_pending_view") == "deep_dive" and _pending_dd_ticker:
+    st.info(
+        f"📈 **Cross-link z innej strony:** wybrany ticker `{_pending_dd_ticker}`. "
+        f"Kliknij ostatni tab **'📈 Sprawozdania Q'** (8-my) zeby wejsc w deep dive."
+    )
+
 st.markdown("# 🇺🇸 Amerykanskie Akcje S&P 500")
 
 # ---------------------------------------------------------------------------
