@@ -14,6 +14,12 @@ from data.financials import (
     bulk_fetch_earnings_history,
     fetch_annual_statements,
     fetch_earnings_trend,
+    fetch_insider_purchases,
+    fetch_insider_roster_holders,
+    fetch_insider_transactions,
+    fetch_institutional_holders,
+    fetch_major_holders,
+    fetch_mutualfund_holders,
     fetch_quarterly_statements,
     format_currency,
     format_large_number,
@@ -372,6 +378,207 @@ def _render_cashflow_tab(ticker: str) -> None:
         ticker, "cashflow", "Cash Flow",
         rows_priority, "cf",
     )
+
+
+# ---------------------------------------------------------------------------
+# Insiders sub-tab helpers (F15)
+# ---------------------------------------------------------------------------
+
+def _chart_insider_net_per_month(transactions_df: pd.DataFrame) -> None:
+    """Plotly bar chart: net buy/sell value per miesiac (6 mc).
+
+    Zielony slupek gdy net > 0, czerwony gdy net < 0.
+    """
+    if transactions_df is None or transactions_df.empty:
+        return
+    if "Type" not in transactions_df.columns or "Value" not in transactions_df.columns:
+        return
+
+    df = transactions_df.copy()
+    df = df[df["Type"].isin(["Buy", "Sell"])]
+    if df.empty:
+        return
+
+    df["_yearmonth"] = pd.to_datetime(df.index).to_period("M")
+    agg = df.groupby("_yearmonth").apply(
+        lambda x: float(x[x["Type"] == "Buy"]["Value"].sum())
+        - float(x[x["Type"] == "Sell"]["Value"].sum())
+    )
+
+    all_months = pd.period_range(
+        end=pd.Timestamp.now().to_period("M"),
+        periods=6,
+        freq="M",
+    )
+    agg = agg.reindex(all_months, fill_value=0)
+
+    colors = [GREEN if v > 0 else RED for v in agg.values]
+
+    fig = go.Figure(go.Bar(
+        x=[str(p) for p in agg.index],
+        y=agg.values,
+        marker_color=colors,
+        name="Net insider activity",
+    ))
+    fig.update_layout(
+        title="Net insider buy/sell value per miesiac (6 mc)",
+        template="plotly_dark",
+        height=300,
+        yaxis_title="Net USD",
+        showlegend=False,
+        margin=dict(l=40, r=40, t=60, b=40),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _chart_institutional_pie(institutional_df: pd.DataFrame) -> None:
+    """Plotly donut chart: top 10 funduszy + 'Reszta'."""
+    if institutional_df is None or institutional_df.empty:
+        return
+    if "Holder" not in institutional_df.columns or "% Out" not in institutional_df.columns:
+        return
+
+    top10 = institutional_df.head(10)
+    top10_sum = float(top10["% Out"].sum())
+    rest_pct = max(0.0, 100.0 - top10_sum)
+
+    labels = list(top10["Holder"]) + ["Reszta"]
+    values = list(top10["% Out"]) + [rest_pct]
+
+    fig = go.Figure(go.Pie(
+        labels=labels,
+        values=values,
+        hole=0.4,
+        marker=dict(
+            colors=[
+                GOLD, "#E8C96A", "#FFD700", "#B8860B", "#DAA520",
+                "#888", "#777", "#666", "#555", "#444",
+                "#222",
+            ],
+        ),
+        textinfo="label+percent",
+        textposition="outside",
+        sort=False,
+    ))
+    fig.update_layout(
+        title="Distribution institutional ownership",
+        template="plotly_dark",
+        height=380,
+        showlegend=False,
+        margin=dict(l=40, r=40, t=60, b=40),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_insiders_tab(ticker: str) -> None:
+    """Sub-tab 5: Insiders & Institutional (6 sekcji).
+
+    GPW fallback: jesli wszystkie 6 endpointow None -> info box.
+    """
+    major = fetch_major_holders(ticker)
+    purchases = fetch_insider_purchases(ticker)
+    transactions = fetch_insider_transactions(ticker)
+    roster = fetch_insider_roster_holders(ticker)
+    institutional = fetch_institutional_holders(ticker)
+    mutual = fetch_mutualfund_holders(ticker)
+
+    if all(x is None for x in [major, purchases, transactions, roster, institutional, mutual]):
+        st.info(
+            "⚠️ Brak danych insider/institutional dla tego tickera.\n\n"
+            "Dla spolek GPW raporty biezace ida przez ESPI (poza zakresem yfinance).\n"
+            "Sprawdz recznie: https://www.gpw.pl/komunikaty-spolek"
+        )
+        return
+
+    # ============== SEKCJA 1: Major Holders (4 metric cards) ==============
+    st.markdown("#### 📊 Major Holders")
+
+    def _fmt_pct(v):
+        if v is None:
+            return "—"
+        try:
+            return f"{float(v) * 100:.2f}%"
+        except Exception:
+            return "—"
+
+    def _fmt_count(v):
+        if v is None:
+            return "—"
+        try:
+            return f"{int(v):,}"
+        except Exception:
+            return "—"
+
+    c1, c2, c3, c4 = st.columns(4)
+    if major is not None:
+        c1.metric("% Insider", _fmt_pct(major.get("insider_pct")))
+        c2.metric("% Institutional", _fmt_pct(major.get("institutional_pct")))
+        c3.metric("# Institutions", _fmt_count(major.get("institutional_count")))
+        c4.metric("% Float", _fmt_pct(major.get("float_pct")))
+    else:
+        c1.metric("% Insider", "—")
+        c2.metric("% Institutional", "—")
+        c3.metric("# Institutions", "—")
+        c4.metric("% Float", "—")
+
+    st.markdown("---")
+
+    # ============== SEKCJA 2: Insider Purchases summary ==============
+    st.markdown("#### 💰 Insider Purchases (6 mc agregat)")
+    if purchases is not None and not purchases.empty:
+        st.dataframe(purchases, use_container_width=True, hide_index=True)
+    else:
+        st.caption("Brak danych dla Insider Purchases.")
+
+    st.markdown("---")
+
+    # ============== SEKCJA 3: Insider Transactions + bar chart ==============
+    st.markdown("#### 📈 Historia transakcji insiderow (6 mc)")
+    if transactions is not None and not transactions.empty:
+        _chart_insider_net_per_month(transactions)
+        display = transactions.head(30).copy()
+        st.dataframe(
+            display,
+            use_container_width=True,
+            column_config={
+                "Shares": st.column_config.NumberColumn("Shares", format="%d"),
+                "Value": st.column_config.NumberColumn("Value (USD)", format="$%d"),
+                "Type": st.column_config.TextColumn("Type"),
+            },
+        )
+    else:
+        st.caption("Brak danych dla Insider Transactions.")
+
+    st.markdown("---")
+
+    # ============== SEKCJA 4: Insider Roster ==============
+    st.markdown("#### 🏢 Roster zarzadu")
+    if roster is not None and not roster.empty:
+        st.dataframe(roster, use_container_width=True, hide_index=True)
+    else:
+        st.caption("Brak danych dla Insider Roster.")
+
+    st.markdown("---")
+
+    # ============== SEKCJA 5: Institutional Holders + donut ==============
+    st.markdown("#### 🏛️ Top 10 funduszy instytucjonalnych")
+    if institutional is not None and not institutional.empty:
+        col_t, col_c = st.columns([6, 4])
+        with col_t:
+            st.dataframe(institutional, use_container_width=True, hide_index=True)
+        with col_c:
+            _chart_institutional_pie(institutional)
+    else:
+        st.caption("Brak danych dla Institutional Holders.")
+
+    st.markdown("---")
+
+    # ============== SEKCJA 6: Mutual Fund Holders ==============
+    st.markdown("#### 💼 Top 10 mutual funds")
+    if mutual is not None and not mutual.empty:
+        st.dataframe(mutual, use_container_width=True, hide_index=True)
+    else:
+        st.caption("Brak danych dla Mutual Fund Holders.")
 
 
 def render_sprawozdania_deep_dive(ticker: str, market: str) -> None:
