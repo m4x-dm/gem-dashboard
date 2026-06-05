@@ -233,7 +233,47 @@ with col_s:
 
 st.markdown("---")
 
-# Placeholder dla Task 6-8
-st.info("🚧 Tabela, heatmapa, cross-link i CSV dodane w kolejnych taskach.")
+# ---------------------------------------------------------------------------
+# SEKCJA 2: Tabela screener (st.dataframe)
+# ---------------------------------------------------------------------------
+
+st.markdown(f"### 📋 Tabela screener ({len(filtered)} spolek)")
+
+display = filtered.head(top_n).copy()
+display = display.rename(columns={
+    "sentiment": "🎯",
+    "ticker": "Ticker",
+    "name": "Nazwa",
+    "sector": "Sektor",
+    "market_cap": "Cap",
+    "net_value_6m": "Net 6mc",
+    "n_buys": "#Buys",
+    "n_sells": "#Sells",
+    "top_buyer": "Top Buyer",
+    "top_institutional": "Top Fund",
+    "beat_streak_buys": "Streak",
+})
+display_cols = [
+    "🎯", "Ticker", "Nazwa", "Sektor", "Cap", "Net 6mc",
+    "#Buys", "#Sells", "Top Buyer", "Top Fund", "Streak",
+]
+
+st.dataframe(
+    display[display_cols],
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "Cap": st.column_config.NumberColumn("Cap", format="$%.0f"),
+        "Net 6mc": st.column_config.NumberColumn("Net 6mc", format="$%+.0f"),
+        "Streak": st.column_config.ProgressColumn(
+            "Streak", min_value=0, max_value=6, format="%d mc",
+        ),
+    },
+)
+
+st.markdown("---")
+
+# Placeholder dla Task 7-8
+st.info("🚧 Heatmapa, cross-link i CSV dodane w kolejnych taskach.")
 
 render_footer()
