@@ -9,7 +9,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from streamlit_local_storage import LocalStorage
+
 from components.constants import GOLD, GREEN, RED
+from components.watchlist import get_watchlist, toggle_ticker
 from data.financials import (
     bulk_fetch_earnings_history,
     fetch_annual_statements,
@@ -92,6 +95,17 @@ def render_sprawozdania_screener(
                 st.cache_data.clear()
                 st.rerun()
 
+    # Watchlist (F17)
+    ls = LocalStorage()
+    watchlist = get_watchlist(ls)
+    only_watchlist = st.checkbox(
+        "⭐ Tylko watchlist",
+        value=False,
+        disabled=len(watchlist) == 0,
+        help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
+        key=f"{market}_sprawozdania_only_watchlist",
+    )
+
     # BULK FETCH
     df = bulk_fetch_earnings_history(tuple(universe))
 
@@ -107,6 +121,8 @@ def render_sprawozdania_screener(
         filtered = filtered[filtered["eps_surprise_pct"] < 0]
     filtered = filtered[filtered["eps_surprise_pct"].fillna(-999) >= min_surprise]
     filtered = filtered[filtered["beat_streak"] >= min_streak]
+    if only_watchlist:
+        filtered = filtered[filtered["ticker"].isin(watchlist)]
     filtered = filtered.sort_values(by=sort_by, ascending=not sort_desc).head(top_n)
 
     # SUMMARY CARDS (4 metryki)
@@ -140,11 +156,15 @@ def render_sprawozdania_screener(
         "beat_streak": "Streak",
     })
 
-    st.dataframe(
+    # Dodaj ⭐ kolumna jako pierwsza (F17)
+    display.insert(0, "⭐", display["Ticker"].isin(watchlist))
+
+    edited = st.data_editor(
         display,
         use_container_width=True,
         hide_index=True,
         column_config={
+            "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
             "EPS est": st.column_config.NumberColumn(format="%.2f"),
             "EPS act": st.column_config.NumberColumn(format="%.2f"),
             "EPS Δ%": st.column_config.NumberColumn(format="%+.1f%%"),
@@ -152,7 +172,15 @@ def render_sprawozdania_screener(
                 min_value=0, max_value=8, format="%d Q",
             ),
         },
+        disabled=[c for c in display.columns if c != "⭐"],
+        key=f"{market}_sprawozdania_table_v2",
     )
+    # Diff detection -> toggle watchlist (F17)
+    diff_mask = edited["⭐"] != display["⭐"]
+    if diff_mask.any():
+        for _, row in edited[diff_mask].iterrows():
+            toggle_ticker(ls, row["Ticker"])
+        st.rerun()
 
     # DEEP DIVE SELECT + AKCJE
     st.markdown("---")
