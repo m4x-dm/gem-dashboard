@@ -123,13 +123,17 @@ if diff_mask.any():
 
 **Lokalizacja:** wewnątrz `with tab6:` blok + `@st.fragment` w obu plikach.
 
-**Aktualny stan:** `st.dataframe(filtered.head(top_n))` z 11 kolumnami (P/E, EV/EBITDA, ROE, FCF, etc.). Screener używa `bulk_fetch_universe` (cache 24h).
+**Aktualny stan:** `st.dataframe(filtered.head(top_n))` z 11 kolumnami (P/E, EV/EBITDA, ROE, FCF, etc.) z **`on_select="rerun"` + `selection_mode="single-row"`** — klik na row pre-fillija `sp_finanse_ticker` / `gpw_finanse_ticker` w session_state (link do tab "💰 Finanse" F11). Screener używa `bulk_fetch_universe` (cache 24h).
+
+**Konflikt z planem:** `st.data_editor` (potrzebne dla ⭐ checkbox kolumny) **nie obsługuje `on_select`** — mechanizmy się wykluczają. **Decyzja (po brainstormingu):** zastępujemy `on_select` osobnym **selectbox + button "Pokaż w 💰 Finanse"** poniżej tabeli (analogicznie do F13/F16 cross-link pattern).
 
 **Diff (po istniejących filtrach):**
 1. Import `LocalStorage` + `get_watchlist`/`toggle_ticker` (na górze pliku)
 2. `ls = LocalStorage(); watchlist = get_watchlist(ls)` (wewnątrz tab6, przed render)
 3. Filter checkbox "⭐ Tylko watchlist" w sekcji filtrów (obok BUY only, sektor itp.)
-4. Tabela → `st.data_editor` z ⭐ kolumną + diff detection + toggle + rerun
+4. Tabela `st.dataframe(on_select=...)` → `st.data_editor` z ⭐ kolumną + diff detection + toggle + rerun
+5. **Usunąć** stary `if sel and hasattr(sel, "selection") ...` blok
+6. **Dodać** selectbox + button "Pokaż w 💰 Finanse" → pre-fill `sp_finanse_ticker` (lub `gpw_finanse_ticker`) — pattern z F13/F16 cross-link (selectbox z `filtered["ticker"].tolist()` + button + session_state set)
 
 ### F13 Sprawozdania Q screener (`components/financials_ui.py:render_sprawozdania_screener`)
 
