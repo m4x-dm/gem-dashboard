@@ -10,10 +10,12 @@ from __future__ import annotations
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_local_storage import LocalStorage
 
 from components.auth import require_premium
 from components.formatting import GOLD, GREEN, RED
 from components.sidebar import setup_sidebar, render_footer
+from components.watchlist import get_watchlist, toggle_ticker
 from data.financials import (
     bulk_fetch_insider_screener,
     format_large_number,
@@ -55,6 +57,10 @@ if df.empty:
     )
     render_footer()
     st.stop()
+
+# Watchlist (F17)
+ls = LocalStorage()
+watchlist = get_watchlist(ls)
 
 # ---------------------------------------------------------------------------
 # FILTRY (expander)
@@ -114,6 +120,14 @@ with st.expander("Filtry", expanded=True):
             "Top N", [10, 25, 50, 100, 250], index=2,
             key="insider_screener_top_n",
         )
+        # F17 watchlist filter
+        only_watchlist = st.checkbox(
+            "⭐ Tylko watchlist",
+            value=False,
+            disabled=len(watchlist) == 0,
+            help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
+            key="insider_screener_only_watchlist",
+        )
         if st.button("🔄 Refresh cache", key="insider_screener_refresh"):
             st.cache_data.clear()
             st.rerun()
@@ -137,6 +151,8 @@ if min_streak > 0:
     filtered = filtered[filtered["beat_streak_buys"] >= min_streak]
 if min_cap_choice[1] > 0:
     filtered = filtered[filtered["market_cap"].fillna(0) >= min_cap_choice[1]]
+if only_watchlist:
+    filtered = filtered[filtered["ticker"].isin(watchlist)]
 
 # Sort
 if sort_by.endswith("DESC"):
@@ -258,18 +274,31 @@ display_cols = [
     "#Buys", "#Sells", "Top Buyer", "Top Fund", "Streak",
 ]
 
-st.dataframe(
-    display[display_cols],
+# Dodaj ⭐ kolumna jako pierwsza (F17)
+display.insert(0, "⭐", display["Ticker"].isin(watchlist))
+display_cols_with_star = ["⭐"] + display_cols
+
+edited = st.data_editor(
+    display[display_cols_with_star],
     use_container_width=True,
     hide_index=True,
     column_config={
+        "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
         "Cap": st.column_config.NumberColumn("Cap", format="$%.0f"),
         "Net 6mc": st.column_config.NumberColumn("Net 6mc", format="$%+.0f"),
         "Streak": st.column_config.ProgressColumn(
             "Streak", min_value=0, max_value=6, format="%d mc",
         ),
     },
+    disabled=[c for c in display_cols_with_star if c != "⭐"],
+    key="insider_screener_table_v2",
 )
+# Diff detection -> toggle watchlist (F17)
+diff_mask = edited["⭐"] != display[display_cols_with_star]["⭐"]
+if diff_mask.any():
+    for _, row in edited[diff_mask].iterrows():
+        toggle_ticker(ls, row["Ticker"])
+    st.rerun()
 
 st.markdown("---")
 
