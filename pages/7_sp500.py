@@ -33,6 +33,8 @@ from components.financials_ui import (
     render_sprawozdania_deep_dive,
 )
 from components.auth import require_premium
+from streamlit_local_storage import LocalStorage
+from components.watchlist import get_watchlist, toggle_ticker
 
 st.set_page_config(page_title="S&P 500 — Amerykanskie Akcje", page_icon="🇺🇸", layout="wide")
 setup_sidebar()
@@ -671,16 +673,58 @@ with tab6:
         _render_screener_summary(df_sorted, total=len(df_full))
         st.markdown("---")
 
-        # 6. Tabela
-        df_display = _format_screener_df(df_sorted, currency_sym="$")
-        sel = st.dataframe(
-            df_display, height=500, use_container_width=True,
-            on_select="rerun", selection_mode="single-row",
+        # 5b. Watchlist (F17)
+        ls = LocalStorage()
+        watchlist = get_watchlist(ls)
+        only_watchlist = st.checkbox(
+            "⭐ Tylko watchlist",
+            value=False,
+            disabled=len(watchlist) == 0,
+            help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
+            key="sp500_screening_only_watchlist",
         )
-        if sel and hasattr(sel, "selection") and sel.selection.rows:
-            clicked = df_display.index[sel.selection.rows[0]]
-            st.session_state["sp_finanse_ticker"] = clicked
-            st.info(f"✓ Wybrano **{clicked}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
+        if only_watchlist:
+            df_sorted = df_sorted[df_sorted.index.isin(watchlist)]
+
+        # 6. Tabela z ⭐ kolumna (st.data_editor zamiast st.dataframe)
+        df_display = _format_screener_df(df_sorted, currency_sym="$")
+        df_display.insert(0, "⭐", df_display.index.isin(watchlist))
+        edited = st.data_editor(
+            df_display,
+            height=500,
+            use_container_width=True,
+            column_config={
+                "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
+            },
+            disabled=[c for c in df_display.columns if c != "⭐"],
+            key="sp500_screening_table_v2",
+        )
+        # Diff detection -> toggle watchlist
+        diff_mask = edited["⭐"] != df_display["⭐"]
+        if diff_mask.any():
+            for ticker in edited[diff_mask].index:
+                toggle_ticker(ls, ticker)
+            st.rerun()
+
+        # 6b. Selectbox + button -> pre-fill tab 💰 Finanse (zamiast on_select)
+        st.markdown("---")
+        col_sel, col_btn = st.columns([3, 1])
+        with col_sel:
+            selected_finanse = st.selectbox(
+                "Wybierz ticker do tab '💰 Finanse':",
+                options=[""] + df_sorted.index.tolist(),
+                key="sp500_screening_finanse_select",
+            )
+        with col_btn:
+            st.write("")  # spacer
+            show_btn = st.button(
+                "💰 Pokaz w Finanse",
+                key="sp500_screening_show_finanse",
+                disabled=not selected_finanse,
+            )
+        if show_btn and selected_finanse:
+            st.session_state["sp_finanse_ticker"] = selected_finanse
+            st.info(f"✓ Wybrano **{selected_finanse}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
 
         # 7. CSV export
         export_df = df_sorted.copy()
