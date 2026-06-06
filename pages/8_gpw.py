@@ -33,6 +33,8 @@ from components.cards import (
     ratios_card, forward_consensus_card, earnings_history_card, analyst_recos_card,
 )
 from components.auth import require_premium
+from streamlit_local_storage import LocalStorage
+from components.watchlist import get_watchlist, toggle_ticker
 
 st.set_page_config(page_title="Polskie Akcje GPW", page_icon="🇵🇱", layout="wide")
 setup_sidebar()
@@ -648,15 +650,57 @@ with tab6:
         _render_screener_summary(df_sorted, total=len(df_full))
         st.markdown("---")
 
-        df_display = _format_screener_df_gpw(df_sorted)
-        sel = st.dataframe(
-            df_display, height=500, use_container_width=True,
-            on_select="rerun", selection_mode="single-row",
+        # 5b. Watchlist (F17)
+        ls = LocalStorage()
+        watchlist = get_watchlist(ls)
+        only_watchlist = st.checkbox(
+            "⭐ Tylko watchlist",
+            value=False,
+            disabled=len(watchlist) == 0,
+            help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
+            key="gpw_screening_only_watchlist",
         )
-        if sel and hasattr(sel, "selection") and sel.selection.rows:
-            clicked = df_display.index[sel.selection.rows[0]]
-            st.session_state["gpw_finanse_ticker"] = clicked
-            st.info(f"✓ Wybrano **{clicked}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
+        if only_watchlist:
+            df_sorted = df_sorted[df_sorted.index.isin(watchlist)]
+
+        # 6. Tabela z ⭐ kolumna
+        df_display = _format_screener_df_gpw(df_sorted)
+        df_display.insert(0, "⭐", df_display.index.isin(watchlist))
+        edited = st.data_editor(
+            df_display,
+            height=500,
+            use_container_width=True,
+            column_config={
+                "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
+            },
+            disabled=[c for c in df_display.columns if c != "⭐"],
+            key="gpw_screening_table_v2",
+        )
+        diff_mask = edited["⭐"] != df_display["⭐"]
+        if diff_mask.any():
+            for ticker in edited[diff_mask].index:
+                toggle_ticker(ls, ticker)
+            st.rerun()
+
+        # 6b. Selectbox + button -> pre-fill tab 💰 Finanse
+        st.markdown("---")
+        col_sel, col_btn = st.columns([3, 1])
+        with col_sel:
+            selected_finanse = st.selectbox(
+                "Wybierz ticker do tab '💰 Finanse':",
+                options=[""] + df_sorted.index.tolist(),
+                key="gpw_screening_finanse_select",
+            )
+        with col_btn:
+            st.write("")
+            show_btn = st.button(
+                "💰 Pokaz w Finanse",
+                key="gpw_screening_show_finanse",
+                disabled=not selected_finanse,
+            )
+        if show_btn and selected_finanse:
+            st.session_state["gpw_finanse_ticker"] = selected_finanse
+            st.info(f"✓ Wybrano **{selected_finanse}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
 
         export_df = df_sorted.copy()
         export_df.index.name = "ticker"
