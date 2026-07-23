@@ -23,8 +23,8 @@ def test_get_gpw_universe_returns_flat_list():
     universe = get_gpw_universe()
     assert isinstance(universe, list)
     assert all(isinstance(t, str) for t in universe)
-    # GPW_CATEGORIES ma 121 spolek (komentarz w pliku mowi 140 ale realnie 121)
-    assert 110 < len(universe) < 130
+    # GPW_CATEGORIES ma 140 spolek (WIG20:20 + mWIG40:40 + sWIG80:80)
+    assert 130 < len(universe) < 150
     assert len(universe) == len(set(universe))
 
 

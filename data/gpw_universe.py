@@ -1,4 +1,17 @@
-"""Universum 140 spolek GPW z polskimi nazwami i indeksami (WIG20, mWIG40, sWIG80)."""
+"""Universum 140 spolek GPW z polskimi nazwami i indeksami (WIG20, mWIG40, sWIG80).
+
+Sklad indeksow zweryfikowany 2026-07-23 wg biznesradar.pl:
+- WIG20  = 20 spolek
+- mWIG40 = 40 spolek
+- sWIG80 = 80 spolek
+
+Ostatnie waznieksze zmiany skladow:
+- 20.03.2026: TPE (Tauron) zastapil OPL (Orange) w WIG20
+- IV.2026:    SPL (Santander Bank Polska) rename -> EBP (Erste Bank Polska)
+- X.2024:     ZAB (Zabka) debiut, dodana do WIG20
+- 2023:       Kernel (KER), Huuuge (jako HRS), Kogeneracja (KGN) i inne wycofane
+- 2024:       Modivo (MDV) i Pepco (PCO) w WIG20; nowe m/sWIG (Diagnostyka, Newag, Vercom itp.)
+"""
 
 GPW_CATEGORIES = {
     "WIG20": {
@@ -6,127 +19,146 @@ GPW_CATEGORIES = {
         "ALR.WA": "Alior Bank",
         "BDX.WA": "Budimex",
         "CDR.WA": "CD Projekt",
-        "CPS.WA": "Cyfrowy Polsat",
         "DNP.WA": "Dino Polska",
-        "JSW.WA": "JSW",
+        "EBP.WA": "Erste Bank Polska",  # ex-Santander (SPL), rename IV.2026
         "KGH.WA": "KGHM Polska Miedz",
         "KRU.WA": "Kruk",
-        "KTY.WA": "Kety",
+        "KTY.WA": "Grupa Kety",
         "LPP.WA": "LPP",
         "MBK.WA": "mBank",
-        "OPL.WA": "Orange Polska",
+        "MDV.WA": "Modivo",
+        "PCO.WA": "Pepco Group",
         "PEO.WA": "Bank Pekao",
-        "PGE.WA": "PGE Polska Grupa Energ.",
-        "PKN.WA": "PKN Orlen",
+        "PGE.WA": "PGE Polska Grupa Energetyczna",
+        "PKN.WA": "Orlen",
         "PKO.WA": "PKO Bank Polski",
         "PZU.WA": "PZU",
-        "SPL.WA": "Santander Bank Polska",
+        "TPE.WA": "Tauron Polska Energia",  # dodany 20.03.2026 zamiast OPL
+        "ZAB.WA": "Zabka Group",
     },
     "mWIG40": {
-        "11B.WA": "11 bit studios",
+        "ABE.WA": "AB",
         "ACP.WA": "Asseco Poland",
-        "AMC.WA": "AmRest Holdings",
-        "ATC.WA": "Arctic Paper",
+        "APR.WA": "Auto Partner",
+        "ASB.WA": "ASBISc Enterprises",
+        "ASE.WA": "Asseco South Eastern Europe",
+        "ATT.WA": "Grupa Azoty",
         "BFT.WA": "Benefit Systems",
         "BHW.WA": "Bank Handlowy",
         "BNP.WA": "BNP Paribas Bank Polska",
         "CAR.WA": "Inter Cars",
-        "CCC.WA": "CCC",
-        "CIG.WA": "CI Games",
-        "DAT.WA": "Datawalk",
+        "CBF.WA": "cyber_Folks",
+        "CPS.WA": "Cyfrowy Polsat",
+        "CRI.WA": "Creotech Instruments",
+        "DIA.WA": "Diagnostyka",
         "DOM.WA": "Dom Development",
         "DVL.WA": "Develia",
-        "ECH.WA": "Echo Investment",
+        "EAT.WA": "AmRest Holdings",
         "ENA.WA": "Enea",
-        "EUR.WA": "Eurocash",
         "GPP.WA": "Grupa Pracuj",
         "GPW.WA": "GPW",
-        "HRS.WA": "Huuuge",
         "ING.WA": "ING Bank Slaski",
-        "KER.WA": "Kernel Holding",
-        "KGN.WA": "Kogeneracja (KGN)",
-        "MAB.WA": "Mabion",
+        "JSW.WA": "Jastrzebska Spolka Weglowa",
+        "LBW.WA": "Lubawa",
+        "MBR.WA": "Mo-Bruk",
         "MIL.WA": "Bank Millennium",
-        "MRC.WA": "Mercator Medical",
+        "MRB.WA": "Mirbud",
+        "MUR.WA": "Murapol",
         "NEU.WA": "Neuca",
-        "PCO.WA": "PCM (PCO)",
-        "PEP.WA": "Pepco Group",
-        "PKP.WA": "PKP Cargo",
-        "SNK.WA": "Sniezka (SNK)",
-        "STX.WA": "Stalexport Autostrady (STX)",
+        "NWG.WA": "Newag",
+        "OPL.WA": "Orange Polska",
+        "PEP.WA": "Polenergia",
+        "PXM.WA": "Polimex Mostostal",
+        "RBW.WA": "Rainbow Tours",
+        "SNT.WA": "Synektik",
         "TEN.WA": "Ten Square Games",
-        "TPE.WA": "Tauron Polska Energia",
-        "VRG.WA": "VRG",
-        "WPL.WA": "Wirtualna Polska",
-        "XTB.WA": "XTB (X-Trade Brokers)",
+        "TXT.WA": "Text (ex-LiveChat)",
+        "VOX.WA": "Voxel",
+        "VRC.WA": "Vercom",
+        "WPL.WA": "Wirtualna Polska Holding",
+        "XTB.WA": "XTB",
     },
     "sWIG80": {
-        "1AT.WA": "1AT (Unity)",
-        "ABE.WA": "AB",
+        "11B.WA": "11 bit studios",
+        "1AT.WA": "Atal",
+        "ABS.WA": "Asseco Business Solutions",
         "AGO.WA": "Agora",
-        "APR.WA": "Apator",
-        "ASB.WA": "ASBISc Enterprises",
-        "ABS.WA": "Absolut (ABS)",
-        "ATG.WA": "Auto Partner (ATG)",
-        "ATT.WA": "Grupa Azoty",
+        "AMB.WA": "Ambra",
+        "AMC.WA": "Amica Wronki",
+        "ANR.WA": "Answear.com",
+        "APT.WA": "Apator",
+        "ARH.WA": "Archicom",
+        "ARL.WA": "Arlen",
+        "AST.WA": "Astarta Holding",
+        "ATC.WA": "Arctic Paper",
+        "ATR.WA": "Atrem",
+        "BCX.WA": "Bioceltix",
+        "BIO.WA": "Bioton",
+        "BLO.WA": "Bloober Team",
+        "BMC.WA": "Bumech",
         "BOS.WA": "Bank Ochrony Srodowiska",
         "BRS.WA": "Boryszew",
-        "BST.WA": "Best",
-        "CAM.WA": "Camel (CAM)",
-        "CDA.WA": "CD Action (CDA)",
-        "CLC.WA": "Columbus Energy (CLC)",
-        "CLN.WA": "Celon Pharma (CLN)",
-        "COG.WA": "Cognor Holding",
-        "CPL.WA": "Comp (CPL)",
+        "CIG.WA": "CI Games",
+        "CLN.WA": "Celon Pharma",
+        "CMP.WA": "Comp",
+        "COG.WA": "Cognor",
+        "CRJ.WA": "Creepy Jar",
+        "CRQ.WA": "Creotech Quantum",
+        "CTX.WA": "Captor Therapeutics",
+        "DAD.WA": "Dadelo",
+        "DAT.WA": "Datawalk",
         "DCR.WA": "Decora",
-        "ENG.WA": "Energa",
+        "DIG.WA": "Digital Network",
+        "ECH.WA": "Echo Investment",
+        "ELT.WA": "Elektrotim",
+        "ENT.WA": "Enter Air",
         "ERB.WA": "Erbud",
-        "FTE.WA": "Ferro",
-        "GRN.WA": "Grodno (GRN)",
-        "GTN.WA": "Getin Holding",
-        "HRP.WA": "Harper Hygienics (HRP)",
-        "IMP.WA": "Impexmetal (IMP)",
-        "INK.WA": "Instal Krakow (INK)",
-        "KCI.WA": "KCI (KCI)",
-        "KMP.WA": "Kino Polska (KMP)",
-        "KPL.WA": "Kompap (KPL)",
-        "KVT.WA": "K2 Holding (KVT)",
-        "LBW.WA": "Lubawa",
-        "LEN.WA": "Lentex",
-        "MAK.WA": "Makarony Polskie (MAK)",
-        "MBR.WA": "Mo-BRUK",
-        "MCR.WA": "Mercor",
+        "EUR.WA": "Eurocash",
+        "FRO.WA": "Ferro",
+        "FTE.WA": "Fabryki Mebli Forte",
+        "GRX.WA": "GreenX Metals",
+        "HUG.WA": "Huuuge",
+        "ICE.WA": "Medinice",
+        "KGN.WA": "Kogeneracja",
+        "LWB.WA": "Lubelski Wegiel Bogdanka",
+        "MCI.WA": "MCI Capital",
         "MDG.WA": "Medicalgorithmics",
-        "MEX.WA": "Mexichem (MEX)",
-        "MLB.WA": "Mirbud",
-        "MLS.WA": "ML System",
-        "MOJ.WA": "Mojecka (MOJ)",
-        "MON.WA": "Monnari Trade",
-        "MUR.WA": "Murapol",
-        "MSP.WA": "Mostostal Plock (MSP)",
-        "MSW.WA": "Mostostal Warszawa",
-        "NTU.WA": "NTU (Novatek)",
+        "MLG.WA": "MLP Group",
+        "MNC.WA": "Mennica Polska",
+        "MRC.WA": "Mercator Medical",
+        "MSZ.WA": "Mostostal Zabrze",
+        "OND.WA": "Onde",
         "OPN.WA": "Oponeo.pl",
-        "PBX.WA": "Polnord (PBX)",
-        "PCE.WA": "Police (Grupa Azoty)",
-        "PHR.WA": "Pharmena (PHR)",
+        "PCR.WA": "PCC Rokita",
         "PLW.WA": "PlayWay",
-        "PMA.WA": "Pekabex (PMA)",
-        "PRM.WA": "Prim (PRM)",
-        "RBW.WA": "Rainbow Tours",
-        "RPC.WA": "Ropczyce (RPC)",
+        "QRS.WA": "Quercus TFI",
+        "REX.WA": "Rex Concepts",
+        "ROB.WA": "Robyg",
         "RVU.WA": "Ryvu Therapeutics",
+        "SCP.WA": "Scope Fluidics",
+        "SCW.WA": "Scanway",
         "SEL.WA": "Selena FM",
-        "SGN.WA": "Stelmet (SGN)",
-        "SKA.WA": "Stalprodukt (SKA)",
-        "SNT.WA": "Synektik",
-        "STP.WA": "Stalprofil",
+        "SGN.WA": "Sygnity",
+        "SHO.WA": "Shoper",
+        "SKA.WA": "Sniezka",
+        "SLV.WA": "Selvita",
+        "SNK.WA": "Sanok Rubber Company",
+        "STP.WA": "Stalprodukt",
+        "STX.WA": "Stalexport Autostrady",
+        "SVE.WA": "Synthaverse",
+        "TAR.WA": "Tarczynski",
+        "TOA.WA": "Toya",
         "TOR.WA": "Torpol",
         "UNI.WA": "Unibep",
+        "UNT.WA": "Unimot",
+        "VGO.WA": "Vigo Photonics",
         "VOT.WA": "Votum",
-        "VOX.WA": "Voxel",
+        "VRG.WA": "VRG (Vistula Retail Group)",
         "WLT.WA": "Wielton",
+        "WTN.WA": "Wittchen",
+        "WWL.WA": "Wawel",
         "ZEP.WA": "ZE PAK",
+        "ZRE.WA": "Zremb-Chojnice",
     },
 }
 
@@ -145,27 +177,29 @@ ALL_GPW_TICKERS = list(GPW_NAMES.keys())
 # Banki GPW — banki nie raportuja klasycznego EBITDA / EV/EBITDA / FCF.
 # yfinance czesto zwraca None dla tych metryk dla bankow.
 # Tab "Finanse spolki" auto-hide te wskazniki gdy is_bank(ticker) == True.
-# Last verified: 2026-05-15
+# Last verified: 2026-07-23
 GPW_BANKS: set[str] = {
     # WIG20
     "ALR.WA",   # Alior Bank
+    "EBP.WA",   # Erste Bank Polska (ex-Santander SPL)
     "MBK.WA",   # mBank
     "PEO.WA",   # Bank Pekao
     "PKO.WA",   # PKO Bank Polski
-    "SPL.WA",   # Santander Bank Polska
     # mWIG40
     "BHW.WA",   # Bank Handlowy
     "BNP.WA",   # BNP Paribas Bank Polska
-    "ING.WA",   # ING Bank Slaski (jesli w universe)
+    "ING.WA",   # ING Bank Slaski
     "MIL.WA",   # Bank Millennium
+    # sWIG80
+    "BOS.WA",   # Bank Ochrony Srodowiska
 }
 
 
 def get_gpw_universe() -> list[str]:
-    """Spłaszczona lista tickerów GPW z `GPW_CATEGORIES`.
+    """Splaszczona lista tickerow GPW z `GPW_CATEGORIES`.
 
     `GPW_CATEGORIES` to dict {indeks: {ticker: nazwa}} (WIG20/mWIG40/sWIG80).
-    Zwraca posortowaną listę 140 tickerów z sufiksem .WA, bez duplikatów.
+    Zwraca posortowana liste 140 tickerow z sufiksem .WA, bez duplikatow.
     """
     tickers: list[str] = []
     for index_dict in GPW_CATEGORIES.values():
