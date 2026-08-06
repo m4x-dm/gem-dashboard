@@ -103,8 +103,8 @@ Wszystkie trzy składniki reguły są odtwarzalne wstecz: mapy sektorów są sta
     "asof": "2026-08-31",
     "rule_version": 1,
     "sp500": [
-      {"ticker": "MU", "name": "Micron Technology", "sector": "Information Technology",
-       "score": 0.975, "entry_price": 893.19, "weight": 0.2}
+      {"ticker": "MU", "name": "Micron Technology", "group": "Information Technology",
+       "score": 0.975, "entry_price": 893.19, "entry_date": "2026-08-31", "weight": 0.2}
     ],
     "gpw": [ … ]
   }
@@ -160,7 +160,8 @@ Format `top_picks_sim.json` (plik pochodny, nadpisywany):
     "dates":     ["2016-09-30", "2016-10-31", …],
     "equity":    [10000.0, 10240.5, …],
     "benchmark": [10000.0, 10105.2, …],
-    "stats": {"cagr": 0.0, "max_dd": 0.0, "sharpe": 0.0, "calmar": 0.0, "hit_rate": 0.0}
+    "benchmark_name": "SPY",
+    "stats": {"cagr": 0.0, "max_dd": 0.0, "sharpe": 0.0, "hit_rate": 0.0}
   },
   "gpw": { … }
 }
@@ -211,7 +212,8 @@ Na syntetycznych ramkach cen, bez sieci:
 7. `append_snapshot` nie nadpisuje istniejącego klucza miesiąca
 8. `append_snapshot` na pustym pliku tworzy poprawną strukturę
 9. `portfolio_equity` na 2 snapshotach i znanych cenach daje policzalny ręcznie wynik
-10. `portfolio_equity` z jednym snapshotem zwraca pojedynczy punkt bez wyjątku
+10. `portfolio_equity` z pustym logiem zwraca pustą `Series` zamiast rzucać wyjątkiem
+11. `simulate_rule` zwraca serię miesięczną, a włączenie kosztów transakcyjnych obniża wynik końcowy
 
 Test 5 jest najważniejszy — to on pilnuje, żeby symulacja z sekcji 3 nie oszukiwała.
 
