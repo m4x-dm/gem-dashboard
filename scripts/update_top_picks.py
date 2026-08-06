@@ -190,7 +190,13 @@ def main() -> None:
 
         for pick in picks:
             pick["name"] = cfg["names"].get(pick["ticker"], "")
-        snapshot["asof"] = asof.strftime("%Y-%m-%d")
+        # Rynki koncza sesje w roznych momentach (GPW wczesniej niz USA), wiec
+        # jedno wspolne pole nie opisze obu. Trzymamy najswiezsza z sesji, a
+        # autorytatywna data per rynek siedzi w entry_date kazdego picka —
+        # i to jej uzywa UI.
+        previous_asof = snapshot.get("asof")
+        snapshot["asof"] = max(previous_asof, asof.strftime("%Y-%m-%d")) \
+            if previous_asof else asof.strftime("%Y-%m-%d")
         snapshot[market] = picks
         print("  " + " · ".join(f"{p['ticker']} ({p['group']}, {p['score']:.3f})"
                                 for p in picks), flush=True)

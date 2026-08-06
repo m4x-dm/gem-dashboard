@@ -60,16 +60,20 @@ if len(versions) > 1:
 
 # ====== Sekcja 1: aktualna piatka ======
 st.markdown(f"## Sklad na {latest_key}")
-st.caption(
-    f"Policzony na zamkniecie {latest.get('asof', '—')} · regula v{latest.get('rule_version', '?')}"
-)
+st.caption(f"Regula v{latest.get('rule_version', '?')}")
 
 for market, label in MARKET_LABELS.items():
     picks = latest.get(market) or []
     if not picks:
         continue
 
+    # Data z entry_date pickow, NIE z pola asof — rynki koncza sesje w roznych
+    # momentach (GPW zamyka sie wczesniej niz USA), a asof w snapshocie trzyma
+    # tylko jedna, wspolna wartosc.
+    sesje = sorted({p.get("entry_date", "") for p in picks if p.get("entry_date")})
+    dzien = sesje[-1] if sesje else latest.get("asof", "—")
     st.markdown(f"### {label}")
+    st.caption(f"Policzone na zamkniecie {dzien}")
     tickers = [p["ticker"] for p in picks]
     prices = download_prices(tickers, period="1y")
     funda = bulk_fetch_universe(tuple(tickers))
