@@ -26,7 +26,7 @@ if _CA and Path(_CA).exists():
 import yfinance as yf  # noqa: E402
 
 from data import top_picks as tp  # noqa: E402
-from data.gpw_universe import ALL_GPW_TICKERS, GPW_CATEGORY_MAP, GPW_NAMES  # noqa: E402
+from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES, GPW_SECTOR_MAP  # noqa: E402
 from data.momentum import calc_stats  # noqa: E402
 from data.sp500_universe import (  # noqa: E402
     SP500_NAMES,
@@ -43,7 +43,9 @@ MARKETS = {
     },
     "gpw": {
         "tickers": list(ALL_GPW_TICKERS),
-        "groups": GPW_CATEGORY_MAP,
+        # Sektor, NIE indeks: WIG20/mWIG40 nie chroni przed piecioma bankami,
+        # a filtr plynnosci zbija sWIG80 do zera (zostaja 2 grupy = sufit 4 pozycji).
+        "groups": GPW_SECTOR_MAP,
         "names": GPW_NAMES,
         "benchmark": "WIG20.WA",
     },

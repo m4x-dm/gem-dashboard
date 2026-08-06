@@ -147,6 +147,30 @@ def test_portfolio_equity_z_pustym_logiem_zwraca_pusta_serie():
     assert equity.empty
 
 
+def test_mapy_grup_pokrywaja_cale_universe():
+    """Brakujacy wpis wrzuca spolki do wspolnego kubelka "?" i psuje limit
+    koncentracji w obie strony — blokuje je razem, a jednoczesnie pozwala
+    obejsc limit ich prawdziwego sektora. Regresja z 2026-08-06."""
+    from data.gpw_universe import ALL_GPW_TICKERS, GPW_SECTOR_MAP
+    from data.sp500_universe import SP500_SECTOR_MAP, SP500_TOP100
+
+    brak_sp = [t for t in SP500_TOP100 if t not in SP500_SECTOR_MAP]
+    assert brak_sp == [], f"SP500_TOP100 bez sektora: {brak_sp}"
+
+    brak_gpw = [t for t in ALL_GPW_TICKERS if t not in GPW_SECTOR_MAP]
+    assert brak_gpw == [], f"GPW bez sektora: {brak_gpw}"
+
+
+def test_gpw_sektory_rozdzielaja_banki_od_reszty_finansow():
+    """Banki musza byc osobna grupa — inaczej limit 2 na "Finanse" przepuszcza
+    dwa banki plus XTB i GPW jako te same ryzyko."""
+    from data.gpw_universe import GPW_BANKS, GPW_SECTOR_MAP
+
+    for ticker in GPW_BANKS:
+        assert GPW_SECTOR_MAP.get(ticker) == "Banki", f"{ticker} nie jest w grupie Banki"
+    assert GPW_SECTOR_MAP.get("XTB.WA") == "Finanse"
+
+
 def test_simulate_rule_zwraca_miesieczna_serie_i_reaguje_na_koszty():
     tickers = tuple(f"T{i}" for i in range(8))
     prices = _frame(700, tickers, start="2023-01-02")

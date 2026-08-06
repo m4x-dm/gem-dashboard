@@ -195,6 +195,80 @@ GPW_BANKS: set[str] = {
 }
 
 
+# Mapa sektorow GPW — ticker -> sektor (12 kategorii).
+# Uzywana przez F18 Top Picks jako wymiar dywersyfikacji: indeks (WIG20/mWIG40/
+# sWIG80) nim NIE jest — nie chroni przed kupieniem pieciu bankow naraz, a filtr
+# plynnosci i tak zbija sWIG80 do zera, zostawiajac tylko 2 grupy.
+# Wygenerowana z yfinance Ticker.info["sector"] (pokrycie 140/140), z recznym
+# wydzieleniem "Banki" z "Finanse" na podstawie GPW_BANKS.
+# Last verified: 2026-08-06
+GPW_SECTOR_MAP: dict[str, str] = {
+    # Banki
+    "ALR.WA": "Banki", "BHW.WA": "Banki", "BNP.WA": "Banki",
+    "BOS.WA": "Banki", "EBP.WA": "Banki", "ING.WA": "Banki",
+    "MBK.WA": "Banki", "MIL.WA": "Banki", "PEO.WA": "Banki",
+    "PKO.WA": "Banki",
+    # Energia
+    "BMC.WA": "Energia", "JSW.WA": "Energia", "LWB.WA": "Energia",
+    "PKN.WA": "Energia",
+    # Finanse
+    "GPW.WA": "Finanse", "KRU.WA": "Finanse", "MCI.WA": "Finanse",
+    "PZU.WA": "Finanse", "QRS.WA": "Finanse", "XTB.WA": "Finanse",
+    # Komunikacja
+    "11B.WA": "Komunikacja", "AGO.WA": "Komunikacja", "BLO.WA": "Komunikacja",
+    "CDR.WA": "Komunikacja", "CIG.WA": "Komunikacja", "CPS.WA": "Komunikacja",
+    "CRJ.WA": "Komunikacja", "DIG.WA": "Komunikacja", "HUG.WA": "Komunikacja",
+    "OPL.WA": "Komunikacja", "PLW.WA": "Komunikacja", "TEN.WA": "Komunikacja",
+    "WPL.WA": "Komunikacja",
+    # Konsument cykliczny
+    "ALE.WA": "Konsument cykliczny", "AMC.WA": "Konsument cykliczny", "ANR.WA": "Konsument cykliczny",
+    "APR.WA": "Konsument cykliczny", "ARL.WA": "Konsument cykliczny", "BFT.WA": "Konsument cykliczny",
+    "CAR.WA": "Konsument cykliczny", "DAD.WA": "Konsument cykliczny", "DCR.WA": "Konsument cykliczny",
+    "EAT.WA": "Konsument cykliczny", "FTE.WA": "Konsument cykliczny", "LPP.WA": "Konsument cykliczny",
+    "MDV.WA": "Konsument cykliczny", "MUR.WA": "Konsument cykliczny", "OPN.WA": "Konsument cykliczny",
+    "RBW.WA": "Konsument cykliczny", "REX.WA": "Konsument cykliczny", "SNK.WA": "Konsument cykliczny",
+    "UNT.WA": "Konsument cykliczny", "VRG.WA": "Konsument cykliczny", "WTN.WA": "Konsument cykliczny",
+    # Konsument defensywny
+    "AMB.WA": "Konsument defensywny", "AST.WA": "Konsument defensywny", "DNP.WA": "Konsument defensywny",
+    "EUR.WA": "Konsument defensywny", "PCO.WA": "Konsument defensywny", "TAR.WA": "Konsument defensywny",
+    "WWL.WA": "Konsument defensywny", "ZAB.WA": "Konsument defensywny",
+    # Nieruchomosci
+    "1AT.WA": "Nieruchomosci", "ARH.WA": "Nieruchomosci", "DOM.WA": "Nieruchomosci",
+    "DVL.WA": "Nieruchomosci", "ECH.WA": "Nieruchomosci", "MLG.WA": "Nieruchomosci",
+    "ROB.WA": "Nieruchomosci",
+    # Ochrona zdrowia
+    "BCX.WA": "Ochrona zdrowia", "BIO.WA": "Ochrona zdrowia", "CLN.WA": "Ochrona zdrowia",
+    "CTX.WA": "Ochrona zdrowia", "DIA.WA": "Ochrona zdrowia", "ICE.WA": "Ochrona zdrowia",
+    "MDG.WA": "Ochrona zdrowia", "MRC.WA": "Ochrona zdrowia", "NEU.WA": "Ochrona zdrowia",
+    "RVU.WA": "Ochrona zdrowia", "SCP.WA": "Ochrona zdrowia", "SLV.WA": "Ochrona zdrowia",
+    "SNT.WA": "Ochrona zdrowia", "SVE.WA": "Ochrona zdrowia", "VOX.WA": "Ochrona zdrowia",
+    # Przemysl
+    "APT.WA": "Przemysl", "ATR.WA": "Przemysl", "BDX.WA": "Przemysl",
+    "BRS.WA": "Przemysl", "CRI.WA": "Przemysl", "CRQ.WA": "Przemysl",
+    "ELT.WA": "Przemysl", "ENT.WA": "Przemysl", "ERB.WA": "Przemysl",
+    "FRO.WA": "Przemysl", "GPP.WA": "Przemysl", "LBW.WA": "Przemysl",
+    "MBR.WA": "Przemysl", "MNC.WA": "Przemysl", "MRB.WA": "Przemysl",
+    "MSZ.WA": "Przemysl", "NWG.WA": "Przemysl", "OND.WA": "Przemysl",
+    "PXM.WA": "Przemysl", "STX.WA": "Przemysl", "TOA.WA": "Przemysl",
+    "TOR.WA": "Przemysl", "UNI.WA": "Przemysl", "VOT.WA": "Przemysl",
+    "WLT.WA": "Przemysl",
+    # Surowce
+    "ATC.WA": "Surowce", "ATT.WA": "Surowce", "COG.WA": "Surowce",
+    "GRX.WA": "Surowce", "KGH.WA": "Surowce", "KTY.WA": "Surowce",
+    "PCR.WA": "Surowce", "SEL.WA": "Surowce", "SKA.WA": "Surowce",
+    "STP.WA": "Surowce", "ZRE.WA": "Surowce",
+    # Technologia
+    "ABE.WA": "Technologia", "ABS.WA": "Technologia", "ACP.WA": "Technologia",
+    "ASB.WA": "Technologia", "ASE.WA": "Technologia", "CBF.WA": "Technologia",
+    "CMP.WA": "Technologia", "DAT.WA": "Technologia", "SCW.WA": "Technologia",
+    "SGN.WA": "Technologia", "SHO.WA": "Technologia", "TXT.WA": "Technologia",
+    "VGO.WA": "Technologia", "VRC.WA": "Technologia",
+    # Uzytecznosc publiczna
+    "ENA.WA": "Uzytecznosc publiczna", "KGN.WA": "Uzytecznosc publiczna", "PEP.WA": "Uzytecznosc publiczna",
+    "PGE.WA": "Uzytecznosc publiczna", "TPE.WA": "Uzytecznosc publiczna", "ZEP.WA": "Uzytecznosc publiczna",
+}
+
+
 def get_gpw_universe() -> list[str]:
     """Splaszczona lista tickerow GPW z `GPW_CATEGORIES`.
 
