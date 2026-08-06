@@ -13,7 +13,7 @@ from components.auth import require_premium
 from components.charts import equity_chart
 from components.formatting import fmt_pct
 from components.sidebar import render_footer, setup_sidebar
-from data.downloader import download_prices
+from data.downloader import download_prices, download_stooq
 from data.financials import bulk_fetch_universe
 from data.top_picks import (
     HISTORY_PATH,
@@ -29,7 +29,11 @@ if not require_premium(24):
     st.stop()
 
 MARKET_LABELS = {"sp500": "🇺🇸 S&P 500", "gpw": "🇵🇱 GPW"}
-BENCHMARKS = {"sp500": "SPY", "gpw": "WIG20.WA"}
+# GPW leci przez stooq — yfinance nie ma historii indeksow WIG (zwraca 1 wiersz).
+BENCHMARKS = {
+    "sp500": {"ticker": "SPY", "source": "yfinance"},
+    "gpw": {"ticker": "WIG20", "source": "stooq"},
+}
 CURRENCY = {"sp500": "USD", "gpw": "PLN"}
 
 st.markdown("# 🎯 Top Picks — piatka miesiaca")
@@ -104,7 +108,7 @@ for market, label in MARKET_LABELS.items():
     st.dataframe(
         pd.DataFrame(rows),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Zwrot": st.column_config.NumberColumn("Zwrot od rebalansu", format="percent"),
             "ROE": st.column_config.NumberColumn("ROE", format="%.2f"),
@@ -132,16 +136,25 @@ else:
                               for p in (snap.get(market) or [])})
         if not all_tickers:
             continue
-        bench = BENCHMARKS[market]
-        prices = download_prices(all_tickers + [bench], period="5y")
+        cfg = BENCHMARKS[market]
+        bench = cfg["ticker"]
+        if cfg["source"] == "stooq":
+            prices = download_prices(all_tickers, period="5y")
+            bench_raw = download_stooq(bench, period="5y")
+        else:
+            prices = download_prices(all_tickers + [bench], period="5y")
+            bench_raw = prices[bench] if bench in prices.columns else None
+
         equity = portfolio_equity(history, prices, market)
         if equity.empty:
             continue
 
         curves = {f"Top Picks {label}": equity}
-        if bench in prices.columns:
-            bench_series = prices[bench].reindex(equity.index, method="ffill")
-            curves[bench] = bench_series / bench_series.iloc[0] * 10000.0
+        if bench_raw is not None and not bench_raw.empty:
+            aligned = bench_raw.reindex(equity.index, method="ffill").dropna()
+            if not aligned.empty and float(aligned.iloc[0]) != 0:
+                curves[bench] = (bench_raw.reindex(equity.index, method="ffill")
+                                 / float(aligned.iloc[0]) * 10000.0)
 
         st.markdown(f"### {label}")
         col1, col2, col3 = st.columns(3)
@@ -151,7 +164,7 @@ else:
         col3.metric("Kapital startowy", f"10 000 {CURRENCY[market]}")
 
         st.plotly_chart(equity_chart(curves, title=f"Top Picks {label} vs {bench}"),
-                        use_container_width=True)
+                        width="stretch")
 
 # ====== Sekcja 3: symulacja reguly ======
 st.markdown("---")
@@ -194,6 +207,6 @@ with st.expander("🔬 Symulacja reguly wstecz — przeczytaj zastrzezenie", exp
             col4.metric("Trafnosc vs benchmark",
                         fmt_pct(stats.get("hit_rate")) if has_bench else "—")
             st.plotly_chart(equity_chart(curves, title=f"Symulacja reguly — {label}"),
-                            use_container_width=True)
+                            width="stretch")
 
 render_footer()

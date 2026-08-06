@@ -81,7 +81,7 @@ def _render_signals(signals: list, signal_map: dict, title: str = "Historia zmia
         signal_df = pd.DataFrame(signals, columns=["Data", "Sygnal"])
         signal_df["Data"] = signal_df["Data"].dt.strftime("%Y-%m-%d")
         signal_df["Opis"] = signal_df["Sygnal"].map(signal_map)
-        st.dataframe(signal_df, use_container_width=True, hide_index=True)
+        st.dataframe(signal_df, width="stretch", hide_index=True)
         st.caption(f"Laczna liczba zmian sygnalu: **{len(signals)}**")
     else:
         st.info("Brak zmian sygnalu w tym okresie.")
@@ -208,7 +208,7 @@ Pelny opis strategii → strona **O strategii GEM** w menu bocznym.
         "ACWI Buy&Hold": result["equity_acwi"],
         "AGG Buy&Hold": result["equity_agg"],
     })
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown("### Statystyki")
     stats_table(result["stats"])
@@ -356,7 +356,7 @@ wiekszosci zwrotow z rynku akcji.
         "QQQ Buy&Hold": result["equity_qqq"],
         "AGG Buy&Hold": result["equity_agg"],
     })
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown("### Statystyki")
     stats_table(result["stats"])
@@ -499,7 +499,7 @@ od indywidualnej tolerancji na ryzyko.
         "QQQ Buy&Hold": result["equity_qqq"],
         "AGG Buy&Hold": result["equity_agg"],
     })
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown("### Statystyki")
     stats_table(result["stats"])
@@ -554,7 +554,7 @@ elif strategy == "Porownanie wszystkich":
 
     st.markdown("### Porownanie strategii — Krzywa kapitalu")
     fig = equity_chart(curves)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Wspolna tabela statystyk
     all_stats = {}
@@ -644,7 +644,7 @@ elif strategy == "Walk-forward GEM":
             "OOS MaxDD": f"{oss.get('Max Drawdown', 0):.1%}" if oss.get("Max Drawdown") is not None else "-",
         })
     fold_df = pd.DataFrame(fold_rows)
-    st.dataframe(fold_df, use_container_width=True, hide_index=True)
+    st.dataframe(fold_df, width="stretch", hide_index=True)
 
     # OOS chain chart
     st.markdown("### Krzywa kapitalu (OOS chain)")
@@ -653,7 +653,7 @@ elif strategy == "Walk-forward GEM":
     if wf.get("qqq_oos_chain") is not None:
         charts["QQQ B&H (ten sam zakres)"] = wf["qqq_oos_chain"] * start_capital
     fig_wf = equity_chart(charts)
-    st.plotly_chart(fig_wf, use_container_width=True)
+    st.plotly_chart(fig_wf, width="stretch")
 
     # Aggregated OOS summary
     st.markdown("### Podsumowanie OOS vs QQQ")
@@ -680,7 +680,7 @@ elif strategy == "Walk-forward GEM":
                 "Wybrane w X foldach": v,
                 "% foldow": f"{v/total:.0%}",
             })
-        st.dataframe(pd.DataFrame(hit_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(hit_rows), width="stretch", hide_index=True)
         st.caption(
             "Gdy jedna kombinacja dominuje (>=60% foldow) — parametry sa stabilne historycznie. "
             "Rozproszenie (3+ roznych po ~20%) sugeruje ze kazdy rezim rynkowy preferuje inne "

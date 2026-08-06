@@ -60,7 +60,7 @@ tab1, tab2, tab3 = st.tabs(["📊 Heatmapa", "📈 Sredni miesiac", "🏖️ Sel
 
 with tab1:
     st.plotly_chart(seasonality_heatmap(matrix, title=f"Sezonowosc {ticker} — miesięczne zwroty (%)"),
-                    use_container_width=True)
+                    width="stretch")
 
 with tab2:
     avg = matrix.mean() * 100
@@ -84,7 +84,7 @@ with tab2:
     fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)", line_width=1)
     fig.update_layout(**_base_layout(f"{ticker} — sredni zwrot miesięczny (%)", height=450))
     fig.update_yaxes(title_text="%")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Stats table
     stats_df = pd.DataFrame({
@@ -95,7 +95,7 @@ with tab2:
                         for m in avg.index],
         "Liczba lat": [int(matrix[m].notna().sum()) for m in avg.index],
     })
-    st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    st.dataframe(stats_df, width="stretch", hide_index=True)
 
 with tab3:
     st.markdown("### Sell in May and Go Away")
@@ -154,7 +154,7 @@ with tab3:
         fig.update_layout(barmode="group")
         fig.update_yaxes(title_text="%")
         fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)", line_width=1)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Summary stats
         avg_mo = sm_df["Maj-Paz (%)"].mean()

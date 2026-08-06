@@ -161,7 +161,7 @@ def render_sprawozdania_screener(
 
     edited = st.data_editor(
         display,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
@@ -292,7 +292,7 @@ def _render_beat_miss_tab(ticker: str) -> None:
         height=400,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Tabela rewizji
     if trend_df is not None and "eps_current" in trend_df.columns:
@@ -316,7 +316,7 @@ def _render_beat_miss_tab(ticker: str) -> None:
             st.markdown("#### Rewizje konsensusu analitykow")
             st.dataframe(
                 rev_table,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     "Rewizja (now vs 30d) %": st.column_config.NumberColumn(
                         format="%+.1f%%"
@@ -358,11 +358,11 @@ def _render_statement_tab(
 
     if not final_rows:
         st.warning(f"Brak rozpoznawalnych wierszy w {statement_label}.")
-        st.dataframe(_format_statement_df(df), use_container_width=True)
+        st.dataframe(_format_statement_df(df), width="stretch")
         return
 
     display_df = _format_statement_df(df.loc[final_rows])
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
 
 def _render_income_statement_tab(ticker: str) -> None:
@@ -456,7 +456,7 @@ def _chart_insider_net_per_month(transactions_df: pd.DataFrame) -> None:
         showlegend=False,
         margin=dict(l=40, r=40, t=60, b=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _chart_institutional_pie(institutional_df: pd.DataFrame) -> None:
@@ -495,7 +495,7 @@ def _chart_institutional_pie(institutional_df: pd.DataFrame) -> None:
         showlegend=False,
         margin=dict(l=40, r=40, t=60, b=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_insiders_tab(ticker: str) -> None:
@@ -583,7 +583,7 @@ def _render_insiders_tab(ticker: str) -> None:
     # ============== SEKCJA 2: Insider Purchases summary ==============
     st.markdown("#### 💰 Insider Purchases (6 mc agregat)")
     if purchases is not None and not purchases.empty:
-        st.dataframe(purchases, use_container_width=True, hide_index=True)
+        st.dataframe(purchases, width="stretch", hide_index=True)
     else:
         st.caption("Brak danych dla Insider Purchases.")
 
@@ -596,7 +596,7 @@ def _render_insiders_tab(ticker: str) -> None:
         display = transactions.head(30).copy()
         st.dataframe(
             display,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Shares": st.column_config.NumberColumn("Shares", format="%d"),
                 "Value": st.column_config.NumberColumn("Value (USD)", format="$%d"),
@@ -611,7 +611,7 @@ def _render_insiders_tab(ticker: str) -> None:
     # ============== SEKCJA 4: Insider Roster ==============
     st.markdown("#### 🏢 Roster zarzadu")
     if roster is not None and not roster.empty:
-        st.dataframe(roster, use_container_width=True, hide_index=True)
+        st.dataframe(roster, width="stretch", hide_index=True)
     else:
         st.caption("Brak danych dla Insider Roster.")
 
@@ -622,7 +622,7 @@ def _render_insiders_tab(ticker: str) -> None:
     if institutional is not None and not institutional.empty:
         col_t, col_c = st.columns([6, 4])
         with col_t:
-            st.dataframe(institutional, use_container_width=True, hide_index=True)
+            st.dataframe(institutional, width="stretch", hide_index=True)
         with col_c:
             _chart_institutional_pie(institutional)
     else:
@@ -633,7 +633,7 @@ def _render_insiders_tab(ticker: str) -> None:
     # ============== SEKCJA 6: Mutual Fund Holders ==============
     st.markdown("#### 💼 Top 10 mutual funds")
     if mutual is not None and not mutual.empty:
-        st.dataframe(mutual, use_container_width=True, hide_index=True)
+        st.dataframe(mutual, width="stretch", hide_index=True)
     else:
         st.caption("Brak danych dla Mutual Fund Holders.")
 

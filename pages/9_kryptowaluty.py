@@ -143,7 +143,7 @@ with tab1:
                     display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
                 display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-                st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
+                st.dataframe(display_df, width="stretch", height=min(700, 40 + len(display_df) * 35))
 
                 # Eksport CSV
                 csv = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
@@ -156,7 +156,7 @@ with tab1:
                 valid = filtered.dropna(subset=["Wynik"])
                 if not valid.empty:
                     fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum kryptowalut")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
     _ranking_fragment()
 
@@ -253,7 +253,7 @@ with tab2:
             for col in [c for c in display_cols if c not in ("Nazwa", "Kategoria")]:
                 display_ratio[col] = display_ratio[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
 
-            st.dataframe(display_ratio, use_container_width=True)
+            st.dataframe(display_ratio, width="stretch")
 
             st.divider()
 
@@ -274,7 +274,7 @@ with tab2:
                 ))
                 fig_bar.update_layout(**_base_layout("Ratio alt/BTC — wynik kompozytowy (%)", height=max(400, len(bar_sorted) * 30)))
                 fig_bar.update_xaxes(title_text="Zmiana ratio (%)")
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, width="stretch")
 
             st.divider()
 
@@ -292,7 +292,7 @@ with tab2:
                 if not top5_ratio.empty and len(top5_ratio) > 1:
                     renamed = top5_ratio.rename(columns={t: f"{t.replace('-USD','')} / BTC" for t in top5_tickers})
                     fig_ratio = price_chart(renamed, title=f"Ratio alt/BTC (baza = 100) — {altbtc_display_label}", normalize=True)
-                    st.plotly_chart(fig_ratio, use_container_width=True)
+                    st.plotly_chart(fig_ratio, width="stretch")
 
 # ========================== TAB 3: WYKRESY ==========================
 with tab3:
@@ -331,16 +331,16 @@ with tab3:
                 normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="cr_norm")
                 title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (USD)"
                 fig = price_chart(chart_prices, title=title, normalize=normalize)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             with sub2:
                 window = st.slider("Okno momentum (dni)", 21, 504, 252, step=21, key="cr_mom_win")
                 fig = momentum_chart(chart_prices, window=window, title=f"Momentum {window}D (rolling)")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             with sub3:
                 fig = drawdown_chart(chart_prices)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
 # ========================== TAB 4: POROWNANIE ==========================
 with tab4:
@@ -407,7 +407,7 @@ with tab4:
             # Overlay cenowy
             st.markdown("#### Cena znormalizowana (baza = 100)")
             fig = price_chart(cmp_prices, title=f"Porownanie cenowe — {cmp_period_label}")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             st.divider()
 
@@ -428,7 +428,7 @@ with tab4:
             st.markdown("#### Macierz korelacji (252 dni)")
             corr = correlation_matrix(cmp_prices, period=252)
             fig = correlation_heatmap(corr)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 # ========================== TAB 5: BACKTEST ==========================
 with tab5:
@@ -550,7 +550,7 @@ with tab5:
                 # Krzywa kapitalu
                 st.markdown("#### Krzywa kapitalu")
                 fig = equity_chart(result["equity_curves"])
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Statystyki z rf
                 rf = get_risk_free()
@@ -759,15 +759,15 @@ with tab6:
         st.markdown("#### Wykres cenowy + wskazniki")
         fig_main = ta_overview_chart(ta_close, ema_df, bb_df, signals_df,
                                       title=f"{ta_ticker.replace('-USD','')} — analiza techniczna ({ta_period_label})")
-        st.plotly_chart(fig_main, use_container_width=True)
+        st.plotly_chart(fig_main, width="stretch")
 
         col_m, col_r = st.columns(2)
         with col_m:
             fig_macd = macd_chart(macd_df, title="MACD")
-            st.plotly_chart(fig_macd, use_container_width=True)
+            st.plotly_chart(fig_macd, width="stretch")
         with col_r:
             fig_rsi = rsi_chart(rsi_series, title=f"RSI ({rsi_period})")
-            st.plotly_chart(fig_rsi, use_container_width=True)
+            st.plotly_chart(fig_rsi, width="stretch")
 
         # Tabela ostatnich sygnalow
         if not signals_df.empty:
@@ -781,7 +781,7 @@ with tab6:
             })
             display_signals = display_signals.iloc[::-1].head(20).reset_index(drop=True)
             display_signals.index = display_signals.index + 1
-            st.dataframe(display_signals, use_container_width=True)
+            st.dataframe(display_signals, width="stretch")
         else:
             st.info("Brak sygnalow kupna/sprzedazy w wybranym okresie — rynek neutralny wg wybranych parametrow.")
 
@@ -839,7 +839,7 @@ with tab7:
                     rs_data = relative_strength(rs_prices_cr[t].dropna(), rs_prices_cr["BTC-USD"].dropna())
                     if not rs_data.empty:
                         fig = rs_chart(rs_data, t.replace("-USD", ""), "BTC")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
         else:
             st.warning("Nie udalo sie pobrac danych BTC.")
     else:

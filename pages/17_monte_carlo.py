@@ -84,7 +84,7 @@ tab1, tab2, tab3 = st.tabs(["📈 Fan Chart", "📊 Rozklad koncowy", "🎯 Praw
 with tab1:
     st.plotly_chart(
         fan_chart(sims, title=f"Monte Carlo — {equity_label} ({n_sims} symulacji, {years} lat)"),
-        use_container_width=True,
+        width="stretch",
     )
     st.caption("Ciemniejszy pas = P25-P75 (50% sciezek). Jasniejszy = P5-P95 (90% sciezek). Linia = mediana.")
 
@@ -107,7 +107,7 @@ with tab2:
     fig.update_layout(**_base_layout(f"Rozklad wartosci koncowej po {years} latach", height=450))
     fig.update_xaxes(title_text="Wartosc portfela (USD)")
     fig.update_yaxes(title_text="Liczba symulacji")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Stats
     cols = st.columns(5)

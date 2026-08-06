@@ -137,7 +137,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
         yaxis=dict(autorange="reversed"),  # T-3 na gorze
         margin=dict(l=40, r=40, t=60, b=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _apply_sort(df: pd.DataFrame, sort_by: str) -> pd.DataFrame:
@@ -211,7 +211,7 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
         },
         disabled=disabled_cols,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key="calendar_table",
     )
 

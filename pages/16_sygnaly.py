@@ -111,7 +111,7 @@ with tab2:
     fig.update_xaxes(type="date")
     fig.update_yaxes(visible=False)
     fig.update_layout(margin=dict(l=20, r=20, t=50, b=30))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Full table
     st.markdown("#### Pelna lista zmian sygnalu")
@@ -121,7 +121,7 @@ with tab2:
     df_display = df[["start", "end", "signal", "duration_days"]].copy()
     df_display.columns = ["Poczatek", "Koniec", "Sygnal", "Czas trwania (dni)"]
     df_display = df_display.iloc[::-1].reset_index(drop=True)
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    st.dataframe(df_display, width="stretch", hide_index=True)
 
 with tab3:
     st.subheader("Statystyki sygnalow")
@@ -152,7 +152,7 @@ with tab3:
             hovertemplate="%{label}<br>%{value} dni (%{percent})<extra></extra>",
         ))
         fig.update_layout(**_base_layout("% czasu w kazdym sygnale", height=350))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Stats per signal
@@ -229,7 +229,7 @@ with tab4:
     h = max(400, len(years) * 24)
     fig.update_layout(**_base_layout("Kalendarz sygnalow GEM", height=h))
     fig.update_xaxes(side="top")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Legend
     legend_html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">'

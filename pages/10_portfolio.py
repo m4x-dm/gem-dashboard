@@ -172,12 +172,12 @@ st.markdown("### 2. Wagi portfela")
 # Presets
 pcol1, pcol2, pcol3 = st.columns(3)
 with pcol1:
-    if st.button("Equal-weight", use_container_width=True):
+    if st.button("Equal-weight", width="stretch"):
         eq_w = round(100.0 / len(selected), 2)
         for t in selected:
             st.session_state[f"w_{t}"] = eq_w
 with pcol2:
-    if st.button("Risk Parity", use_container_width=True):
+    if st.button("Risk Parity", width="stretch"):
         with st.spinner("Obliczam wagi risk parity..."):
             rp_prices = download_prices(selected, period="1y")
             if rp_prices.empty or len(rp_prices) < 10:
@@ -188,7 +188,7 @@ with pcol2:
             for t in selected:
                 st.session_state[f"w_{t}"] = round(rp_weights.get(t, 0) * 100, 2)
 with pcol3:
-    if st.button("Reset", use_container_width=True):
+    if st.button("Reset", width="stretch"):
         for t in selected:
             st.session_state[f"w_{t}"] = 0.0
 
@@ -246,7 +246,7 @@ if prices.empty:
 acol1, acol2 = st.columns([1, 2])
 with acol1:
     pie_data = {f"{t} ({_detect_asset_class(t)})": weights_raw[t] for t in active_tickers}
-    st.plotly_chart(category_pie(pie_data, "Alokacja portfela"), use_container_width=True)
+    st.plotly_chart(category_pie(pie_data, "Alokacja portfela"), width="stretch")
 
 # -- Tabela zwrotow holdingsow --
 with acol2:
@@ -258,12 +258,12 @@ with acol2:
     for col in ["1M", "3M", "6M", "12M"]:
         display_rets[col] = display_rets[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
     display_rets["Waga"] = display_rets["Waga"].apply(lambda x: f"{x*100:.1f}%")
-    st.dataframe(display_rets, use_container_width=True, height=min(400, 40 + 35 * len(display_rets)))
+    st.dataframe(display_rets, width="stretch", height=min(400, 40 + 35 * len(display_rets)))
 
 # -- Correlation heatmap --
 st.markdown("#### Macierz korelacji")
 corr = correlation_matrix(prices, period=252)
-st.plotly_chart(correlation_heatmap(corr), use_container_width=True)
+st.plotly_chart(correlation_heatmap(corr), width="stretch")
 
 # -- Backtest --
 st.markdown("#### Backtest portfela")
@@ -281,7 +281,7 @@ if result and result_eq:
     # Equity curves
     curves = {"Portfel custom": result["equity"]}
     curves["Equal-weight"] = result_eq["equity"]
-    st.plotly_chart(equity_chart(curves, "Krzywa kapitalu — portfel vs equal-weight"), use_container_width=True)
+    st.plotly_chart(equity_chart(curves, "Krzywa kapitalu — portfel vs equal-weight"), width="stretch")
 
     # Stats
     all_stats = {"Portfel custom": result["stats"]}
@@ -293,7 +293,7 @@ if result and result_eq:
         "Portfel custom": result["drawdown"],
         "Equal-weight": result_eq["drawdown"],
     })
-    st.plotly_chart(drawdown_chart(dd_df, "Drawdown — spadek od szczytu"), use_container_width=True)
+    st.plotly_chart(drawdown_chart(dd_df, "Drawdown — spadek od szczytu"), width="stretch")
 else:
     st.warning("Za malo danych do przeprowadzenia backtestu (wymagane min. 10 dni wspolnych danych).")
 

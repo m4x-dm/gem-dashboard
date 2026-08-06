@@ -140,6 +140,34 @@ def test_portfolio_equity_liczy_zwrot_recznie_sprawdzalny():
     assert float(equity.iloc[0]) == pytest.approx(10000.0, rel=1e-9)
 
 
+def test_portfolio_equity_lancuchuje_dwa_snapshoty():
+    """Sciezka wielosegmentowa (>=2 snapshoty) uruchomi sie dopiero przy pierwszym
+    rebalansie we wrzesniu 2026 — test pokrywa ja z wyprzedzeniem."""
+    idx = pd.bdate_range("2026-01-01", periods=61)
+    prices = pd.DataFrame({
+        "AAA": np.linspace(100.0, 120.0, 61),   # +20% na calej dlugosci
+        "BBB": np.linspace(200.0, 200.0, 61),   # plasko
+    }, index=idx)
+    mid = idx[30]
+    history = {
+        "2026-01-01": {
+            "asof": idx[0].strftime("%Y-%m-%d"),
+            "sp500": [{"ticker": "AAA", "weight": 1.0, "entry_price": 100.0}],
+        },
+        "2026-02-01": {
+            "asof": mid.strftime("%Y-%m-%d"),
+            "sp500": [{"ticker": "BBB", "weight": 1.0, "entry_price": 200.0}],
+        },
+    }
+    equity = tp.portfolio_equity(history, prices, "sp500", start_capital=10000.0)
+
+    # Segment 1: AAA od idx[0] do idx[30]; segment 2: BBB (plaskie) do konca.
+    kapital_po_pierwszym = 10000.0 * (prices["AAA"].iloc[30] / prices["AAA"].iloc[0])
+    assert float(equity.iloc[-1]) == pytest.approx(kapital_po_pierwszym, rel=1e-6)
+    assert equity.index.is_monotonic_increasing
+    assert not equity.index.has_duplicates, "data styku segmentow policzona dwa razy"
+
+
 def test_portfolio_equity_z_pustym_logiem_zwraca_pusta_serie():
     prices = _frame(50, ("AAA",))
     equity = tp.portfolio_equity({}, prices, "sp500")

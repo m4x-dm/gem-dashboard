@@ -220,7 +220,7 @@ for col, (ticker, label) in zip(spark_cols, spark_tickers):
                 f'<div style="font-size:0.8rem;color:{chg_color};font-weight:600">{sign}{chg_1m*100:.1f}% (1M)</div>'
                 f'</div>'
             )
-            st.plotly_chart(sparkline_chart(s, height=100), use_container_width=True)
+            st.plotly_chart(sparkline_chart(s, height=100), width="stretch")
         else:
             st.caption(f"{label}: brak danych")
 
@@ -249,7 +249,7 @@ if favorites:
                     f'<div style="font-size:0.8rem;color:{chg_color};font-weight:600">{sign}{chg_1m*100:.1f}% (1M)</div>'
                     f'</div>'
                 )
-                st.plotly_chart(sparkline_chart(s, height=80), use_container_width=True)
+                st.plotly_chart(sparkline_chart(s, height=80), width="stretch")
             else:
                 st.caption(f"{ticker}: brak danych")
 

@@ -103,7 +103,7 @@ st.divider()
 # Overlay cenowy
 st.markdown("### Cena znormalizowana (baza = 100)")
 fig = price_chart(prices, title=f"Porownanie cenowe — {period_label}")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -124,7 +124,7 @@ st.divider()
 st.markdown("### Macierz korelacji (252 dni)")
 corr = correlation_matrix(prices, period=252)
 fig = correlation_heatmap(corr)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # Interpretacja
 with st.expander("Jak czytac korelacje?"):
@@ -154,7 +154,7 @@ if rs_assets and rs_benchmark in prices.columns:
             rs_data = relative_strength(prices[asset_t].dropna(), prices[rs_benchmark].dropna())
             if not rs_data.empty:
                 fig = rs_chart(rs_data, asset_t, rs_benchmark)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 else:
     st.info("Wybierz co najmniej 2 instrumenty.")
 

@@ -55,7 +55,7 @@ display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
 st.dataframe(
     display_df,
-    use_container_width=True,
+    width="stretch",
     height=min(700, 40 + len(display_df) * 35),
 )
 
@@ -77,11 +77,11 @@ with col1:
     valid = ranking.dropna(subset=["Wynik"])
     if not valid.empty:
         fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Ranking momentum")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with col2:
     cat_counts = ranking["Kategoria"].value_counts().to_dict()
     fig = category_pie(cat_counts, title="ETF-y wg kategorii")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 render_footer()

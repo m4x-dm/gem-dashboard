@@ -154,7 +154,7 @@ def setup_sidebar():
                 '⭐ Premium aktywny</span></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Wyloguj Premium", use_container_width=True):
+            if st.button("Wyloguj Premium", width="stretch"):
                 deactivate()
                 st.rerun()
         else:
@@ -164,7 +164,7 @@ def setup_sidebar():
                     placeholder="GEM4-XXXX-XXXX-XXXX",
                     key="activation_code_input",
                 )
-                if st.button("Aktywuj", use_container_width=True):
+                if st.button("Aktywuj", width="stretch"):
                     if code_input:
                         if activate_code(code_input):
                             st.success("Premium aktywowany!")
@@ -285,7 +285,7 @@ def setup_sidebar():
         st.divider()
 
         # Odswiezenie danych
-        if st.button("🔄 Odswiez dane", use_container_width=True):
+        if st.button("🔄 Odswiez dane", width="stretch"):
             st.cache_data.clear()
             st.toast("Cache wyczyszczony — dane zostana pobrane od nowa.")
             st.rerun()

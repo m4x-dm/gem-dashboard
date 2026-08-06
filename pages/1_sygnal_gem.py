@@ -47,7 +47,7 @@ if not valid_ranking.empty:
     st.divider()
     st.markdown("### Top 10 — wykres momentum")
     fig = ranking_bar_chart(valid_ranking, top_n=10)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     st.warning("Brak danych do wyswietlenia rankingu.")
 

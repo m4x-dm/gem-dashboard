@@ -83,7 +83,7 @@ with tab1:
         h = max(400, len(y_labels) * 35)
         fig.update_layout(**_base_layout("Momentum 3M sektorow w czasie (%)", height=h))
         fig.update_xaxes(side="top", tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with tab2:
     st.subheader("Ranking biezacy sektorow")
@@ -121,13 +121,13 @@ with tab2:
         ))
         fig.update_layout(**_base_layout("Ranking sektorow — wynik momentum", height=max(350, len(df_bar) * 35)))
         fig.update_xaxes(title_text="Wynik kompozytowy (%)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Table
     display = rets[["Nazwa", "1M", "3M", "6M", "12M", "Wynik"]].copy()
     for col in ["1M", "3M", "6M", "12M", "Wynik"]:
         display[col] = display[col].apply(lambda v: fmt_pct(v) if pd.notna(v) else "—")
-    st.dataframe(display, use_container_width=True)
+    st.dataframe(display, width="stretch")
 
 with tab3:
     st.subheader("Cykl koniunkturalny a rotacja sektorowa")
@@ -165,7 +165,7 @@ with tab4:
     if len(compare) >= 2:
         st.plotly_chart(
             price_chart(prices[compare], title="Porownanie sektorow (baza=100)"),
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("Wybierz co najmniej 2 sektory.")

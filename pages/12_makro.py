@@ -134,7 +134,7 @@ with row1_col1:
         tl_color, tl_label = _vix_traffic_light(vix_val)
         macro_card("VIX — Fear Index", f"{vix_val:.2f}", "pkt",
                    _changes_dict(vix_data), tl_color, tl_label)
-        st.plotly_chart(sparkline_chart(vix_data, color="#F59E0B"), use_container_width=True)
+        st.plotly_chart(sparkline_chart(vix_data, color="#F59E0B"), width="stretch")
     else:
         st.warning("Brak danych VIX")
 
@@ -181,7 +181,7 @@ with row1_col2:
             xaxis=dict(visible=False), yaxis=dict(visible=False),
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.warning("Brak danych yield curve")
 
@@ -198,7 +198,7 @@ with row2_col1:
             dxy_color, dxy_label = GREEN, "Slaby dolar"
         macro_card("US Dollar Index (DXY)", f"{dxy_val:.2f}", "pkt",
                    _changes_dict(dxy_data), dxy_color, dxy_label)
-        st.plotly_chart(sparkline_chart(dxy_data, color="#3B82F6"), use_container_width=True)
+        st.plotly_chart(sparkline_chart(dxy_data, color="#3B82F6"), width="stretch")
     else:
         st.warning("Brak danych DXY")
 
@@ -231,7 +231,7 @@ with row2_col2:
             xaxis=dict(visible=False), yaxis=dict(visible=False),
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.warning("Brak danych S&P 500")
 
@@ -249,7 +249,7 @@ with row3_col1:
             g_color, g_label = RED, "Spadkowy"
         macro_card("Zloto (USD/oz)", f"${gld_val:.2f}", "USD",
                    gld_changes, g_color, g_label)
-        st.plotly_chart(sparkline_chart(gld_data, color=GOLD), use_container_width=True)
+        st.plotly_chart(sparkline_chart(gld_data, color=GOLD), width="stretch")
     else:
         st.warning("Brak danych zlota (GC=F)")
 
@@ -266,7 +266,7 @@ with row3_col2:
             o_color, o_label = GREEN, "Niska cena"
         macro_card("Ropa WTI (CL=F)", f"${oil_val:.2f}", "USD",
                    oil_changes, o_color, o_label)
-        st.plotly_chart(sparkline_chart(oil_data, color="#A855F7"), use_container_width=True)
+        st.plotly_chart(sparkline_chart(oil_data, color="#A855F7"), width="stretch")
     else:
         st.warning("Brak danych ropy WTI")
 

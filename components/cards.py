@@ -534,7 +534,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
         showlegend=False,
     )
 
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
 def earnings_history_card(df: pd.DataFrame | None) -> None:

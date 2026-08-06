@@ -78,7 +78,7 @@ if _ok:
         normalize = st.checkbox("Normalizuj (baza = 100)", value=True)
         title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (USD)"
         fig = price_chart(prices, title=title, normalize=normalize)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with tab2:
         # Momentum uzywa pelnych danych (nie przycinanych), zeby rolling mial wystarczajaco historii
@@ -87,10 +87,10 @@ if _ok:
         default_window = min(252, max_window)
         window = st.slider("Okno momentum (dni)", 21, max_window, default_window, step=21)
         fig = momentum_chart(mom_data, window=window, title=f"Momentum {window}D (rolling)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with tab3:
         fig = drawdown_chart(prices)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 render_footer()

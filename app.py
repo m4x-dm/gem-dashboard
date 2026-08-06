@@ -65,7 +65,7 @@ for row_start in range(0, len(cards), 3):
                     )
                 else:
                     st.html(f'<div style="font-size:28px;margin-bottom:4px;">{icon}</div>')
-                st.page_link(page, label=f"**{title}**", use_container_width=True)
+                st.page_link(page, label=f"**{title}**", width="stretch")
                 st.caption(desc)
 
 # CSS — stylowanie kart

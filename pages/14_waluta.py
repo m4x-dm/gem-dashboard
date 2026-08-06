@@ -74,7 +74,7 @@ with tab1:
     ))
     fig.update_layout(**_base_layout("Kurs USD/PLN", height=450))
     fig.update_yaxes(title_text="PLN za 1 USD")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Metrics
     rets = latest_returns(pd.DataFrame({"USDPLN": usdpln}))
@@ -182,7 +182,7 @@ with tab3:
             fig.update_layout(**_base_layout(f"{overlay_ticker} vs USD/PLN (baza=100)", height=450))
             fig.update_yaxes(title_text=f"{overlay_ticker} (baza=100)", secondary_y=False)
             fig.update_yaxes(title_text="USD/PLN (baza=100)", secondary_y=True)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.warning("Za malo wspolnych dat.")
 

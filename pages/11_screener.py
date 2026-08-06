@@ -162,7 +162,7 @@ for col in ["1M", "3M", "6M", "12M", "Wynik"]:
 
 display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
+st.dataframe(display_df, width="stretch", hide_index=True, height=500)
 
 # ---------------------------------------------------------------------------
 # Bar chart colored by asset class
@@ -194,7 +194,7 @@ for cls, color in CLASS_COLORS.items():
             marker_color=color, showlegend=True,
         ))
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # CSV export

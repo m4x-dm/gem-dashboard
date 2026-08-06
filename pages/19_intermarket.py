@@ -69,7 +69,7 @@ with tab1:
     st.plotly_chart(
         price_chart(prices[available].rename(columns=INTERMARKET),
                     title="Intermarket — baza = 100"),
-        use_container_width=True,
+        width="stretch",
     )
 
 with tab2:
@@ -101,7 +101,7 @@ with tab2:
                           line_width=1, annotation_text=f"Srednia: {mean_val:.2f}")
             fig.update_layout(**_base_layout(f"Ratio {name1} / {name2}", height=450))
             fig.update_yaxes(title_text="Ratio")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Interpretation
             current = ratio.iloc[-1]
@@ -144,7 +144,7 @@ with tab3:
                 f"Rolling {window}D korelacja: {INTERMARKET.get(t1_sel, t1_sel)} vs {INTERMARKET.get(t2_sel, t2_sel)}",
                 height=400))
             fig.update_yaxes(title_text="Korelacja", range=[-1, 1])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             current_corr = rolling_corr.iloc[-1]
             if current_corr > 0.5:
@@ -164,7 +164,7 @@ with tab4:
         corr = correlation_matrix(avail_prices.rename(columns=INTERMARKET), period=corr_period)
         st.plotly_chart(
             correlation_heatmap(corr, title=f"Macierz korelacji ({corr_period} dni)"),
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.warning("Za malo danych dla wybranego okresu korelacji.")
@@ -305,7 +305,7 @@ with tab6:
         fig.update_layout(**_base_layout(
             f"Rolling {strat_window}D korelacja miedzy strategiami", height=450))
         fig.update_yaxes(title_text="Korelacja", range=[-1, 1])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Aktualne wartosci
         st.markdown("#### Aktualne korelacje")

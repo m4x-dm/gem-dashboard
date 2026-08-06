@@ -223,7 +223,7 @@ with tab1:
                 display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
             display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
-            st.dataframe(display_df, use_container_width=True, height=min(700, 40 + len(display_df) * 35))
+            st.dataframe(display_df, width="stretch", height=min(700, 40 + len(display_df) * 35))
 
             # Eksport CSV
             csv = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
@@ -236,7 +236,7 @@ with tab1:
             valid = filtered.dropna(subset=["Wynik"])
             if not valid.empty:
                 fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum GPW")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
     _ranking_fragment()
 
@@ -289,16 +289,16 @@ with tab2:
                 normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="gpw_norm")
                 title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (PLN)"
                 fig = price_chart(chart_prices, title=title, normalize=normalize)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             with sub2:
                 window = st.slider("Okno momentum (dni)", 21, 504, 252, step=21, key="gpw_mom_win")
                 fig = momentum_chart(chart_prices, window=window, title=f"Momentum {window}D (rolling)")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             with sub3:
                 fig = drawdown_chart(chart_prices)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
 # ========================== TAB 3: POROWNANIE ==========================
 with tab3:
@@ -380,7 +380,7 @@ with tab3:
             # Overlay cenowy
             st.markdown("#### Cena znormalizowana (baza = 100)")
             fig = price_chart(cmp_prices, title=f"Porownanie cenowe — {cmp_period_label}")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             st.divider()
 
@@ -401,7 +401,7 @@ with tab3:
             st.markdown("#### Macierz korelacji (252 dni)")
             corr = correlation_matrix(cmp_prices, period=252)
             fig = correlation_heatmap(corr)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 # ========================== TAB 4: BACKTEST ==========================
 with tab4:
@@ -498,7 +498,7 @@ with tab4:
                 # Krzywa kapitalu
                 st.markdown("#### Krzywa kapitalu")
                 fig = equity_chart(result["equity_curves"])
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Statystyki z rf
                 rf = get_risk_free()
@@ -557,7 +557,7 @@ with tab5:
                     rs_data = relative_strength(rs_prices_gpw[t].dropna(), wig20_data)
                     if not rs_data.empty:
                         fig = rs_chart(rs_data, t.replace(".WA", ""), "WIG20")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
         else:
             st.warning("Nie udalo sie pobrac danych WIG20.")
     else:
@@ -669,7 +669,7 @@ with tab6:
         edited = st.data_editor(
             df_display,
             height=500,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
             },

@@ -215,7 +215,7 @@ with col_b:
             margin=dict(l=40, r=80, t=60, b=40),
             showlegend=False,
         )
-        st.plotly_chart(fig_b, use_container_width=True)
+        st.plotly_chart(fig_b, width="stretch")
     else:
         st.caption("Brak net buyers po filtrach.")
 
@@ -243,7 +243,7 @@ with col_s:
             margin=dict(l=40, r=80, t=60, b=40),
             showlegend=False,
         )
-        st.plotly_chart(fig_s, use_container_width=True)
+        st.plotly_chart(fig_s, width="stretch")
     else:
         st.caption("Brak net sellers po filtrach.")
 
@@ -280,7 +280,7 @@ display_cols_with_star = ["⭐"] + display_cols
 
 edited = st.data_editor(
     display[display_cols_with_star],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     column_config={
         "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
@@ -327,7 +327,7 @@ if not sector_agg.empty:
         margin=dict(l=40, r=80, t=60, b=40),
         showlegend=False,
     )
-    st.plotly_chart(fig_sec, use_container_width=True)
+    st.plotly_chart(fig_sec, width="stretch")
 else:
     st.caption("Brak danych sektorowych po filtrach.")
 

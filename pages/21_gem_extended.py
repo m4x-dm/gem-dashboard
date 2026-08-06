@@ -239,7 +239,7 @@ if hist:
     hist_df = pd.DataFrame([
         {"Data": d.date(), "Holdings": " + ".join(h)} for d, h in hist
     ])
-    st.dataframe(hist_df, hide_index=True, use_container_width=True)
+    st.dataframe(hist_df, hide_index=True, width="stretch")
     st.caption(f"Lacznie {len(hist)} zmian holdings w {len(res['equity'])/252:.1f}-letnim oknie "
                f"(~{len(hist)/(len(res['equity'])/252):.1f} zmian/rok).")
 

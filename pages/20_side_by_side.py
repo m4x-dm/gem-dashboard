@@ -103,9 +103,9 @@ col_left, col_right = st.columns(2)
 with col_left:
     st.markdown(f"#### {ticker_a}")
     fig = price_chart(prices[[ticker_a]], title=f"Cena — {ticker_a}", normalize=True)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     fig = drawdown_chart(prices[[ticker_a]], title=f"Drawdown — {ticker_a}")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     s_a = calc_stats(prices[ticker_a].dropna(), 252, rf_decimal)
     stats_table({ticker_a: s_a})
@@ -113,9 +113,9 @@ with col_left:
 with col_right:
     st.markdown(f"#### {ticker_b}")
     fig = price_chart(prices[[ticker_b]], title=f"Cena — {ticker_b}", normalize=True)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     fig = drawdown_chart(prices[[ticker_b]], title=f"Drawdown — {ticker_b}")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     s_b = calc_stats(prices[ticker_b].dropna(), 252, rf_decimal)
     stats_table({ticker_b: s_b})
@@ -131,14 +131,14 @@ with col1:
     st.markdown("#### Korelacja")
     corr = correlation_matrix(prices, period=252)
     fig = correlation_heatmap(corr, title="Macierz korelacji")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col2:
     st.markdown("#### Relative Strength")
     rs_data = relative_strength(prices[ticker_a].dropna(), prices[ticker_b].dropna())
     if not rs_data.empty:
         fig = rs_chart(rs_data, ticker_a, ticker_b)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("Za malo wspolnych danych do RS.")
 

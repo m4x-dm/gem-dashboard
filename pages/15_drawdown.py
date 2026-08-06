@@ -76,7 +76,7 @@ with tab1:
 
     fig.update_layout(**_base_layout(f"{ticker} — spadki od szczytu", height=450))
     fig.update_yaxes(title_text="%")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Current drawdown
     current_dd = dd.iloc[-1]
@@ -99,7 +99,7 @@ with tab2:
         display_df["days_down"] = display_df["days_down"].apply(lambda d: f"{d} dni" if pd.notna(d) else "—")
         display_df["days_recovery"] = display_df["days_recovery"].apply(lambda d: f"{d} dni" if pd.notna(d) else "trwa...")
         display_df.columns = ["Szczyt", "Dolina", "Odbudowa", "Glebia", "Spadek (dni)", "Odbudowa (dni)"]
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(display_df, width="stretch")
 
 with tab3:
     st.subheader("Porownanie drawdownow")
@@ -113,7 +113,7 @@ with tab3:
         if not compare_prices.empty:
             st.plotly_chart(
                 drawdown_chart(compare_prices, title="Porownanie drawdownow"),
-                use_container_width=True,
+                width="stretch",
             )
 
             # Summary: max DD per ticker
@@ -145,7 +145,7 @@ with tab4:
             fig.update_layout(**_base_layout("Rozklad glebokosci drawdownow (%)", height=350))
             fig.update_xaxes(title_text="Glebia (%)")
             fig.update_yaxes(title_text="Liczba")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             durations = top_dd["days_down"].dropna().values
@@ -158,7 +158,7 @@ with tab4:
             fig.update_layout(**_base_layout("Rozklad dlugosci spadkow (dni)", height=350))
             fig.update_xaxes(title_text="Dni")
             fig.update_yaxes(title_text="Liczba")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
     else:
         st.info("Za malo drawdownow do wyswietlenia histogramu.")
 
