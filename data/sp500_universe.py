@@ -2,6 +2,8 @@
 
 SP500_SECTORS = {
     "Information Technology": {
+        "ANET": "Arista Networks",
+        "INTC": "Intel Corp.",
         "AAPL": "Apple Inc.",
         "MSFT": "Microsoft Corp.",
         "NVDA": "NVIDIA Corp.",
@@ -130,6 +132,8 @@ SP500_SECTORS = {
         "SOLV": "Solventum Corp.",
     },
     "Financials": {
+        "BX": "Blackstone Inc.",
+        "MMC": "Marsh & McLennan",
         "BRK-B": "Berkshire Hathaway B",
         "JPM": "JPMorgan Chase",
         "V": "Visa Inc.",
@@ -263,6 +267,7 @@ SP500_SECTORS = {
         "FOXA": "Fox Corp. A",
     },
     "Industrials": {
+        "UBER": "Uber Technologies",
         "GE": "GE Aerospace",
         "CAT": "Caterpillar Inc.",
         "RTX": "RTX Corp.",

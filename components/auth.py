@@ -31,6 +31,7 @@ PAGE_INFO = {
     21: ("\U0001f680", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
     22: ("📅", "Earnings Calendar", "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlist"),
     23: ("👥", "Insider Screener", "Bulk insider activity SP500 — top buyers/sellers, sektory, beat streak"),
+    24: ("🎯", "Top Picks", "Miesieczna piatka spolek SP500 + GPW z regula momentum i track recordem"),
 }
 
 # Link do zakupu na Naffy (do uzupelnienia po stworzeniu produktu)
