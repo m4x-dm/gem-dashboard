@@ -1,0 +1,101 @@
+{
+  "2026-08-01": {
+    "generated_at": "2026-08-06T13:36:10Z",
+    "asof": "2026-08-06",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.9745,
+        "entry_price": 893.19,
+        "entry_date": "2026-08-05",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "AMAT",
+        "group": "Information Technology",
+        "score": 0.9398,
+        "entry_price": 534.24,
+        "entry_date": "2026-08-05",
+        "weight": 0.2,
+        "name": "Applied Materials"
+      },
+      {
+        "ticker": "UNH",
+        "group": "Health Care",
+        "score": 0.8163,
+        "entry_price": 412.75,
+        "entry_date": "2026-08-05",
+        "weight": 0.2,
+        "name": "UnitedHealth Group"
+      },
+      {
+        "ticker": "GE",
+        "group": "Industrials",
+        "score": 0.8051,
+        "entry_price": 381.22,
+        "entry_date": "2026-08-05",
+        "weight": 0.2,
+        "name": "GE Aerospace"
+      },
+      {
+        "ticker": "JNJ",
+        "group": "Health Care",
+        "score": 0.7918,
+        "entry_price": 257.59,
+        "entry_date": "2026-08-05",
+        "weight": 0.2,
+        "name": "Johnson & Johnson"
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "ASB.WA",
+        "group": "Technologia",
+        "score": 0.9618,
+        "entry_price": 112.3,
+        "entry_date": "2026-08-06",
+        "weight": 0.2,
+        "name": "ASBISc Enterprises"
+      },
+      {
+        "ticker": "GPW.WA",
+        "group": "Finanse",
+        "score": 0.8294,
+        "entry_price": 102.3,
+        "entry_date": "2026-08-06",
+        "weight": 0.2,
+        "name": "GPW"
+      },
+      {
+        "ticker": "CRI.WA",
+        "group": "Przemysl",
+        "score": 0.8206,
+        "entry_price": 723.0,
+        "entry_date": "2026-08-06",
+        "weight": 0.2,
+        "name": "Creotech Instruments"
+      },
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.7971,
+        "entry_price": 164.04,
+        "entry_date": "2026-08-06",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "SNT.WA",
+        "group": "Ochrona zdrowia",
+        "score": 0.7941,
+        "entry_price": 370.2,
+        "entry_date": "2026-08-06",
+        "weight": 0.2,
+        "name": "Synektik"
+      }
+    ]
+  }
+}

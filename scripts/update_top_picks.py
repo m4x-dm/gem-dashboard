@@ -47,7 +47,10 @@ MARKETS = {
         # a filtr plynnosci zbija sWIG80 do zera (zostaja 2 grupy = sufit 4 pozycji).
         "groups": GPW_SECTOR_MAP,
         "names": GPW_NAMES,
-        "benchmark": "WIG20.WA",
+        # yfinance nie ma historii indeksow GPW (zwraca 1 wiersz) — benchmark
+        # leci przez stooq.com z fallbackiem na data/cache/wig20.csv.
+        "benchmark": "WIG20",
+        "benchmark_source": "stooq",
     },
 }
 
@@ -94,6 +97,27 @@ def download(tickers: list[str], period: str = "12y") -> tuple[pd.DataFrame, pd.
         if hasattr(frame.index, "tz") and frame.index.tz is not None:
             frame.index = frame.index.tz_localize(None)
     return close_df.dropna(how="all"), volume_df.dropna(how="all")
+
+
+def fetch_benchmark(cfg: dict, index: pd.DatetimeIndex) -> pd.Series | None:
+    """Benchmark rynku, znormalizowany do 10 000 na pierwszej dacie `index`.
+
+    GPW idzie przez stooq (yfinance nie ma historii indeksow WIG) — z fallbackiem
+    na data/cache/*.csv, ktory dziala takze gdy stooq zablokuje IP runnera.
+    """
+    if cfg.get("benchmark_source") == "stooq":
+        from data.downloader import download_stooq
+        series = download_stooq(cfg["benchmark"], period="15y")
+    else:
+        frame, _ = download([cfg["benchmark"]], period="12y")
+        series = None if frame.empty else frame.iloc[:, 0]
+
+    if series is None or series.empty:
+        return None
+    aligned = series.reindex(index, method="ffill").dropna()
+    if aligned.empty or float(aligned.iloc[0]) == 0:
+        return None
+    return aligned.reindex(index, method="ffill") / float(aligned.iloc[0]) * 10000.0
 
 
 def validate(market: str, tickers: list[str], prices: pd.DataFrame,
@@ -178,19 +202,28 @@ def main() -> None:
         equity = tp.simulate_rule(prices, volumes, cfg["groups"], start=start,
                                   min_turnover=tp.MIN_TURNOVER[market],
                                   top_n=args.top_n, max_per_group=args.max_per_group)
-        bench_prices, _ = download([cfg["benchmark"]], period="12y")
-        if bench_prices.empty or equity.empty:
-            print(f"  symulacja pominieta ({market}): brak danych", flush=True)
+        if equity.empty:
+            print(f"  symulacja pominieta ({market}): pusta krzywa", flush=True)
             continue
-        bench = bench_prices.iloc[:, 0].reindex(equity.index, method="ffill")
-        bench = bench / bench.iloc[0] * 10000.0
+
+        bench = fetch_benchmark(cfg, equity.index)
         stats = calc_stats(equity, trading_days=12)   # seria miesieczna
-        hits = float((equity.pct_change() > bench.pct_change()).mean())
+        if bench is None:
+            # Brak benchmarku nie moze kasowac calej symulacji — sekcja 3 jest
+            # wartosciowa takze sama krzywa reguly.
+            print(f"  UWAGA ({market}): brak benchmarku {cfg['benchmark']}, "
+                  f"symulacja bez porownania", flush=True)
+            hits = 0.0
+            bench_values = []
+        else:
+            hits = float((equity.pct_change() > bench.pct_change()).mean())
+            bench_values = [round(float(v), 2) for v in bench.values]
+
         sim[market] = {
             "dates": [d.strftime("%Y-%m-%d") for d in equity.index],
             "equity": [round(float(v), 2) for v in equity.values],
-            "benchmark": [round(float(v), 2) for v in bench.values],
-            "benchmark_name": cfg["benchmark"],
+            "benchmark": bench_values,
+            "benchmark_name": cfg["benchmark"] if bench is not None else None,
             "stats": {
                 # UWAGA: calc_stats zwraca klucz "Max Drawdown", nie "Max DD"
                 "cagr": round(float(stats.get("CAGR", 0)), 4),

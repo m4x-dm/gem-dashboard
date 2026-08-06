@@ -174,10 +174,12 @@ with st.expander("🔬 Symulacja reguly wstecz — przeczytaj zastrzezenie", exp
             if not block:
                 continue
             index = pd.DatetimeIndex(block["dates"])
-            curves = {
-                f"Regula {label}": pd.Series(block["equity"], index=index),
-                block.get("benchmark_name", "Benchmark"): pd.Series(block["benchmark"], index=index),
-            }
+            curves = {f"Regula {label}": pd.Series(block["equity"], index=index)}
+            bench_name = block.get("benchmark_name")
+            bench_values = block.get("benchmark") or []
+            has_bench = bool(bench_name) and len(bench_values) == len(index)
+            if has_bench:
+                curves[bench_name] = pd.Series(bench_values, index=index)
             stats = block.get("stats", {})
 
             st.markdown(f"#### {label}")
@@ -185,7 +187,8 @@ with st.expander("🔬 Symulacja reguly wstecz — przeczytaj zastrzezenie", exp
             col1.metric("CAGR", fmt_pct(stats.get("cagr")))
             col2.metric("Max DD", fmt_pct(stats.get("max_dd")))
             col3.metric("Sharpe", f"{stats.get('sharpe', 0):.2f}")
-            col4.metric("Trafnosc vs benchmark", fmt_pct(stats.get("hit_rate")))
+            col4.metric("Trafnosc vs benchmark",
+                        fmt_pct(stats.get("hit_rate")) if has_bench else "—")
             st.plotly_chart(equity_chart(curves, title=f"Symulacja reguly — {label}"),
                             use_container_width=True)
 

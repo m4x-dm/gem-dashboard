@@ -1,0 +1,38 @@
+name: Top Picks — miesieczny snapshot
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"   # 1. dnia miesiaca, 06:00 UTC
+  workflow_dispatch:       # reczne odpalenie z zakladki Actions
+
+permissions:
+  contents: write          # wystarczy wbudowany GITHUB_TOKEN
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update top picks
+        run: python scripts/update_top_picks.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/top_picks_history.json data/top_picks_sim.json
+          if git diff --staged --quiet; then
+            echo "Brak zmian — nic do commitu"
+          else
+            git commit -m "Top Picks: snapshot $(date +%Y-%m)"
+            git push
+          fi
