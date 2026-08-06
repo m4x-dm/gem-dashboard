@@ -39,7 +39,7 @@ Bezpośrednia geneza: sesja 2026-08-06, ręczna analiza 99 spółek SP500_TOP100
 - `data/top_picks_sim.json` — pochodna symulacja (nadpisywana przy każdym uruchomieniu)
 - `components/auth.py` — `PAGE_INFO[24]`, strona premium
 - `app.py` — karta nawigacyjna
-- `tests/test_top_picks.py` — ~10 testów na syntetycznych ramkach
+- `tests/test_top_picks.py` — 11 testów na syntetycznych ramkach
 - `CLAUDE.md` — sekcja F18
 
 **Poza MVP (v2):**
@@ -229,7 +229,7 @@ Test 5 jest najważniejszy — to on pilnuje, żeby symulacja z sekcji 3 nie osz
 
 ## Definicja ukończenia
 
-- [ ] `data/top_picks.py` + 10 testów przechodzi
+- [ ] `data/top_picks.py` + 11 testów przechodzi
 - [ ] `scripts/update_top_picks.py --dry-run` daje sensowną piątkę dla obu rynków
 - [ ] Pierwszy realny snapshot w `top_picks_history.json`
 - [ ] `top_picks_sim.json` z 10 latami symulacji

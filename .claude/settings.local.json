@@ -23,7 +23,23 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(gh auth status:*)"
+      "Bash(gh auth status:*)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh repo create:*)",
+      "WebFetch(domain:gem-dashboard-c7zoxw2tfqgnfkxm2sup8x.streamlit.app)",
+      "Bash(git push:*)",
+      "WebFetch(domain:)",
+      "Bash(unzip:*)",
+      "Bash(pdftotext:*)",
+      "Bash(# Kill any running streamlit processes taskkill //F //IM streamlit.exe ; taskkill //F //IM python.exe //FI \"\"WINDOWTITLE eq *streamlit*\"\" # Run page 2 directly and capture stderr cd \"\"C:/Users/m4x/Desktop/ICT/bot\"\" && timeout 25 streamlit run app.py --server.headless true --logger.level debug 2>&1)",
+      "Bash(for f in pages/*.py)",
+      "Bash(do echo \"=== $f ===\")",
+      "Bash(done)",
+      "Bash(# Kill all streamlit instances taskkill //F //IM streamlit.exe sleep 2 # Check if port 8501 is still in use netstat -ano)",
+      "Bash(taskkill:*)",
+      "WebFetch(domain:www.wigmarkets.pl)",
+      "Read(//c/Users/m4x/.claude/skills/**)",
+      "Read(//c/Users/m4x/.claude/plugins/**)"
     ]
   }
 }
