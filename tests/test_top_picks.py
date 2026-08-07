@@ -505,3 +505,49 @@ def test_strategie_znaja_swoje_rynki():
     assert tp.STRATEGY_MARKETS["momentum"] == ("sp500", "gpw")
     assert tp.STRATEGY_MARKETS["earnings"] == ("sp500",)
     assert tp.STRATEGY_MARKETS["quality"] == ("sp500", "gpw")
+
+
+# ====== Walidator snapshotu (2026-08-07) ======
+
+def test_validate_snapshot_wykrywa_niepelna_piatke():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=5)
+    assert powod is not None
+    assert "pozycji" in powod
+
+
+def test_validate_snapshot_wykrywa_grupe_znak_zapytania():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "?"}, {"ticker": "BBB", "group": "S1"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=2)
+    assert powod is not None
+    assert "grupy" in powod.lower()
+
+
+def test_validate_snapshot_przepuszcza_poprawny_snapshot():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}, {"ticker": "BBB", "group": "S2"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=2)
+    assert powod is None
+
+
+def test_validate_snapshot_wykrywa_niskie_pokrycie():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA",))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    # 1 ticker z danymi na 10 w universe = 10% pokrycia
+    powod = validate_snapshot("sp500", [f"T{i}" for i in range(10)], prices, picks,
+                              asof=prices.index[-1], top_n=1)
+    assert powod is not None
+    assert "pokrycie" in powod.lower()

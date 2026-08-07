@@ -120,30 +120,35 @@ def fetch_benchmark(cfg: dict, index: pd.DatetimeIndex) -> pd.Series | None:
     return aligned.reindex(index, method="ffill") / float(aligned.iloc[0]) * 10000.0
 
 
-def validate(market: str, tickers: list[str], prices: pd.DataFrame,
-             picks: list[dict], asof: pd.Timestamp, top_n: int) -> None:
-    """Twarda walidacja. Kazdy blad = sys.exit(1) BEZ zapisu.
+def validate_snapshot(market: str, tickers: list[str], prices: pd.DataFrame,
+                      picks: list[dict], asof: pd.Timestamp,
+                      top_n: int) -> str | None:
+    """Waliduje snapshot. Zwraca powod odrzucenia albo None gdy OK.
 
     Pusty lub czesciowy snapshot klamie w sekcji "Wyniki live" na zawsze —
-    brak wpisu jest mniej szkodliwy niz wpis nieprawdziwy.
+    brak wpisu jest mniej szkodliwy niz wpis nieprawdziwy. Wywolujacy decyduje,
+    czy odrzucenie ma zabic caly run (momentum), czy tylko pominac te
+    strategie (earnings, quality).
     """
     coverage = len(prices.columns) / max(len(tickers), 1)
     if coverage < MIN_COVERAGE:
-        sys.exit(f"[{market}] BLAD: pokrycie danych {coverage:.0%} < {MIN_COVERAGE:.0%}")
+        return f"[{market}] pokrycie danych {coverage:.0%} < {MIN_COVERAGE:.0%}"
 
     staleness = (asof - prices.index[-1]).days
     if staleness > MAX_STALENESS_DAYS:
-        sys.exit(f"[{market}] BLAD: ostatnia sesja {prices.index[-1].date()} "
-                 f"starsza o {staleness} dni od asof {asof.date()}")
+        return (f"[{market}] ostatnia sesja {prices.index[-1].date()} "
+                f"starsza o {staleness} dni od asof {asof.date()}")
 
     if len(picks) != top_n:
-        sys.exit(f"[{market}] BLAD: regula zwrocila {len(picks)} pozycji zamiast {top_n}")
+        return f"[{market}] regula zwrocila {len(picks)} pozycji zamiast {top_n}"
 
     unknown = [p["ticker"] for p in picks if p["group"] == "?"]
     if unknown:
         # Brakujacy wpis w mapie grup wrzuca spolki do wspolnego kubelka "?",
-        # co po cichu psuje limit koncentracji. Lepiej zatrzymac sie glosno.
-        sys.exit(f"[{market}] BLAD: brak grupy dla {unknown} — uzupelnij mape sektorow")
+        # co po cichu psuje limit koncentracji.
+        return f"[{market}] brak grupy dla {unknown} — uzupelnij mape sektorow"
+
+    return None
 
 
 def main() -> None:
@@ -186,7 +191,10 @@ def main() -> None:
         picks = tp.select_picks(prices, volumes, cfg["groups"], asof,
                                 top_n=args.top_n, max_per_group=args.max_per_group,
                                 min_turnover=tp.MIN_TURNOVER[market])
-        validate(market, cfg["tickers"], prices, picks, today, args.top_n)
+        reason = validate_snapshot(market, cfg["tickers"], prices, picks,
+                                   today, args.top_n)
+        if reason:
+            sys.exit(f"BLAD: {reason}")
 
         for pick in picks:
             pick["name"] = cfg["names"].get(pick["ticker"], "")
