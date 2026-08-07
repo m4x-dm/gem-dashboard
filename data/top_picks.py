@@ -7,7 +7,9 @@ odpalic w GitHub Action i w testach bez runtime'u Streamlita.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 
@@ -24,6 +26,34 @@ MIN_TURNOVER = {
     "sp500": 50_000_000.0,   # USD
     "gpw": 5_000_000.0,      # PLN
 }
+
+
+@dataclass(frozen=True)
+class Scorer:
+    """Wymienna funkcja rankingujaca dla select_picks().
+
+    Attributes:
+        name: identyfikator do logow i komunikatow bledow
+        supports_asof: czy scorer potrafi policzyc ranking NA DANY DZIEN.
+            False dla scorerow fundamentalnych — yfinance zwraca stan na dzis
+            niezaleznie od zadanej daty, wiec uzycie ich w simulate_rule()
+            dalo by lookahead bias. simulate_rule() to sprawdza i odmawia.
+        fn: (eligible_tickers, prices_do_asof, asof) -> Series ticker -> score.
+            Wyzszy score = lepiej. NaN i braki sa pomijane.
+    """
+    name: str
+    supports_asof: bool
+    fn: Callable[[list[str], pd.DataFrame, pd.Timestamp], pd.Series]
+
+
+def _momentum_scores(eligible: list[str], px: pd.DataFrame,
+                     asof: pd.Timestamp) -> pd.Series:
+    """Regula F18: rank_based_score na zwrotach 12M/6M/3M/1M z anti_1m."""
+    rets = latest_returns(px[eligible])
+    return rank_based_score(rets, weights=DEFAULT_WEIGHTS, anti_1m=True)
+
+
+MOMENTUM_SCORER = Scorer(name="momentum", supports_asof=True, fn=_momentum_scores)
 
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
@@ -58,26 +88,29 @@ def _eligible(prices: pd.DataFrame, volumes: pd.DataFrame,
 def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
                  groups: dict[str, str], asof,
                  top_n: int = 5, max_per_group: int = 2,
-                 min_turnover: float = 0.0) -> list[dict]:
-    """Wybiera top_n spolek na dzien asof wg reguly F18.
+                 min_turnover: float = 0.0,
+                 scorer: Scorer | None = None) -> list[dict]:
+    """Wybiera top_n spolek na dzien asof.
 
     1. filtr historii (>= MIN_HISTORY sesji) i plynnosci (mediana obrotu 60d)
-    2. latest_returns() -> rank_based_score() (12M 40 / 6M 30 / 3M 20 / 1M 10, anti_1m)
+    2. scorer.fn() -> ranking (domyslnie MOMENTUM_SCORER)
     3. schodzenie po rankingu z limitem max_per_group na grupe
     4. rowne wagi
 
     Args:
         prices: ceny close (kolumny = tickery)
         volumes: wolumeny w tym samym ukladzie
-        groups: ticker -> grupa (sektor GICS dla SP500, indeks dla GPW)
+        groups: ticker -> grupa (sektor GICS dla SP500, sektor dla GPW)
         asof: data, NA KTORA liczymy — dane po niej sa ignorowane
         top_n: ile pozycji w portfelu
         max_per_group: ile maksymalnie spolek z jednej grupy
         min_turnover: prog mediany dziennego obrotu (w walucie notowania)
+        scorer: wymienna regula rankingujaca; None = MOMENTUM_SCORER
 
     Returns:
         Lista dictow gotowa do serializacji do JSON. Pusta, gdy brak kandydatow.
     """
+    scorer = scorer or MOMENTUM_SCORER
     asof = pd.Timestamp(asof)
     px = prices.loc[:asof]
     if px.empty:
@@ -87,13 +120,16 @@ def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
     if not eligible:
         return []
 
-    rets = latest_returns(px[eligible])
-    scores = rank_based_score(rets, weights=DEFAULT_WEIGHTS, anti_1m=True).dropna()
-    scores = scores.sort_values(ascending=False)
+    scores = scorer.fn(eligible, px, asof)
+    if scores is None or len(scores) == 0:
+        return []
+    scores = scores.dropna().sort_values(ascending=False)
 
     picks: list[dict] = []
     counts: dict[str, int] = {}
     for ticker, score in scores.items():
+        if ticker not in px.columns:
+            continue
         group = groups.get(ticker, "?")
         if counts.get(group, 0) >= max_per_group:
             continue

@@ -215,3 +215,64 @@ def test_simulate_rule_zwraca_miesieczna_serie_i_reaguje_na_koszty():
     assert isinstance(bez_kosztow.index, pd.DatetimeIndex)
     assert float(z_kosztami.iloc[-1]) < float(bez_kosztow.iloc[-1]), \
         "koszty transakcyjne nie obnizyly wyniku"
+
+
+# ====== Scorer (2026-08-07) ======
+
+def test_select_picks_bez_scorera_zachowuje_sie_jak_dotad():
+    """Kontrakt wstecznej zgodnosci: brak kwargu scorer == MOMENTUM_SCORER."""
+    tickers = tuple(f"T{i}" for i in range(8))
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    domyslny = tp.select_picks(prices, vols, groups, prices.index[-1], top_n=5)
+    jawny = tp.select_picks(prices, vols, groups, prices.index[-1], top_n=5,
+                            scorer=tp.MOMENTUM_SCORER)
+
+    assert [p["ticker"] for p in domyslny] == [p["ticker"] for p in jawny]
+    assert [p["score"] for p in domyslny] == [p["score"] for p in jawny]
+
+
+def test_select_picks_uzywa_wstrzyknietego_scorera():
+    """Scorer decyduje o kolejnosci; reszta reguly (limit, wagi) bez zmian."""
+    tickers = ("AAA", "BBB", "CCC", "DDD", "EEE", "FFF")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    # Odwrotnosc alfabetu: FFF najlepsze, AAA najgorsze
+    def _fake(eligible, px, asof):
+        return pd.Series({t: i / 10 for i, t in enumerate(sorted(eligible))})
+
+    scorer = tp.Scorer(name="fake", supports_asof=True, fn=_fake)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1],
+                            top_n=3, scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["FFF", "EEE", "DDD"]
+    assert sum(p["weight"] for p in picks) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_select_picks_scorer_z_pustym_wynikiem_zwraca_pusta_liste():
+    tickers = ("AAA", "BBB")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: "S" for t in tickers}
+
+    scorer = tp.Scorer(name="pusty", supports_asof=True,
+                       fn=lambda eligible, px, asof: pd.Series(dtype=float))
+    assert tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer) == []
+
+
+def test_select_picks_scorer_z_nan_pomija_ticker():
+    tickers = ("AAA", "BBB", "CCC")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    def _z_nanem(eligible, px, asof):
+        return pd.Series({"AAA": 0.9, "BBB": float("nan"), "CCC": 0.5})
+
+    scorer = tp.Scorer(name="nan", supports_asof=True, fn=_z_nanem)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer)
+    assert [p["ticker"] for p in picks] == ["AAA", "CCC"]
