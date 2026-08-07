@@ -1,0 +1,54 @@
+{
+  "2026-08-01": {
+    "generated_at": "2026-08-07T14:11:59Z",
+    "asof": "2026-08-07",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "INTC",
+        "group": "Information Technology",
+        "score": 0.8561,
+        "entry_price": 98.5601,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Intel Corp."
+      },
+      {
+        "ticker": "GS",
+        "group": "Financials",
+        "score": 0.8348,
+        "entry_price": 1035.8149,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Goldman Sachs"
+      },
+      {
+        "ticker": "REGN",
+        "group": "Health Care",
+        "score": 0.8329,
+        "entry_price": 778.24,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Regeneron Pharmaceuticals"
+      },
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.8142,
+        "entry_price": 849.425,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "CAT",
+        "group": "Industrials",
+        "score": 0.7948,
+        "entry_price": 840.28,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Caterpillar Inc."
+      }
+    ]
+  }
+}
