@@ -1,0 +1,101 @@
+{
+  "2026-08-01": {
+    "generated_at": "2026-08-07T14:11:59Z",
+    "asof": "2026-08-07",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "NVDA",
+        "group": "Information Technology",
+        "score": 0.9826,
+        "entry_price": 221.51,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "NVIDIA Corp."
+      },
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.9668,
+        "entry_price": 849.425,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "GOOGL",
+        "group": "Communication Services",
+        "score": 0.8641,
+        "entry_price": 356.14,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Alphabet Inc. (A)"
+      },
+      {
+        "ticker": "BLK",
+        "group": "Financials",
+        "score": 0.7882,
+        "entry_price": 1138.36,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "BlackRock Inc."
+      },
+      {
+        "ticker": "LLY",
+        "group": "Health Care",
+        "score": 0.7865,
+        "entry_price": 1188.5,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Eli Lilly & Co."
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.9372,
+        "entry_price": 168.9,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "ING.WA",
+        "group": "Banki",
+        "score": 0.8413,
+        "entry_price": 444.6,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "ING Bank Slaski"
+      },
+      {
+        "ticker": "SNT.WA",
+        "group": "Ochrona zdrowia",
+        "score": 0.8286,
+        "entry_price": 358.2,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "Synektik"
+      },
+      {
+        "ticker": "GPW.WA",
+        "group": "Finanse",
+        "score": 0.793,
+        "entry_price": 106.0,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "GPW"
+      },
+      {
+        "ticker": "KGH.WA",
+        "group": "Surowce",
+        "score": 0.7693,
+        "entry_price": 353.0,
+        "entry_date": "2026-08-07",
+        "weight": 0.2,
+        "name": "KGHM Polska Miedz"
+      }
+    ]
+  }
+}

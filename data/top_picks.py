@@ -7,15 +7,32 @@ odpalic w GitHub Action i w testach bez runtime'u Streamlita.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 
 from data.momentum import latest_returns, rank_based_score
 
-# Wersja reguly — podbij przy KAZDEJ zmianie parametrow ponizej.
-# Snapshoty z roznymi wersjami nie sa ze soba porownywalne.
-RULE_VERSION = 1
+# Wersja reguly PER STRATEGIA — podbij przy KAZDEJ zmianie parametrow danej
+# reguly. Snapshoty z roznymi wersjami tej samej strategii nie sa porownywalne.
+RULE_VERSIONS = {
+    "momentum": 1,
+    "earnings": 1,
+    "quality": 1,
+}
+
+# Wsteczna zgodnosc: kod sprzed 2026-08-07 czyta RULE_VERSION jako int.
+RULE_VERSION = RULE_VERSIONS["momentum"]
+
+# Ktore rynki obsluguje ktora strategia. Earnings jest SP500-only: yfinance
+# nie ma historii EPS dla ~80% GPW (pomiar 2026-08-07, probka 30 spolek).
+STRATEGY_MARKETS = {
+    "momentum": ("sp500", "gpw"),
+    "earnings": ("sp500",),
+    "quality": ("sp500", "gpw"),
+}
 
 DEFAULT_WEIGHTS = {"12M": 0.40, "6M": 0.30, "3M": 0.20, "1M": 0.10}
 MIN_HISTORY = 273        # okno momentum 12-1 (13 miesiecy)
@@ -25,9 +42,193 @@ MIN_TURNOVER = {
     "gpw": 5_000_000.0,      # PLN
 }
 
+
+@dataclass(frozen=True)
+class Scorer:
+    """Wymienna funkcja rankingujaca dla select_picks().
+
+    Attributes:
+        name: identyfikator do logow i komunikatow bledow
+        supports_asof: czy scorer potrafi policzyc ranking NA DANY DZIEN.
+            False dla scorerow fundamentalnych — yfinance zwraca stan na dzis
+            niezaleznie od zadanej daty, wiec uzycie ich w simulate_rule()
+            dalo by lookahead bias. simulate_rule() to sprawdza i odmawia.
+        fn: (eligible_tickers, prices_do_asof, asof) -> Series ticker -> score.
+            Wyzszy score = lepiej. NaN i braki sa pomijane.
+    """
+    name: str
+    supports_asof: bool
+    fn: Callable[[list[str], pd.DataFrame, pd.Timestamp], pd.Series]
+
+
+def _momentum_scores(eligible: list[str], px: pd.DataFrame,
+                     asof: pd.Timestamp) -> pd.Series:
+    """Regula F18: rank_based_score na zwrotach 12M/6M/3M/1M z anti_1m."""
+    rets = latest_returns(px[eligible])
+    return rank_based_score(rets, weights=DEFAULT_WEIGHTS, anti_1m=True)
+
+
+MOMENTUM_SCORER = Scorer(name="momentum", supports_asof=True, fn=_momentum_scores)
+
+
+# ====== Scorery fundamentalne (forward-only) ======
+#
+# Import data.financials siedzi WEWNATRZ funkcji, nie na gorze modulu:
+# financials importuje streamlita, a ten modul ma zostac importowalny bez
+# niego (testy F18 i GitHub Action).
+
+EARNINGS_WEIGHTS = {"beat_streak": 0.40, "surprise": 0.35, "revision": 0.25}
+QUALITY_WEIGHTS = {"roe": 0.30, "margin": 0.25, "growth": 0.25, "debt": 0.20}
+
+
+def _weighted_percentiles(components: dict[str, pd.Series],
+                          weights: dict[str, float],
+                          index: list[str]) -> pd.Series:
+    """Wazona srednia percentyli, z renormalizacja wag do dostepnych komponentow.
+
+    Kazdy komponent jest osobno przeliczany na percentyl (0-1, wyzej = lepiej),
+    zeby jednostki (procenty, krotnosci, licznik kwartalow) byly porownywalne.
+    Spolka z czescia komponentow dostaje srednia z tego, co ma — wzorzec
+    _flexible_score() z momentum.py. Spolka bez zadnego komponentu = NaN.
+    """
+    ranks: dict[str, pd.Series] = {}
+    for key, series in components.items():
+        clean = pd.to_numeric(series, errors="coerce").reindex(index).dropna()
+        if clean.empty:
+            continue
+        ranks[key] = clean.rank(pct=True)
+
+    if not ranks:
+        return pd.Series(float("nan"), index=index)
+
+    total = pd.Series(0.0, index=index)
+    used = pd.Series(0.0, index=index)
+    for key, rank in ranks.items():
+        weight = weights[key]
+        aligned = rank.reindex(index)
+        contribution = (aligned * weight).fillna(0.0)
+        total += contribution
+        used += aligned.notna().astype(float) * weight
+
+    out = total / used.replace(0.0, float("nan"))
+    return out
+
+
+def make_earnings_scorer(history_fn=None, trend_fn=None) -> Scorer:
+    """Scorer 'Earnings Momentum' — beat streak + zaskoczenie EPS + rewizje.
+
+    Args:
+        history_fn: (tuple[str]) -> DataFrame z ticker/beat_streak/eps_surprise_pct.
+            None = bulk_fetch_earnings_history z data.financials.
+        trend_fn: (tuple[str]) -> DataFrame z ticker/revision_90d_pct.
+            None = bulk_fetch_earnings_trend z data.financials.
+
+    supports_asof=False — yfinance oddaje stan na dzis, nie na zadana date.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        if history_fn is None or trend_fn is None:
+            from data.financials import (
+                bulk_fetch_earnings_history,
+                bulk_fetch_earnings_trend,
+            )
+            hist_source = history_fn or bulk_fetch_earnings_history
+            trend_source = trend_fn or bulk_fetch_earnings_trend
+        else:
+            hist_source, trend_source = history_fn, trend_fn
+
+        tickers = tuple(eligible)
+        hist = hist_source(tickers)
+        trend = trend_source(tickers)
+
+        components: dict[str, pd.Series] = {}
+        if hist is not None and not hist.empty and "ticker" in hist.columns:
+            indexed = hist.set_index("ticker")
+            if "beat_streak" in indexed.columns:
+                components["beat_streak"] = indexed["beat_streak"]
+            if "eps_surprise_pct" in indexed.columns:
+                components["surprise"] = indexed["eps_surprise_pct"]
+        if trend is not None and not trend.empty and "ticker" in trend.columns:
+            indexed = trend.set_index("ticker")
+            if "revision_90d_pct" in indexed.columns:
+                components["revision"] = indexed["revision_90d_pct"]
+
+        if not components:
+            return pd.Series(float("nan"), index=eligible)
+        return _weighted_percentiles(components, EARNINGS_WEIGHTS, eligible)
+
+    return Scorer(name="earnings", supports_asof=False, fn=_fn)
+
+
+EARNINGS_SCORER = make_earnings_scorer()
+
+
+def make_quality_scorer(bulk_fn=None, banks: set[str] | None = None) -> Scorer:
+    """Scorer 'Jakosc biznesu' — ROE + marza + wzrost przychodow + niski dlug.
+
+    Args:
+        bulk_fn: (tuple[str]) -> dict[ticker, dict] z kluczami roe,
+            profit_margin, revenue_growth, debt_to_equity.
+            None = bulk_fetch_universe z data.financials.
+        banks: tickery, dla ktorych komponent debt/equity jest pomijany
+            (banki maja nieporownywalna strukture bilansu). None = GPW_BANKS.
+
+    supports_asof=False — yfinance oddaje stan na dzis, nie na zadana date.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        if bulk_fn is None:
+            from data.financials import bulk_fetch_universe
+            source = bulk_fetch_universe
+        else:
+            source = bulk_fn
+
+        if banks is None:
+            from data.gpw_universe import GPW_BANKS
+            bank_set = set(GPW_BANKS)
+        else:
+            bank_set = set(banks)
+
+        bulk = source(tuple(eligible)) or {}
+        if not bulk:
+            return pd.Series(float("nan"), index=eligible)
+
+        roe, margin, growth, debt = {}, {}, {}, {}
+        for ticker in eligible:
+            info = bulk.get(ticker) or {}
+            roe[ticker] = info.get("roe")
+            margin[ticker] = info.get("profit_margin")
+            growth[ticker] = info.get("revenue_growth")
+            # Odwrotnie: mniej dlugu = lepiej. Minus przed wartoscia sprawia,
+            # ze percentyl liczy sie w dobra strone bez osobnej galezi.
+            value = info.get("debt_to_equity")
+            if ticker in bank_set or value is None:
+                debt[ticker] = None
+            else:
+                debt[ticker] = -float(value)
+
+        components = {
+            "roe": pd.Series(roe, dtype="float64"),
+            "margin": pd.Series(margin, dtype="float64"),
+            "growth": pd.Series(growth, dtype="float64"),
+            "debt": pd.Series(debt, dtype="float64"),
+        }
+        return _weighted_percentiles(components, QUALITY_WEIGHTS, eligible)
+
+    return Scorer(name="quality", supports_asof=False, fn=_fn)
+
+
+QUALITY_SCORER = make_quality_scorer()
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
+
+# Osobny plik na strategie. Log momentum zostaje nietkniety — to jedyny
+# prawdziwy track record w aplikacji i nie przepisujemy go pod nowy schemat.
+HISTORY_PATHS = {
+    "momentum": HISTORY_PATH,
+    "earnings": _DATA_DIR / "top_picks_earnings_history.json",
+    "quality": _DATA_DIR / "top_picks_quality_history.json",
+}
 
 
 def _eligible(prices: pd.DataFrame, volumes: pd.DataFrame,
@@ -58,26 +259,29 @@ def _eligible(prices: pd.DataFrame, volumes: pd.DataFrame,
 def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
                  groups: dict[str, str], asof,
                  top_n: int = 5, max_per_group: int = 2,
-                 min_turnover: float = 0.0) -> list[dict]:
-    """Wybiera top_n spolek na dzien asof wg reguly F18.
+                 min_turnover: float = 0.0,
+                 scorer: Scorer | None = None) -> list[dict]:
+    """Wybiera top_n spolek na dzien asof.
 
     1. filtr historii (>= MIN_HISTORY sesji) i plynnosci (mediana obrotu 60d)
-    2. latest_returns() -> rank_based_score() (12M 40 / 6M 30 / 3M 20 / 1M 10, anti_1m)
+    2. scorer.fn() -> ranking (domyslnie MOMENTUM_SCORER)
     3. schodzenie po rankingu z limitem max_per_group na grupe
     4. rowne wagi
 
     Args:
         prices: ceny close (kolumny = tickery)
         volumes: wolumeny w tym samym ukladzie
-        groups: ticker -> grupa (sektor GICS dla SP500, indeks dla GPW)
+        groups: ticker -> grupa (sektor GICS dla SP500, sektor dla GPW)
         asof: data, NA KTORA liczymy — dane po niej sa ignorowane
         top_n: ile pozycji w portfelu
         max_per_group: ile maksymalnie spolek z jednej grupy
         min_turnover: prog mediany dziennego obrotu (w walucie notowania)
+        scorer: wymienna regula rankingujaca; None = MOMENTUM_SCORER
 
     Returns:
         Lista dictow gotowa do serializacji do JSON. Pusta, gdy brak kandydatow.
     """
+    scorer = scorer or MOMENTUM_SCORER
     asof = pd.Timestamp(asof)
     px = prices.loc[:asof]
     if px.empty:
@@ -87,13 +291,25 @@ def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
     if not eligible:
         return []
 
-    rets = latest_returns(px[eligible])
-    scores = rank_based_score(rets, weights=DEFAULT_WEIGHTS, anti_1m=True).dropna()
-    scores = scores.sort_values(ascending=False)
+    scores = scorer.fn(eligible, px, asof)
+    if scores is None or len(scores) == 0:
+        return []
+    # Duplikat w indeksie wpuscilby ten sam ticker dwa razy i rozjechal wagi.
+    # Scorer.fn jest publicznym punktem rozszerzenia, wiec nie ufamy indeksowi.
+    scores = scores[~scores.index.duplicated()]
+    scores = scores.dropna().sort_values(ascending=False)
+
+    # Kontrakt: scorer dostaje `eligible` i ma zwracac wylacznie te tickery.
+    # Egzekwujemy go tutaj, bo przed wprowadzeniem wymiennych scorerow robilo
+    # to `px[eligible]` strukturalnie. Bez tego scorer liczacy po calym
+    # universe przemycilby spolke odrzucona przez filtr plynnosci lub historii.
+    eligible_set = set(eligible)
 
     picks: list[dict] = []
     counts: dict[str, int] = {}
     for ticker, score in scores.items():
+        if ticker not in eligible_set:
+            continue
         group = groups.get(ticker, "?")
         if counts.get(group, 0) >= max_per_group:
             continue
@@ -216,7 +432,8 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
                   top_n: int = 5, max_per_group: int = 2,
                   transaction_cost: float = 0.001,
                   tax_belka: float = 0.19,
-                  start_capital: float = 10000.0) -> pd.Series:
+                  start_capital: float = 10000.0,
+                  scorer: Scorer | None = None) -> pd.Series:
     """Symuluje regule F18 miesiac po miesiacu, uzywajac tego samego select_picks().
 
     Swiadomie NIE uzywa backtest_rotation() z momentum.py — tamta funkcja nie zna
@@ -225,9 +442,19 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
     UWAGA: wynik ma survivorship bias — universe jest dzisiejsze. Nie jest to
     track record i UI musi to komunikowac wprost.
 
+    Dziala wylacznie ze scorerami majacymi supports_asof=True. Scorery
+    fundamentalne sa forward-only i podnosza ValueError.
+
     Koszty: transaction_cost skalowany turnoverem (frakcja wymienionych pozycji),
     Belka naliczana od dodatniego zysku segmentu, rowniez skalowana turnoverem.
     """
+    scorer = scorer or MOMENTUM_SCORER
+    if not scorer.supports_asof:
+        raise ValueError(
+            f"Scorer '{scorer.name}' ma supports_asof=False — nie potrafi policzyc "
+            "rankingu na historyczna date. Symulacja uzylaby dzisiejszych danych "
+            "na kazdej dacie wstecz (lookahead bias). Ta strategia jest forward-only."
+        )
     prices = prices.ffill()
     window = prices.loc[pd.Timestamp(start):]
     month_ends = _month_end_sessions(window.index)
@@ -243,7 +470,7 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
         t0, t1 = month_ends[i], month_ends[i + 1]
         picks = select_picks(prices, volumes, groups, t0,
                              top_n=top_n, max_per_group=max_per_group,
-                             min_turnover=min_turnover)
+                             min_turnover=min_turnover, scorer=scorer)
         if not picks:
             dates.append(t1)
             equity.append(capital)

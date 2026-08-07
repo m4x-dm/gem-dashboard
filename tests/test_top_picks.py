@@ -215,3 +215,339 @@ def test_simulate_rule_zwraca_miesieczna_serie_i_reaguje_na_koszty():
     assert isinstance(bez_kosztow.index, pd.DatetimeIndex)
     assert float(z_kosztami.iloc[-1]) < float(bez_kosztow.iloc[-1]), \
         "koszty transakcyjne nie obnizyly wyniku"
+
+
+# ====== Scorer (2026-08-07) ======
+
+def test_select_picks_bez_scorera_zachowuje_sie_jak_dotad():
+    """Kontrakt wstecznej zgodnosci: brak kwargu scorer == MOMENTUM_SCORER."""
+    tickers = tuple(f"T{i}" for i in range(8))
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    domyslny = tp.select_picks(prices, vols, groups, prices.index[-1], top_n=5)
+    jawny = tp.select_picks(prices, vols, groups, prices.index[-1], top_n=5,
+                            scorer=tp.MOMENTUM_SCORER)
+
+    assert [p["ticker"] for p in domyslny] == [p["ticker"] for p in jawny]
+    assert [p["score"] for p in domyslny] == [p["score"] for p in jawny]
+
+
+def test_select_picks_uzywa_wstrzyknietego_scorera():
+    """Scorer decyduje o kolejnosci; reszta reguly (limit, wagi) bez zmian."""
+    tickers = ("AAA", "BBB", "CCC", "DDD", "EEE", "FFF")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    # Odwrotnosc alfabetu: FFF najlepsze, AAA najgorsze
+    def _fake(eligible, px, asof):
+        return pd.Series({t: i / 10 for i, t in enumerate(sorted(eligible))})
+
+    scorer = tp.Scorer(name="fake", supports_asof=True, fn=_fake)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1],
+                            top_n=3, scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["FFF", "EEE", "DDD"]
+    assert sum(p["weight"] for p in picks) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_select_picks_scorer_z_pustym_wynikiem_zwraca_pusta_liste():
+    tickers = ("AAA", "BBB")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: "S" for t in tickers}
+
+    scorer = tp.Scorer(name="pusty", supports_asof=True,
+                       fn=lambda eligible, px, asof: pd.Series(dtype=float))
+    assert tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer) == []
+
+
+def test_select_picks_scorer_z_nan_pomija_ticker():
+    tickers = ("AAA", "BBB", "CCC")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    def _z_nanem(eligible, px, asof):
+        return pd.Series({"AAA": 0.9, "BBB": float("nan"), "CCC": 0.5})
+
+    scorer = tp.Scorer(name="nan", supports_asof=True, fn=_z_nanem)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer)
+    assert [p["ticker"] for p in picks] == ["AAA", "CCC"]
+
+
+def test_simulate_rule_odmawia_scorera_bez_wsparcia_asof():
+    """Scorer fundamentalny w symulacji = lookahead bias. Ma padac glosno,
+    nie liczyc po cichu dzisiejszymi danymi na historycznych datach."""
+    tickers = tuple(f"T{i}" for i in range(6))
+    prices = _frame(700, tickers, start="2023-01-02")
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    scorer = tp.Scorer(name="fundamentalny", supports_asof=False,
+                       fn=lambda eligible, px, asof: pd.Series(
+                           {t: 1.0 for t in eligible}))
+
+    with pytest.raises(ValueError, match="supports_asof"):
+        tp.simulate_rule(prices, vols, groups, start=prices.index[300],
+                         scorer=scorer)
+
+
+def test_simulate_rule_przepuszcza_scorer_z_asof():
+    tickers = tuple(f"T{i}" for i in range(8))
+    prices = _frame(700, tickers, start="2023-01-02")
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    equity = tp.simulate_rule(prices, vols, groups, start=prices.index[300],
+                              min_turnover=0.0, scorer=tp.MOMENTUM_SCORER)
+    assert isinstance(equity, pd.Series)
+    assert len(equity) >= 6
+
+
+def test_select_picks_odrzuca_tickery_spoza_eligible():
+    """Scorer, ktory zwroci spolke odrzucona przez filtr plynnosci/historii,
+    nie moze jej przemycic do portfela — inaczej oba filtry sa obchodzalne.
+    Regresja z review 2026-08-07."""
+    tickers = ("PLYNNA", "NIEPLYNNA")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    vols["NIEPLYNNA"] = 1.0          # obrot ~100/dzien, ponizej progu
+    groups = {t: f"S{t}" for t in tickers}
+
+    # Scorer ignoruje eligible i zwraca CALE universe, z nieplynna na czele
+    def _niezgodny(eligible, px, asof):
+        return pd.Series({"NIEPLYNNA": 1.0, "PLYNNA": 0.5})
+
+    scorer = tp.Scorer(name="niezgodny", supports_asof=True, fn=_niezgodny)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1],
+                            min_turnover=1_000_000.0, scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["PLYNNA"], \
+        "spolka odrzucona przez filtr plynnosci trafila do portfela"
+
+
+def test_select_picks_ignoruje_duplikaty_w_indeksie_scores():
+    """Scorer.fn to publiczny punkt rozszerzenia — duplikat w indeksie
+    wpuscilby ten sam ticker dwa razy i rozjechal wagi."""
+    tickers = ("AAA", "BBB", "CCC")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    def _z_duplikatem(eligible, px, asof):
+        return pd.Series([0.9, 0.8, 0.7], index=["AAA", "AAA", "BBB"])
+
+    scorer = tp.Scorer(name="duplikat", supports_asof=True, fn=_z_duplikatem)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["AAA", "BBB"]
+    assert sum(p["weight"] for p in picks) == pytest.approx(1.0, abs=1e-6)
+
+
+# ====== EARNINGS_SCORER (2026-08-07) ======
+
+def _earnings_frames():
+    """Cztery spolki: EEE najlepsza w kazdym komponencie, AAA najgorsza."""
+    hist = pd.DataFrame([
+        {"ticker": "AAA", "beat_streak": 0, "eps_surprise_pct": -5.0},
+        {"ticker": "BBB", "beat_streak": 2, "eps_surprise_pct": 1.0},
+        {"ticker": "CCC", "beat_streak": 3, "eps_surprise_pct": 4.0},
+        {"ticker": "EEE", "beat_streak": 4, "eps_surprise_pct": 9.0},
+    ])
+    trend = pd.DataFrame([
+        {"ticker": "AAA", "revision_90d_pct": -8.0},
+        {"ticker": "BBB", "revision_90d_pct": 0.5},
+        {"ticker": "CCC", "revision_90d_pct": 3.0},
+        {"ticker": "EEE", "revision_90d_pct": 12.0},
+    ])
+    return hist, trend
+
+
+def test_earnings_scorer_rankuje_wg_trzech_komponentow():
+    hist, trend = _earnings_frames()
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB", "CCC", "EEE"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert list(scores.sort_values(ascending=False).index) == ["EEE", "CCC", "BBB", "AAA"]
+    assert scores.max() <= 1.0 and scores.min() >= 0.0, "score poza skala 0-1"
+
+
+def test_earnings_scorer_jest_forward_only():
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: pd.DataFrame(),
+        trend_fn=lambda tickers: pd.DataFrame(),
+    )
+    assert scorer.supports_asof is False
+
+
+def test_earnings_scorer_renormalizuje_przy_braku_rewizji():
+    """Spolka bez rewizji nie moze wypasc z rankingu — wagi sie renormalizuja."""
+    hist, trend = _earnings_frames()
+    trend = trend[trend["ticker"] != "EEE"]     # EEE traci komponent rewizji
+
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB", "CCC", "EEE"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert "EEE" in scores.index, "spolka bez rewizji wypadla z rankingu"
+    assert pd.notna(scores["EEE"])
+    assert scores["EEE"] == pytest.approx(1.0), \
+        "EEE jest najlepsza w obu dostepnych komponentach, wiec po renormalizacji 1.0"
+
+
+def test_earnings_scorer_bez_zadnych_danych_zwraca_pusta_serie():
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: pd.DataFrame(),
+        trend_fn=lambda tickers: pd.DataFrame(),
+    )
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores.dropna().empty
+
+
+def test_earnings_scorer_ignoruje_tickery_spoza_eligible():
+    hist, trend = _earnings_frames()
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert set(scores.index) == {"AAA", "BBB"}
+
+
+# ====== QUALITY_SCORER (2026-08-07) ======
+
+def _quality_bulk():
+    return {
+        "AAA": {"roe": 0.05, "profit_margin": 0.02, "revenue_growth": 0.01,
+                "debt_to_equity": 200.0},
+        "BBB": {"roe": 0.15, "profit_margin": 0.10, "revenue_growth": 0.08,
+                "debt_to_equity": 90.0},
+        "CCC": {"roe": 0.30, "profit_margin": 0.22, "revenue_growth": 0.20,
+                "debt_to_equity": 20.0},
+    }
+
+
+def test_quality_scorer_rankuje_wg_czterech_komponentow():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: _quality_bulk())
+    scores = scorer.fn(["AAA", "BBB", "CCC"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert list(scores.sort_values(ascending=False).index) == ["CCC", "BBB", "AAA"]
+    assert scores.max() <= 1.0 and scores.min() >= 0.0
+
+
+def test_quality_scorer_niski_dlug_jest_lepszy():
+    """debt_to_equity musi wchodzic ODWROTNIE — mniej dlugu = wyzszy percentyl."""
+    bulk = {
+        "LOW":  {"roe": 0.10, "profit_margin": 0.10, "revenue_growth": 0.10,
+                 "debt_to_equity": 10.0},
+        "HIGH": {"roe": 0.10, "profit_margin": 0.10, "revenue_growth": 0.10,
+                 "debt_to_equity": 300.0},
+    }
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(["LOW", "HIGH"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores["LOW"] > scores["HIGH"]
+
+
+def test_quality_scorer_pomija_debt_dla_bankow():
+    """Bank ma nieporownywalne debt/equity — komponent odpada, wagi sie renormalizuja."""
+    bulk = {
+        "PKO.WA": {"roe": 0.20, "profit_margin": 0.30, "revenue_growth": 0.10,
+                   "debt_to_equity": 900.0},
+        "CDR.WA": {"roe": 0.10, "profit_margin": 0.15, "revenue_growth": 0.05,
+                   "debt_to_equity": 15.0},
+    }
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: bulk,
+                                    banks={"PKO.WA"})
+    scores = scorer.fn(["PKO.WA", "CDR.WA"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    # PKO wygrywa w ROE, marzy i wzroscie; jego gigantyczny dlug nie moze go ukarac
+    assert scores["PKO.WA"] > scores["CDR.WA"]
+    assert pd.notna(scores["PKO.WA"])
+
+
+def test_quality_scorer_jest_forward_only():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: {})
+    assert scorer.supports_asof is False
+
+
+def test_quality_scorer_bez_danych_zwraca_nan():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: {})
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores.dropna().empty
+
+
+def test_kazda_strategia_ma_wersje_i_sciezke_loga():
+    assert set(tp.RULE_VERSIONS) == {"momentum", "earnings", "quality"}
+    assert set(tp.HISTORY_PATHS) == {"momentum", "earnings", "quality"}
+    for name, path in tp.HISTORY_PATHS.items():
+        assert path.name.endswith(".json"), f"{name}: sciezka nie jest jsonem"
+    # Momentum musi wskazywac na istniejacy log — to jedyny prawdziwy track record
+    assert tp.HISTORY_PATHS["momentum"] == tp.HISTORY_PATH
+    # Trzy rozne pliki, zeby strategie sie nie nadpisywaly
+    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == 3
+
+
+def test_rule_version_pozostaje_intem_dla_wstecznej_zgodnosci():
+    assert isinstance(tp.RULE_VERSION, int)
+    assert tp.RULE_VERSION == tp.RULE_VERSIONS["momentum"]
+
+
+def test_strategie_znaja_swoje_rynki():
+    """Earnings jest SP500-only — yfinance nie ma historii EPS dla ~80% GPW."""
+    assert tp.STRATEGY_MARKETS["momentum"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["earnings"] == ("sp500",)
+    assert tp.STRATEGY_MARKETS["quality"] == ("sp500", "gpw")
+
+
+# ====== Walidator snapshotu (2026-08-07) ======
+
+def test_validate_snapshot_wykrywa_niepelna_piatke():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=5)
+    assert powod is not None
+    assert "pozycji" in powod
+
+
+def test_validate_snapshot_wykrywa_grupe_znak_zapytania():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "?"}, {"ticker": "BBB", "group": "S1"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=2)
+    assert powod is not None
+    assert "grupy" in powod.lower()
+
+
+def test_validate_snapshot_przepuszcza_poprawny_snapshot():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}, {"ticker": "BBB", "group": "S2"}]
+    powod = validate_snapshot("sp500", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=2)
+    assert powod is None
+
+
+def test_validate_snapshot_wykrywa_niskie_pokrycie():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA",))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    # 1 ticker z danymi na 10 w universe = 10% pokrycia
+    powod = validate_snapshot("sp500", [f"T{i}" for i in range(10)], prices, picks,
+                              asof=prices.index[-1], top_n=1)
+    assert powod is not None
+    assert "pokrycie" in powod.lower()

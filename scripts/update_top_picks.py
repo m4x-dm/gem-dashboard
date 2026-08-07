@@ -120,30 +120,51 @@ def fetch_benchmark(cfg: dict, index: pd.DatetimeIndex) -> pd.Series | None:
     return aligned.reindex(index, method="ffill") / float(aligned.iloc[0]) * 10000.0
 
 
-def validate(market: str, tickers: list[str], prices: pd.DataFrame,
-             picks: list[dict], asof: pd.Timestamp, top_n: int) -> None:
-    """Twarda walidacja. Kazdy blad = sys.exit(1) BEZ zapisu.
+def validate_snapshot(market: str, tickers: list[str], prices: pd.DataFrame,
+                      picks: list[dict], asof: pd.Timestamp,
+                      top_n: int) -> str | None:
+    """Waliduje snapshot. Zwraca powod odrzucenia albo None gdy OK.
 
     Pusty lub czesciowy snapshot klamie w sekcji "Wyniki live" na zawsze —
-    brak wpisu jest mniej szkodliwy niz wpis nieprawdziwy.
+    brak wpisu jest mniej szkodliwy niz wpis nieprawdziwy. Wywolujacy decyduje,
+    czy odrzucenie ma zabic caly run (momentum), czy tylko pominac te
+    strategie (earnings, quality).
     """
     coverage = len(prices.columns) / max(len(tickers), 1)
     if coverage < MIN_COVERAGE:
-        sys.exit(f"[{market}] BLAD: pokrycie danych {coverage:.0%} < {MIN_COVERAGE:.0%}")
+        return f"[{market}] pokrycie danych {coverage:.0%} < {MIN_COVERAGE:.0%}"
 
     staleness = (asof - prices.index[-1]).days
     if staleness > MAX_STALENESS_DAYS:
-        sys.exit(f"[{market}] BLAD: ostatnia sesja {prices.index[-1].date()} "
-                 f"starsza o {staleness} dni od asof {asof.date()}")
+        return (f"[{market}] ostatnia sesja {prices.index[-1].date()} "
+                f"starsza o {staleness} dni od asof {asof.date()}")
 
     if len(picks) != top_n:
-        sys.exit(f"[{market}] BLAD: regula zwrocila {len(picks)} pozycji zamiast {top_n}")
+        return f"[{market}] regula zwrocila {len(picks)} pozycji zamiast {top_n}"
 
     unknown = [p["ticker"] for p in picks if p["group"] == "?"]
     if unknown:
         # Brakujacy wpis w mapie grup wrzuca spolki do wspolnego kubelka "?",
-        # co po cichu psuje limit koncentracji. Lepiej zatrzymac sie glosno.
-        sys.exit(f"[{market}] BLAD: brak grupy dla {unknown} — uzupelnij mape sektorow")
+        # co po cichu psuje limit koncentracji.
+        return f"[{market}] brak grupy dla {unknown} — uzupelnij mape sektorow"
+
+    return None
+
+
+STRATEGIES = {
+    "momentum": {"scorer": None, "simulate": True, "critical": True},
+    "earnings": {"scorer": "earnings", "simulate": False, "critical": False},
+    "quality": {"scorer": "quality", "simulate": False, "critical": False},
+}
+
+
+def _scorer_for(name: str):
+    """Leniwe pobranie scorera — importy financials tylko gdy potrzebne."""
+    if name == "earnings":
+        return tp.EARNINGS_SCORER
+    if name == "quality":
+        return tp.QUALITY_SCORER
+    return None
 
 
 def main() -> None:
@@ -151,21 +172,34 @@ def main() -> None:
     parser.add_argument("--asof", help="data w formacie YYYY-MM-DD (domyslnie: dzis)")
     parser.add_argument("--dry-run", action="store_true", help="policz i wypisz, nie zapisuj")
     parser.add_argument("--skip-sim", action="store_true", help="pomin przeliczanie symulacji")
+    parser.add_argument("--only", choices=sorted(STRATEGIES),
+                        help="policz tylko jedna strategie")
     parser.add_argument("--top-n", type=int, default=5)
     parser.add_argument("--max-per-group", type=int, default=2)
     args = parser.parse_args()
 
     today = pd.Timestamp(args.asof) if args.asof else pd.Timestamp.today().normalize()
     month_key = today.replace(day=1).strftime("%Y-%m-%d")
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    snapshot = {
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "asof": None,
-        "rule_version": tp.RULE_VERSION,
-    }
+    wanted = [args.only] if args.only else list(STRATEGIES)
+
+    # Ceny pobieramy RAZ na rynek i wspoldzielimy miedzy strategiami —
+    # bez tego trzy strategie = trzy pelne pobrania yfinance.
+    market_data: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.Timestamp]] = {}
+    for market, cfg in MARKETS.items():
+        print(f"\n=== pobieranie cen: {market} ===", flush=True)
+        prices, volumes = download(cfg["tickers"])
+        if prices.empty:
+            sys.exit(f"[{market}] BLAD: brak jakichkolwiek danych cenowych")
+        asof = prices.loc[:today].index[-1]
+        print(f"  {len(prices.columns)}/{len(cfg['tickers'])} tickerow, "
+              f"ostatnia sesja {prices.index[-1].date()}", flush=True)
+        market_data[market] = (prices, volumes, asof)
+
     sim = {
-        "generated_at": snapshot["generated_at"],
-        "rule_version": tp.RULE_VERSION,
+        "generated_at": generated_at,
+        "rule_version": tp.RULE_VERSIONS["momentum"],
         "params": {
             "top_n": args.top_n,
             "max_per_group": args.max_per_group,
@@ -173,83 +207,119 @@ def main() -> None:
             "tax_belka": 0.19,
         },
     }
+    failures: list[str] = []
 
-    for market, cfg in MARKETS.items():
-        print(f"\n=== {market} ===", flush=True)
-        prices, volumes = download(cfg["tickers"])
-        if prices.empty:
-            sys.exit(f"[{market}] BLAD: brak jakichkolwiek danych cenowych")
-        print(f"  pobrano {len(prices.columns)}/{len(cfg['tickers'])} tickerow, "
-              f"ostatnia sesja {prices.index[-1].date()}", flush=True)
+    for strategy in wanted:
+        spec = STRATEGIES[strategy]
+        scorer = _scorer_for(spec["scorer"])
+        markets = tp.STRATEGY_MARKETS[strategy]
+        print(f"\n########## strategia: {strategy} ##########", flush=True)
 
-        asof = prices.loc[:today].index[-1]
-        picks = tp.select_picks(prices, volumes, cfg["groups"], asof,
-                                top_n=args.top_n, max_per_group=args.max_per_group,
-                                min_turnover=tp.MIN_TURNOVER[market])
-        validate(market, cfg["tickers"], prices, picks, today, args.top_n)
-
-        for pick in picks:
-            pick["name"] = cfg["names"].get(pick["ticker"], "")
-        # Rynki koncza sesje w roznych momentach (GPW wczesniej niz USA), wiec
-        # jedno wspolne pole nie opisze obu. Trzymamy najswiezsza z sesji, a
-        # autorytatywna data per rynek siedzi w entry_date kazdego picka —
-        # i to jej uzywa UI.
-        previous_asof = snapshot.get("asof")
-        snapshot["asof"] = max(previous_asof, asof.strftime("%Y-%m-%d")) \
-            if previous_asof else asof.strftime("%Y-%m-%d")
-        snapshot[market] = picks
-        print("  " + " · ".join(f"{p['ticker']} ({p['group']}, {p['score']:.3f})"
-                                for p in picks), flush=True)
-
-        if args.skip_sim:
-            continue
-
-        start = prices.index[0] + pd.Timedelta(days=400)
-        equity = tp.simulate_rule(prices, volumes, cfg["groups"], start=start,
-                                  min_turnover=tp.MIN_TURNOVER[market],
-                                  top_n=args.top_n, max_per_group=args.max_per_group)
-        if equity.empty:
-            print(f"  symulacja pominieta ({market}): pusta krzywa", flush=True)
-            continue
-
-        bench = fetch_benchmark(cfg, equity.index)
-        stats = calc_stats(equity, trading_days=12)   # seria miesieczna
-        if bench is None:
-            # Brak benchmarku nie moze kasowac calej symulacji — sekcja 3 jest
-            # wartosciowa takze sama krzywa reguly.
-            print(f"  UWAGA ({market}): brak benchmarku {cfg['benchmark']}, "
-                  f"symulacja bez porownania", flush=True)
-            hits = 0.0
-            bench_values = []
-        else:
-            hits = float((equity.pct_change() > bench.pct_change()).mean())
-            bench_values = [round(float(v), 2) for v in bench.values]
-
-        sim[market] = {
-            "dates": [d.strftime("%Y-%m-%d") for d in equity.index],
-            "equity": [round(float(v), 2) for v in equity.values],
-            "benchmark": bench_values,
-            "benchmark_name": cfg["benchmark"] if bench is not None else None,
-            "stats": {
-                # UWAGA: calc_stats zwraca klucz "Max Drawdown", nie "Max DD"
-                "cagr": round(float(stats.get("CAGR", 0)), 4),
-                "max_dd": round(float(stats.get("Max Drawdown", 0)), 4),
-                "sharpe": round(float(stats.get("Sharpe", 0)), 3),
-                "hit_rate": round(hits, 3),
-            },
+        snapshot = {
+            "generated_at": generated_at,
+            "asof": None,
+            "rule_version": tp.RULE_VERSIONS[strategy],
         }
-        print(f"  symulacja: {len(equity)} miesiecy, CAGR {stats.get('CAGR', 0):.1%}", flush=True)
+        rejected = False
 
-    if args.dry_run:
-        print("\n--dry-run: nic nie zapisano")
-        print(json.dumps(snapshot, indent=2, ensure_ascii=False))
-        return
+        for market in markets:
+            cfg = MARKETS[market]
+            prices, volumes, asof = market_data[market]
+            picks = tp.select_picks(prices, volumes, cfg["groups"], asof,
+                                    top_n=args.top_n,
+                                    max_per_group=args.max_per_group,
+                                    min_turnover=tp.MIN_TURNOVER[market],
+                                    scorer=scorer)
+            reason = validate_snapshot(market, cfg["tickers"], prices, picks,
+                                       today, args.top_n)
+            if reason:
+                if spec["critical"]:
+                    sys.exit(f"BLAD: {reason}")
+                print(f"  ODRZUCONO ({strategy}/{market}): {reason}", flush=True)
+                failures.append(f"{strategy}/{market}: {reason}")
+                rejected = True
+                break
 
-    added = tp.append_snapshot(month_key, snapshot)
-    print(f"\nsnapshot {month_key}: {'dopisany' if added else 'juz istnial — pomijam'}")
-    if not args.skip_sim:
-        tp.SIM_PATH.write_text(json.dumps(sim, indent=2, ensure_ascii=False), encoding="utf-8")
-        print(f"symulacja zapisana: {tp.SIM_PATH.name}")
+            for pick in picks:
+                pick["name"] = cfg["names"].get(pick["ticker"], "")
+            # Rynki koncza sesje w roznych momentach (GPW wczesniej niz USA), wiec
+            # jedno wspolne pole nie opisze obu. Trzymamy najswiezsza z sesji, a
+            # autorytatywna data per rynek siedzi w entry_date kazdego picka —
+            # i to jej uzywa UI.
+            previous = snapshot.get("asof")
+            snapshot["asof"] = max(previous, asof.strftime("%Y-%m-%d")) \
+                if previous else asof.strftime("%Y-%m-%d")
+            snapshot[market] = picks
+            print("  " + " · ".join(f"{p['ticker']} ({p['group']}, {p['score']:.3f})"
+                                    for p in picks), flush=True)
+
+        if rejected:
+            continue
+
+        if args.dry_run:
+            print(f"--dry-run ({strategy}): nic nie zapisano")
+            print(json.dumps(snapshot, indent=2, ensure_ascii=False))
+        else:
+            added = tp.append_snapshot(month_key, snapshot,
+                                       path=tp.HISTORY_PATHS[strategy])
+            print(f"  snapshot {month_key} [{strategy}]: "
+                  f"{'dopisany' if added else 'juz istnial — pomijam'}", flush=True)
+
+        # simulate_rule wolno wolac TYLKO dla momentum — scorery earnings/quality
+        # nie umieja liczyc historycznie (supports_asof=False) i podnosza ValueError.
+        if not spec["simulate"] or args.skip_sim:
+            continue
+
+        for market in markets:
+            cfg = MARKETS[market]
+            prices, volumes, _ = market_data[market]
+            start = prices.index[0] + pd.Timedelta(days=400)
+            equity = tp.simulate_rule(prices, volumes, cfg["groups"], start=start,
+                                      min_turnover=tp.MIN_TURNOVER[market],
+                                      top_n=args.top_n,
+                                      max_per_group=args.max_per_group,
+                                      scorer=scorer)
+            if equity.empty:
+                print(f"  symulacja pominieta ({market}): pusta krzywa", flush=True)
+                continue
+
+            bench = fetch_benchmark(cfg, equity.index)
+            stats = calc_stats(equity, trading_days=12)   # seria miesieczna
+            if bench is None:
+                # Brak benchmarku nie moze kasowac calej symulacji — sekcja 3 jest
+                # wartosciowa takze sama krzywa reguly.
+                print(f"  UWAGA ({market}): brak benchmarku {cfg['benchmark']}, "
+                      f"symulacja bez porownania", flush=True)
+                hits, bench_values = 0.0, []
+            else:
+                hits = float((equity.pct_change() > bench.pct_change()).mean())
+                bench_values = [round(float(v), 2) for v in bench.values]
+
+            sim[market] = {
+                "dates": [d.strftime("%Y-%m-%d") for d in equity.index],
+                "equity": [round(float(v), 2) for v in equity.values],
+                "benchmark": bench_values,
+                "benchmark_name": cfg["benchmark"] if bench is not None else None,
+                "stats": {
+                    # UWAGA: calc_stats zwraca klucz "Max Drawdown", nie "Max DD"
+                    "cagr": round(float(stats.get("CAGR", 0)), 4),
+                    "max_dd": round(float(stats.get("Max Drawdown", 0)), 4),
+                    "sharpe": round(float(stats.get("Sharpe", 0)), 3),
+                    "hit_rate": round(hits, 3),
+                },
+            }
+            print(f"  symulacja: {len(equity)} miesiecy, "
+                  f"CAGR {stats.get('CAGR', 0):.1%}", flush=True)
+
+    if not args.dry_run and not args.skip_sim and "momentum" in wanted:
+        tp.SIM_PATH.write_text(json.dumps(sim, indent=2, ensure_ascii=False),
+                               encoding="utf-8")
+        print(f"\nsymulacja zapisana: {tp.SIM_PATH.name}")
+
+    if failures:
+        print("\nStrategie pominiete w tym runie:")
+        for item in failures:
+            print(f"  - {item}")
 
 
 if __name__ == "__main__":
