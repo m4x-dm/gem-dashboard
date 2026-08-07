@@ -482,3 +482,26 @@ def test_quality_scorer_bez_danych_zwraca_nan():
     scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: {})
     scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
     assert scores.dropna().empty
+
+
+def test_kazda_strategia_ma_wersje_i_sciezke_loga():
+    assert set(tp.RULE_VERSIONS) == {"momentum", "earnings", "quality"}
+    assert set(tp.HISTORY_PATHS) == {"momentum", "earnings", "quality"}
+    for name, path in tp.HISTORY_PATHS.items():
+        assert path.name.endswith(".json"), f"{name}: sciezka nie jest jsonem"
+    # Momentum musi wskazywac na istniejacy log — to jedyny prawdziwy track record
+    assert tp.HISTORY_PATHS["momentum"] == tp.HISTORY_PATH
+    # Trzy rozne pliki, zeby strategie sie nie nadpisywaly
+    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == 3
+
+
+def test_rule_version_pozostaje_intem_dla_wstecznej_zgodnosci():
+    assert isinstance(tp.RULE_VERSION, int)
+    assert tp.RULE_VERSION == tp.RULE_VERSIONS["momentum"]
+
+
+def test_strategie_znaja_swoje_rynki():
+    """Earnings jest SP500-only — yfinance nie ma historii EPS dla ~80% GPW."""
+    assert tp.STRATEGY_MARKETS["momentum"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["earnings"] == ("sp500",)
+    assert tp.STRATEGY_MARKETS["quality"] == ("sp500", "gpw")

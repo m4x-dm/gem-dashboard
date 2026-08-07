@@ -15,9 +15,24 @@ import pandas as pd
 
 from data.momentum import latest_returns, rank_based_score
 
-# Wersja reguly — podbij przy KAZDEJ zmianie parametrow ponizej.
-# Snapshoty z roznymi wersjami nie sa ze soba porownywalne.
-RULE_VERSION = 1
+# Wersja reguly PER STRATEGIA — podbij przy KAZDEJ zmianie parametrow danej
+# reguly. Snapshoty z roznymi wersjami tej samej strategii nie sa porownywalne.
+RULE_VERSIONS = {
+    "momentum": 1,
+    "earnings": 1,
+    "quality": 1,
+}
+
+# Wsteczna zgodnosc: kod sprzed 2026-08-07 czyta RULE_VERSION jako int.
+RULE_VERSION = RULE_VERSIONS["momentum"]
+
+# Ktore rynki obsluguje ktora strategia. Earnings jest SP500-only: yfinance
+# nie ma historii EPS dla ~80% GPW (pomiar 2026-08-07, probka 30 spolek).
+STRATEGY_MARKETS = {
+    "momentum": ("sp500", "gpw"),
+    "earnings": ("sp500",),
+    "quality": ("sp500", "gpw"),
+}
 
 DEFAULT_WEIGHTS = {"12M": 0.40, "6M": 0.30, "3M": 0.20, "1M": 0.10}
 MIN_HISTORY = 273        # okno momentum 12-1 (13 miesiecy)
@@ -206,6 +221,14 @@ QUALITY_SCORER = make_quality_scorer()
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
+
+# Osobny plik na strategie. Log momentum zostaje nietkniety — to jedyny
+# prawdziwy track record w aplikacji i nie przepisujemy go pod nowy schemat.
+HISTORY_PATHS = {
+    "momentum": HISTORY_PATH,
+    "earnings": _DATA_DIR / "top_picks_earnings_history.json",
+    "quality": _DATA_DIR / "top_picks_quality_history.json",
+}
 
 
 def _eligible(prices: pd.DataFrame, volumes: pd.DataFrame,
