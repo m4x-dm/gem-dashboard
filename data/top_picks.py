@@ -146,6 +146,63 @@ def make_earnings_scorer(history_fn=None, trend_fn=None) -> Scorer:
 
 EARNINGS_SCORER = make_earnings_scorer()
 
+
+def make_quality_scorer(bulk_fn=None, banks: set[str] | None = None) -> Scorer:
+    """Scorer 'Jakosc biznesu' — ROE + marza + wzrost przychodow + niski dlug.
+
+    Args:
+        bulk_fn: (tuple[str]) -> dict[ticker, dict] z kluczami roe,
+            profit_margin, revenue_growth, debt_to_equity.
+            None = bulk_fetch_universe z data.financials.
+        banks: tickery, dla ktorych komponent debt/equity jest pomijany
+            (banki maja nieporownywalna strukture bilansu). None = GPW_BANKS.
+
+    supports_asof=False — yfinance oddaje stan na dzis, nie na zadana date.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        if bulk_fn is None:
+            from data.financials import bulk_fetch_universe
+            source = bulk_fetch_universe
+        else:
+            source = bulk_fn
+
+        if banks is None:
+            from data.gpw_universe import GPW_BANKS
+            bank_set = set(GPW_BANKS)
+        else:
+            bank_set = set(banks)
+
+        bulk = source(tuple(eligible)) or {}
+        if not bulk:
+            return pd.Series(float("nan"), index=eligible)
+
+        roe, margin, growth, debt = {}, {}, {}, {}
+        for ticker in eligible:
+            info = bulk.get(ticker) or {}
+            roe[ticker] = info.get("roe")
+            margin[ticker] = info.get("profit_margin")
+            growth[ticker] = info.get("revenue_growth")
+            # Odwrotnie: mniej dlugu = lepiej. Minus przed wartoscia sprawia,
+            # ze percentyl liczy sie w dobra strone bez osobnej galezi.
+            value = info.get("debt_to_equity")
+            if ticker in bank_set or value is None:
+                debt[ticker] = None
+            else:
+                debt[ticker] = -float(value)
+
+        components = {
+            "roe": pd.Series(roe, dtype="float64"),
+            "margin": pd.Series(margin, dtype="float64"),
+            "growth": pd.Series(growth, dtype="float64"),
+            "debt": pd.Series(debt, dtype="float64"),
+        }
+        return _weighted_percentiles(components, QUALITY_WEIGHTS, eligible)
+
+    return Scorer(name="quality", supports_asof=False, fn=_fn)
+
+
+QUALITY_SCORER = make_quality_scorer()
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"

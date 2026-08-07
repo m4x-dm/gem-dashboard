@@ -420,3 +420,65 @@ def test_earnings_scorer_ignoruje_tickery_spoza_eligible():
     )
     scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
     assert set(scores.index) == {"AAA", "BBB"}
+
+
+# ====== QUALITY_SCORER (2026-08-07) ======
+
+def _quality_bulk():
+    return {
+        "AAA": {"roe": 0.05, "profit_margin": 0.02, "revenue_growth": 0.01,
+                "debt_to_equity": 200.0},
+        "BBB": {"roe": 0.15, "profit_margin": 0.10, "revenue_growth": 0.08,
+                "debt_to_equity": 90.0},
+        "CCC": {"roe": 0.30, "profit_margin": 0.22, "revenue_growth": 0.20,
+                "debt_to_equity": 20.0},
+    }
+
+
+def test_quality_scorer_rankuje_wg_czterech_komponentow():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: _quality_bulk())
+    scores = scorer.fn(["AAA", "BBB", "CCC"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert list(scores.sort_values(ascending=False).index) == ["CCC", "BBB", "AAA"]
+    assert scores.max() <= 1.0 and scores.min() >= 0.0
+
+
+def test_quality_scorer_niski_dlug_jest_lepszy():
+    """debt_to_equity musi wchodzic ODWROTNIE — mniej dlugu = wyzszy percentyl."""
+    bulk = {
+        "LOW":  {"roe": 0.10, "profit_margin": 0.10, "revenue_growth": 0.10,
+                 "debt_to_equity": 10.0},
+        "HIGH": {"roe": 0.10, "profit_margin": 0.10, "revenue_growth": 0.10,
+                 "debt_to_equity": 300.0},
+    }
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(["LOW", "HIGH"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores["LOW"] > scores["HIGH"]
+
+
+def test_quality_scorer_pomija_debt_dla_bankow():
+    """Bank ma nieporownywalne debt/equity — komponent odpada, wagi sie renormalizuja."""
+    bulk = {
+        "PKO.WA": {"roe": 0.20, "profit_margin": 0.30, "revenue_growth": 0.10,
+                   "debt_to_equity": 900.0},
+        "CDR.WA": {"roe": 0.10, "profit_margin": 0.15, "revenue_growth": 0.05,
+                   "debt_to_equity": 15.0},
+    }
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: bulk,
+                                    banks={"PKO.WA"})
+    scores = scorer.fn(["PKO.WA", "CDR.WA"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    # PKO wygrywa w ROE, marzy i wzroscie; jego gigantyczny dlug nie moze go ukarac
+    assert scores["PKO.WA"] > scores["CDR.WA"]
+    assert pd.notna(scores["PKO.WA"])
+
+
+def test_quality_scorer_jest_forward_only():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: {})
+    assert scorer.supports_asof is False
+
+
+def test_quality_scorer_bez_danych_zwraca_nan():
+    scorer = tp.make_quality_scorer(bulk_fn=lambda tickers: {})
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores.dropna().empty
