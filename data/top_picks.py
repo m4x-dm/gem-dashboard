@@ -252,7 +252,8 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
                   top_n: int = 5, max_per_group: int = 2,
                   transaction_cost: float = 0.001,
                   tax_belka: float = 0.19,
-                  start_capital: float = 10000.0) -> pd.Series:
+                  start_capital: float = 10000.0,
+                  scorer: Scorer | None = None) -> pd.Series:
     """Symuluje regule F18 miesiac po miesiacu, uzywajac tego samego select_picks().
 
     Swiadomie NIE uzywa backtest_rotation() z momentum.py — tamta funkcja nie zna
@@ -261,9 +262,19 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
     UWAGA: wynik ma survivorship bias — universe jest dzisiejsze. Nie jest to
     track record i UI musi to komunikowac wprost.
 
+    Dziala wylacznie ze scorerami majacymi supports_asof=True. Scorery
+    fundamentalne sa forward-only i podnosza ValueError.
+
     Koszty: transaction_cost skalowany turnoverem (frakcja wymienionych pozycji),
     Belka naliczana od dodatniego zysku segmentu, rowniez skalowana turnoverem.
     """
+    scorer = scorer or MOMENTUM_SCORER
+    if not scorer.supports_asof:
+        raise ValueError(
+            f"Scorer '{scorer.name}' ma supports_asof=False — nie potrafi policzyc "
+            "rankingu na historyczna date. Symulacja uzylaby dzisiejszych danych "
+            "na kazdej dacie wstecz (lookahead bias). Ta strategia jest forward-only."
+        )
     prices = prices.ffill()
     window = prices.loc[pd.Timestamp(start):]
     month_ends = _month_end_sessions(window.index)
@@ -279,7 +290,7 @@ def simulate_rule(prices: pd.DataFrame, volumes: pd.DataFrame,
         t0, t1 = month_ends[i], month_ends[i + 1]
         picks = select_picks(prices, volumes, groups, t0,
                              top_n=top_n, max_per_group=max_per_group,
-                             min_turnover=min_turnover)
+                             min_turnover=min_turnover, scorer=scorer)
         if not picks:
             dates.append(t1)
             equity.append(capital)

@@ -276,3 +276,32 @@ def test_select_picks_scorer_z_nan_pomija_ticker():
     scorer = tp.Scorer(name="nan", supports_asof=True, fn=_z_nanem)
     picks = tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer)
     assert [p["ticker"] for p in picks] == ["AAA", "CCC"]
+
+
+def test_simulate_rule_odmawia_scorera_bez_wsparcia_asof():
+    """Scorer fundamentalny w symulacji = lookahead bias. Ma padac glosno,
+    nie liczyc po cichu dzisiejszymi danymi na historycznych datach."""
+    tickers = tuple(f"T{i}" for i in range(6))
+    prices = _frame(700, tickers, start="2023-01-02")
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    scorer = tp.Scorer(name="fundamentalny", supports_asof=False,
+                       fn=lambda eligible, px, asof: pd.Series(
+                           {t: 1.0 for t in eligible}))
+
+    with pytest.raises(ValueError, match="supports_asof"):
+        tp.simulate_rule(prices, vols, groups, start=prices.index[300],
+                         scorer=scorer)
+
+
+def test_simulate_rule_przepuszcza_scorer_z_asof():
+    tickers = tuple(f"T{i}" for i in range(8))
+    prices = _frame(700, tickers, start="2023-01-02")
+    vols = _volumes(prices)
+    groups = {t: f"S{i}" for i, t in enumerate(tickers)}
+
+    equity = tp.simulate_rule(prices, vols, groups, start=prices.index[300],
+                              min_turnover=0.0, scorer=tp.MOMENTUM_SCORER)
+    assert isinstance(equity, pd.Series)
+    assert len(equity) >= 6
