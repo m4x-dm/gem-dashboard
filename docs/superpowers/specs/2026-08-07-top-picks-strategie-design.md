@@ -144,7 +144,7 @@ Kolumny w expanderze „szczegóły" różnią się per strategia — dla earnin
 | Lookahead bias przy symulacji strategii fundamentalnej | Fałszywy wynik wyglądający wiarygodnie | `supports_asof=False` + `ValueError` w `simulate_rule()` |
 | Zimny cache w Action wydłuża run | Timeout / koszt | Guard per strategia zamiast globalnego; limit Actions ma zapas |
 | yfinance zmienia kształt `earnings_history` | Scorer zwraca pustkę | Guard pokrycia pomija zapis snapshotu zamiast zapisać niepełny |
-| Skład quality prawie się nie zmienia miesiąc do miesiąca | Zakładka wygląda martwo | Świadome i zgodne z naturą sygnału; UI pokazuje datę ostatniej zmiany składu |
+| Skład quality prawie się nie zmienia miesiąc do miesiąca | Zakładka wygląda martwo | Świadome i zgodne z naturą sygnału — jakość biznesu nie zmienia się co miesiąc. Nagłówek karty pokazuje miesiąc snapshotu, więc widać, że dane są świeże, nawet gdy skład się nie ruszył |
 
 ## Testy
 
