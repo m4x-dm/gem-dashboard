@@ -305,3 +305,43 @@ def test_simulate_rule_przepuszcza_scorer_z_asof():
                               min_turnover=0.0, scorer=tp.MOMENTUM_SCORER)
     assert isinstance(equity, pd.Series)
     assert len(equity) >= 6
+
+
+def test_select_picks_odrzuca_tickery_spoza_eligible():
+    """Scorer, ktory zwroci spolke odrzucona przez filtr plynnosci/historii,
+    nie moze jej przemycic do portfela — inaczej oba filtry sa obchodzalne.
+    Regresja z review 2026-08-07."""
+    tickers = ("PLYNNA", "NIEPLYNNA")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    vols["NIEPLYNNA"] = 1.0          # obrot ~100/dzien, ponizej progu
+    groups = {t: f"S{t}" for t in tickers}
+
+    # Scorer ignoruje eligible i zwraca CALE universe, z nieplynna na czele
+    def _niezgodny(eligible, px, asof):
+        return pd.Series({"NIEPLYNNA": 1.0, "PLYNNA": 0.5})
+
+    scorer = tp.Scorer(name="niezgodny", supports_asof=True, fn=_niezgodny)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1],
+                            min_turnover=1_000_000.0, scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["PLYNNA"], \
+        "spolka odrzucona przez filtr plynnosci trafila do portfela"
+
+
+def test_select_picks_ignoruje_duplikaty_w_indeksie_scores():
+    """Scorer.fn to publiczny punkt rozszerzenia — duplikat w indeksie
+    wpuscilby ten sam ticker dwa razy i rozjechal wagi."""
+    tickers = ("AAA", "BBB", "CCC")
+    prices = _frame(400, tickers)
+    vols = _volumes(prices)
+    groups = {t: f"S{t}" for t in tickers}
+
+    def _z_duplikatem(eligible, px, asof):
+        return pd.Series([0.9, 0.8, 0.7], index=["AAA", "AAA", "BBB"])
+
+    scorer = tp.Scorer(name="duplikat", supports_asof=True, fn=_z_duplikatem)
+    picks = tp.select_picks(prices, vols, groups, prices.index[-1], scorer=scorer)
+
+    assert [p["ticker"] for p in picks] == ["AAA", "BBB"]
+    assert sum(p["weight"] for p in picks) == pytest.approx(1.0, abs=1e-6)

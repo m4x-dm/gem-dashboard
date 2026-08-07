@@ -123,12 +123,21 @@ def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
     scores = scorer.fn(eligible, px, asof)
     if scores is None or len(scores) == 0:
         return []
+    # Duplikat w indeksie wpuscilby ten sam ticker dwa razy i rozjechal wagi.
+    # Scorer.fn jest publicznym punktem rozszerzenia, wiec nie ufamy indeksowi.
+    scores = scores[~scores.index.duplicated()]
     scores = scores.dropna().sort_values(ascending=False)
+
+    # Kontrakt: scorer dostaje `eligible` i ma zwracac wylacznie te tickery.
+    # Egzekwujemy go tutaj, bo przed wprowadzeniem wymiennych scorerow robilo
+    # to `px[eligible]` strukturalnie. Bez tego scorer liczacy po calym
+    # universe przemycilby spolke odrzucona przez filtr plynnosci lub historii.
+    eligible_set = set(eligible)
 
     picks: list[dict] = []
     counts: dict[str, int] = {}
     for ticker, score in scores.items():
-        if ticker not in px.columns:
+        if ticker not in eligible_set:
             continue
         group = groups.get(ticker, "?")
         if counts.get(group, 0) >= max_per_group:
