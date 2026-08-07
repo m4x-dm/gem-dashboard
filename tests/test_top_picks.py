@@ -345,3 +345,78 @@ def test_select_picks_ignoruje_duplikaty_w_indeksie_scores():
 
     assert [p["ticker"] for p in picks] == ["AAA", "BBB"]
     assert sum(p["weight"] for p in picks) == pytest.approx(1.0, abs=1e-6)
+
+
+# ====== EARNINGS_SCORER (2026-08-07) ======
+
+def _earnings_frames():
+    """Cztery spolki: EEE najlepsza w kazdym komponencie, AAA najgorsza."""
+    hist = pd.DataFrame([
+        {"ticker": "AAA", "beat_streak": 0, "eps_surprise_pct": -5.0},
+        {"ticker": "BBB", "beat_streak": 2, "eps_surprise_pct": 1.0},
+        {"ticker": "CCC", "beat_streak": 3, "eps_surprise_pct": 4.0},
+        {"ticker": "EEE", "beat_streak": 4, "eps_surprise_pct": 9.0},
+    ])
+    trend = pd.DataFrame([
+        {"ticker": "AAA", "revision_90d_pct": -8.0},
+        {"ticker": "BBB", "revision_90d_pct": 0.5},
+        {"ticker": "CCC", "revision_90d_pct": 3.0},
+        {"ticker": "EEE", "revision_90d_pct": 12.0},
+    ])
+    return hist, trend
+
+
+def test_earnings_scorer_rankuje_wg_trzech_komponentow():
+    hist, trend = _earnings_frames()
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB", "CCC", "EEE"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert list(scores.sort_values(ascending=False).index) == ["EEE", "CCC", "BBB", "AAA"]
+    assert scores.max() <= 1.0 and scores.min() >= 0.0, "score poza skala 0-1"
+
+
+def test_earnings_scorer_jest_forward_only():
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: pd.DataFrame(),
+        trend_fn=lambda tickers: pd.DataFrame(),
+    )
+    assert scorer.supports_asof is False
+
+
+def test_earnings_scorer_renormalizuje_przy_braku_rewizji():
+    """Spolka bez rewizji nie moze wypasc z rankingu — wagi sie renormalizuja."""
+    hist, trend = _earnings_frames()
+    trend = trend[trend["ticker"] != "EEE"]     # EEE traci komponent rewizji
+
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB", "CCC", "EEE"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+
+    assert "EEE" in scores.index, "spolka bez rewizji wypadla z rankingu"
+    assert pd.notna(scores["EEE"])
+    assert scores["EEE"] == pytest.approx(1.0), \
+        "EEE jest najlepsza w obu dostepnych komponentach, wiec po renormalizacji 1.0"
+
+
+def test_earnings_scorer_bez_zadnych_danych_zwraca_pusta_serie():
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: pd.DataFrame(),
+        trend_fn=lambda tickers: pd.DataFrame(),
+    )
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert scores.dropna().empty
+
+
+def test_earnings_scorer_ignoruje_tickery_spoza_eligible():
+    hist, trend = _earnings_frames()
+    scorer = tp.make_earnings_scorer(
+        history_fn=lambda tickers: hist,
+        trend_fn=lambda tickers: trend,
+    )
+    scores = scorer.fn(["AAA", "BBB"], pd.DataFrame(), pd.Timestamp("2026-08-01"))
+    assert set(scores.index) == {"AAA", "BBB"}

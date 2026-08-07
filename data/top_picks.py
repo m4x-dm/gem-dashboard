@@ -55,6 +55,97 @@ def _momentum_scores(eligible: list[str], px: pd.DataFrame,
 
 MOMENTUM_SCORER = Scorer(name="momentum", supports_asof=True, fn=_momentum_scores)
 
+
+# ====== Scorery fundamentalne (forward-only) ======
+#
+# Import data.financials siedzi WEWNATRZ funkcji, nie na gorze modulu:
+# financials importuje streamlita, a ten modul ma zostac importowalny bez
+# niego (testy F18 i GitHub Action).
+
+EARNINGS_WEIGHTS = {"beat_streak": 0.40, "surprise": 0.35, "revision": 0.25}
+QUALITY_WEIGHTS = {"roe": 0.30, "margin": 0.25, "growth": 0.25, "debt": 0.20}
+
+
+def _weighted_percentiles(components: dict[str, pd.Series],
+                          weights: dict[str, float],
+                          index: list[str]) -> pd.Series:
+    """Wazona srednia percentyli, z renormalizacja wag do dostepnych komponentow.
+
+    Kazdy komponent jest osobno przeliczany na percentyl (0-1, wyzej = lepiej),
+    zeby jednostki (procenty, krotnosci, licznik kwartalow) byly porownywalne.
+    Spolka z czescia komponentow dostaje srednia z tego, co ma — wzorzec
+    _flexible_score() z momentum.py. Spolka bez zadnego komponentu = NaN.
+    """
+    ranks: dict[str, pd.Series] = {}
+    for key, series in components.items():
+        clean = pd.to_numeric(series, errors="coerce").reindex(index).dropna()
+        if clean.empty:
+            continue
+        ranks[key] = clean.rank(pct=True)
+
+    if not ranks:
+        return pd.Series(float("nan"), index=index)
+
+    total = pd.Series(0.0, index=index)
+    used = pd.Series(0.0, index=index)
+    for key, rank in ranks.items():
+        weight = weights[key]
+        aligned = rank.reindex(index)
+        contribution = (aligned * weight).fillna(0.0)
+        total += contribution
+        used += aligned.notna().astype(float) * weight
+
+    out = total / used.replace(0.0, float("nan"))
+    return out
+
+
+def make_earnings_scorer(history_fn=None, trend_fn=None) -> Scorer:
+    """Scorer 'Earnings Momentum' — beat streak + zaskoczenie EPS + rewizje.
+
+    Args:
+        history_fn: (tuple[str]) -> DataFrame z ticker/beat_streak/eps_surprise_pct.
+            None = bulk_fetch_earnings_history z data.financials.
+        trend_fn: (tuple[str]) -> DataFrame z ticker/revision_90d_pct.
+            None = bulk_fetch_earnings_trend z data.financials.
+
+    supports_asof=False — yfinance oddaje stan na dzis, nie na zadana date.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        if history_fn is None or trend_fn is None:
+            from data.financials import (
+                bulk_fetch_earnings_history,
+                bulk_fetch_earnings_trend,
+            )
+            hist_source = history_fn or bulk_fetch_earnings_history
+            trend_source = trend_fn or bulk_fetch_earnings_trend
+        else:
+            hist_source, trend_source = history_fn, trend_fn
+
+        tickers = tuple(eligible)
+        hist = hist_source(tickers)
+        trend = trend_source(tickers)
+
+        components: dict[str, pd.Series] = {}
+        if hist is not None and not hist.empty and "ticker" in hist.columns:
+            indexed = hist.set_index("ticker")
+            if "beat_streak" in indexed.columns:
+                components["beat_streak"] = indexed["beat_streak"]
+            if "eps_surprise_pct" in indexed.columns:
+                components["surprise"] = indexed["eps_surprise_pct"]
+        if trend is not None and not trend.empty and "ticker" in trend.columns:
+            indexed = trend.set_index("ticker")
+            if "revision_90d_pct" in indexed.columns:
+                components["revision"] = indexed["revision_90d_pct"]
+
+        if not components:
+            return pd.Series(float("nan"), index=eligible)
+        return _weighted_percentiles(components, EARNINGS_WEIGHTS, eligible)
+
+    return Scorer(name="earnings", supports_asof=False, fn=_fn)
+
+
+EARNINGS_SCORER = make_earnings_scorer()
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
