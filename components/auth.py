@@ -16,7 +16,7 @@ PAGE_INFO = {
     5: ("\U0001f52c", "Backtest", "GEM vs Buy&Hold \u2014 krzywa kapitalu, Sharpe, MDD i wiecej"),
     7: ("\U0001f1fa\U0001f1f8", "S&P 500", "Ranking, wykresy i backtest ~456 spolek z indeksu S&P 500"),
     8: ("\U0001f1f5\U0001f1f1", "Polskie Akcje GPW", "120 spolek z WIG20, mWIG40 i sWIG80 \u2014 momentum i backtest"),
-    9: ("🎯", "Top Picks", "Miesieczna piatka spolek SP500 + GPW z regula momentum i track recordem"),
+    9: ("🎯", "Top Picks", "Trzy miesieczne piatki spolek: momentum cenowe, jakosc wynikow kwartalnych i jakosc biznesu"),
     10: ("\U0001fa99", "Kryptowaluty", "Top 200 kryptowalut \u2014 ranking, alt/BTC ratio, analiza techniczna"),
     11: ("\U0001f3d7\ufe0f", "Portfolio Builder", "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
     12: ("\U0001f50e", "Screener", "Cross-asset ranking momentum ze wszystkich klas aktywow"),
