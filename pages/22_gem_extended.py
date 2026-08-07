@@ -1,4 +1,4 @@
-"""Strona 21: GEM Extended — backtest GEM z konfigurowalnym universe.
+"""Strona 22: GEM Extended — backtest GEM z konfigurowalnym universe.
 
 Rozszerzenie klasycznego GEM Antonacciego (5 ETF, top 1) o:
 - Dowolne risk_assets (do 10+ ETF, krypto, sektorow)
@@ -18,7 +18,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="GEM Extended", page_icon="🚀", layout="wide")
 setup_sidebar()
-if not require_premium(21):
+if not require_premium(22):
     st.stop()
 
 st.markdown("# 🚀 GEM Extended — backtest rozszerzonego universe")

@@ -442,3 +442,32 @@ def _hex_to_rgb(hex_color: str) -> str:
     """Konwertuje #RRGGBB na R,G,B."""
     h = hex_color.lstrip("#")
     return f"{int(h[:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)}"
+
+
+def picks_return_bar(labels: list[str], returns: list[float | None],
+                     title: str = "Zwrot od rebalansu") -> go.Figure:
+    """Poziomy bar chart zwrotow piatki Top Picks (zielony/czerwony)."""
+    pairs = [(lab, r) for lab, r in zip(labels, returns)
+             if r is not None and np.isfinite(r)]
+    fig = go.Figure()
+    if not pairs:
+        fig.update_layout(**_base_layout(title, height=220))
+        return fig
+
+    pairs.sort(key=lambda p: p[1])  # rosnaco — najlepszy na gorze wykresu
+    names = [p[0] for p in pairs]
+    values = [p[1] * 100 for p in pairs]
+    colors = ["#22C55E" if v > 0 else "#EF4444" for v in values]
+
+    fig.add_trace(go.Bar(
+        x=values, y=names, orientation="h",
+        marker_color=colors,
+        text=[f"{v:+.1f}%" for v in values],
+        textposition="outside",
+        textfont=dict(size=11),
+        hovertemplate="%{y}: %{x:.2f}%<extra></extra>",
+    ))
+    fig.update_layout(**_base_layout(title, height=max(220, len(pairs) * 46)))
+    fig.update_xaxes(title_text="Zwrot (%)", zeroline=True,
+                     zerolinecolor="rgba(255,255,255,0.25)")
+    return fig

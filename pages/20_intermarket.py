@@ -1,4 +1,4 @@
-"""Strona 19: Intermarket — relacje miedzy klasami aktywow."""
+"""Strona 20: Intermarket — relacje miedzy klasami aktywow."""
 
 import streamlit as st
 import pandas as pd
@@ -18,7 +18,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Intermarket", page_icon="🔗", layout="wide")
 setup_sidebar()
-if not require_premium(19): st.stop()
+if not require_premium(20): st.stop()
 
 st.markdown("# 🔗 Analiza Intermarket")
 st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa")

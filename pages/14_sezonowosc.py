@@ -1,4 +1,4 @@
-"""Strona 13: Sezonowosc — heatmapa miesięcznych zwrotow, wzorce sezonowe, Sell in May."""
+"""Strona 14: Sezonowosc — heatmapa miesięcznych zwrotow, wzorce sezonowe, Sell in May."""
 
 import streamlit as st
 import pandas as pd
@@ -14,7 +14,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Sezonowosc", page_icon="📅", layout="wide")
 setup_sidebar()
-if not require_premium(13): st.stop()
+if not require_premium(14): st.stop()
 
 st.markdown("# 📅 Sezonowosc")
 st.caption("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May")

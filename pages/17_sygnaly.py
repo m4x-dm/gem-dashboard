@@ -1,4 +1,4 @@
-"""Strona 16: Historia Sygnalow GEM — timeline, statystyki, kalendarz."""
+"""Strona 17: Historia Sygnalow GEM — timeline, statystyki, kalendarz."""
 
 import streamlit as st
 import pandas as pd
@@ -14,7 +14,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Historia Sygnalow", page_icon="🚦", layout="wide")
 setup_sidebar()
-if not require_premium(16): st.stop()
+if not require_premium(17): st.stop()
 
 st.markdown("# 🚦 Historia Sygnalow GEM")
 st.caption("Pelna historia zmian sygnalu GEM, czas trwania pozycji, alokacja w czasie")

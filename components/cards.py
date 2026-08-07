@@ -677,3 +677,146 @@ def analyst_recos_card(recos: dict) -> None:
         f'{badge_html}'
         f'</div>'
     )
+
+
+# ---------------------------------------------------------------------------
+# Top Picks (strona 9)
+# ---------------------------------------------------------------------------
+
+def _sparkline_svg(series: pd.Series | None, color: str,
+                   width: int = 120, height: int = 34) -> str:
+    """Inline SVG sparkline — wrysowany w karte, bez osobnego st.plotly_chart.
+
+    Zwraca "" gdy brak danych; karta renderuje sie wtedy bez wykresu.
+    """
+    if series is None:
+        return ""
+    s = series.dropna()
+    if len(s) < 2:
+        return ""
+
+    vals = np.asarray(s.values, dtype=float)
+    vals = vals[np.isfinite(vals)]
+    if len(vals) < 2:
+        return ""
+
+    lo, hi = float(vals.min()), float(vals.max())
+    span = hi - lo
+    n = len(vals)
+    pad = 1.5
+    usable = height - 2 * pad
+
+    if span <= 0:
+        ys = [height / 2] * n
+    else:
+        ys = [height - pad - (v - lo) / span * usable for v in vals]
+    xs = [i / (n - 1) * width for i in range(n)]
+
+    line = " ".join(
+        f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(zip(xs, ys))
+    )
+    area = f"{line} L{width:.1f},{height:.1f} L0,{height:.1f} Z"
+    r, g, b = _hex_to_rgb_tuple(color)
+
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+        f'preserveAspectRatio="none" style="display:block">'
+        f'<path d="{area}" fill="rgba({r},{g},{b},0.14)" />'
+        f'<path d="{line}" fill="none" stroke="{color}" stroke-width="1.6" '
+        f'stroke-linejoin="round" stroke-linecap="round" />'
+        f'</svg>'
+    )
+
+
+def _hex_to_rgb_tuple(hex_color: str) -> tuple[int, int, int]:
+    """#RRGGBB -> (r, g, b)."""
+    h = hex_color.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def top_pick_cards(picks: list[dict], currency: str) -> None:
+    """Karty piatki Top Picks — jedna karta na spolke, sparkline wewnatrz karty.
+
+    Args:
+        picks: lista dictow z kluczami: ticker, name, sector, score,
+               entry, now, ret (float|None), spark (pd.Series|None)
+        currency: "USD" / "PLN" — do podpisu cen
+    """
+    if not picks:
+        return
+
+    cols = st.columns(len(picks))
+    for i, (col, pick) in enumerate(zip(cols, picks), start=1):
+        ret = pick.get("ret")
+        ret_color = color_for_value(ret)
+        spark_color = ret_color if ret_color != MUTED else GOLD
+
+        name = pick.get("name") or ""
+        if len(name) > 26:
+            name = name[:25].rstrip() + "…"
+        sector = pick.get("sector") or "—"
+
+        score = pick.get("score")
+        score_str = f"{score:.3f}".replace(".", ",") if score is not None else "—"
+
+        entry, now = pick.get("entry"), pick.get("now")
+        if entry is not None and now is not None:
+            prices_str = f"{fmt_number(entry, 2)} → {fmt_number(now, 2)} {currency}"
+        elif entry is not None:
+            prices_str = f"wejscie {fmt_number(entry, 2)} {currency}"
+        else:
+            prices_str = "—"
+
+        col.html(
+            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:14px;'
+            f'padding:14px 12px 10px;height:100%;transition:border-color 0.2s">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+            f'<span style="background:rgba(201,168,76,0.14);color:{GOLD};font-size:0.62rem;'
+            f'font-weight:700;padding:2px 9px;border-radius:10px;letter-spacing:0.04em">#{i}</span>'
+            f'<span style="font-size:0.6rem;color:{MUTED}">score {score_str}</span>'
+            f'</div>'
+            f'<div style="font-size:clamp(0.95rem,3.2vw,1.3rem);font-weight:800;color:{GOLD};'
+            f'letter-spacing:0.02em;line-height:1.1">{pick["ticker"]}</div>'
+            f'<div style="font-size:0.68rem;color:{MUTED};line-height:1.3;min-height:2.6em;'
+            f'margin:3px 0 6px">{name}</div>'
+            f'<div style="display:inline-block;font-size:0.58rem;color:#D1D5DB;'
+            f'background:rgba(255,255,255,0.05);border-radius:8px;padding:2px 8px;'
+            f'margin-bottom:10px;letter-spacing:0.03em">{sector}</div>'
+            f'<div style="font-size:clamp(0.95rem,3.4vw,1.35rem);font-weight:700;color:{ret_color};'
+            f'line-height:1.1">{fmt_pct(ret)}</div>'
+            f'<div style="font-size:0.6rem;color:{MUTED};margin-top:3px">{prices_str}</div>'
+            f'<div style="margin-top:10px">{_sparkline_svg(pick.get("spark"), spark_color)}</div>'
+            f'<div style="font-size:0.55rem;color:{MUTED};text-align:right;margin-top:2px;'
+            f'letter-spacing:0.04em">3M</div>'
+            f'</div>'
+        )
+
+
+def section_band(icon: str, title: str, subtitle: str = "") -> None:
+    """Pasek naglowka sekcji rynku — zlota kreska + tytul + podpis po prawej."""
+    sub = (
+        f'<span style="font-size:0.7rem;color:{MUTED};white-space:nowrap">{subtitle}</span>'
+        if subtitle else ""
+    )
+    st.html(
+        f'<div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">'
+        f'<span style="font-size:1.05rem;font-weight:700;color:#E5E7EB;white-space:nowrap">'
+        f'{icon} {title}</span>'
+        f'<span style="flex:1;height:1px;background:linear-gradient(90deg,{BORDER},rgba(201,168,76,0))"></span>'
+        f'{sub}'
+        f'</div>'
+    )
+
+
+def kpi_card(col, title: str, value: str, subtitle: str = "",
+             color: str = "#E5E7EB") -> None:
+    """Karta KPI z dowolna (juz sformatowana) wartoscia — dla metryk nie-procentowych."""
+    col.html(
+        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;'
+        f'padding:clamp(10px,2vw,16px);text-align:center;height:100%">'
+        f'<div style="font-size:0.7rem;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.06em;margin-bottom:6px">{title}</div>'
+        f'<div style="font-size:clamp(1rem,3.6vw,1.5rem);font-weight:700;color:{color}">{value}</div>'
+        f'<div style="font-size:0.65rem;color:{MUTED};margin-top:4px">{subtitle}</div>'
+        f'</div>'
+    )

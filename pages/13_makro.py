@@ -1,4 +1,4 @@
-"""Strona 12: Makro Dashboard — kontekst makroekonomiczny dla GEM."""
+"""Strona 13: Makro Dashboard — kontekst makroekonomiczny dla GEM."""
 
 import streamlit as st
 import pandas as pd
@@ -15,7 +15,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Makro Dashboard", page_icon="🌍", layout="wide")
 setup_sidebar()
-if not require_premium(12): st.stop()
+if not require_premium(13): st.stop()
 
 st.markdown("# 🌍 Makro Dashboard")
 st.caption("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM")

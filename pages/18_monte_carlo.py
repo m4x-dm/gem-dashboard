@@ -1,4 +1,4 @@
-"""Strona 17: Monte Carlo — symulacja przyszlych zwrotow."""
+"""Strona 18: Monte Carlo — symulacja przyszlych zwrotow."""
 
 import streamlit as st
 import pandas as pd
@@ -15,7 +15,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Monte Carlo", page_icon="🎲", layout="wide")
 setup_sidebar()
-if not require_premium(17): st.stop()
+if not require_premium(18): st.stop()
 
 st.markdown("# 🎲 Monte Carlo")
 st.caption("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?")

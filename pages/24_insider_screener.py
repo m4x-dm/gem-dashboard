@@ -1,4 +1,4 @@
-"""Strona 23: Bulk Insider Screener.
+"""Strona 24: Bulk Insider Screener.
 
 Bulk insider activity dla SP500 (456 spolek). Window: 6 mc.
 ETF wykluczone (no insider data). GPW pominiete (yfinance brak SEC Form 4).
@@ -33,7 +33,7 @@ st.set_page_config(
     layout="wide",
 )
 setup_sidebar()
-if not require_premium(23):
+if not require_premium(24):
     st.stop()
 
 st.markdown("# 👥 Bulk Insider Screener")

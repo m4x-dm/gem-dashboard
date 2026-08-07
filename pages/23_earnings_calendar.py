@@ -1,4 +1,4 @@
-"""Strona 22: Earnings Calendar — nadchodzace + niedawne raporty.
+"""Strona 23: Earnings Calendar — nadchodzace + niedawne raporty.
 
 Window: data.today() ± 28 dni.
 Universe: SP500 (456) + GPW (121) = 577. ETF wykluczone (no earnings).
@@ -243,7 +243,7 @@ st.set_page_config(
     layout="wide",
 )
 setup_sidebar()
-if not require_premium(22):
+if not require_premium(23):
     st.stop()
 
 # Header

@@ -1,4 +1,4 @@
-"""Strona 15: Analiza Drawdownow — top N spadkow, czas trwania, odbudowa."""
+"""Strona 16: Analiza Drawdownow — top N spadkow, czas trwania, odbudowa."""
 
 import streamlit as st
 import pandas as pd
@@ -15,7 +15,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Analiza Drawdownow", page_icon="📉", layout="wide")
 setup_sidebar()
-if not require_premium(15): st.stop()
+if not require_premium(16): st.stop()
 
 st.markdown("# 📉 Analiza Drawdownow")
 st.caption("Top spadki od szczytu, czas trwania, czas odbudowy")

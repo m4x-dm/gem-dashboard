@@ -46,7 +46,7 @@ def inject_css():
             font-weight: 600;
         }
 
-        /* Separator between ETF section (pages 0-6) and market sections (7-9)
+        /* Separator between ETF section (pages 0-6) and market sections (7-10)
            UWAGA: nth-child(8) = 8. link w sidebar (strona 7_sp500).
            Jesli dodasz/usuniesz strone, zaktualizuj te indeksy! */
         a[data-testid="stSidebarNavLink"]:nth-child(8) {
@@ -55,15 +55,15 @@ def inject_css():
             border-top: 1px solid rgba(201,168,76,0.15);
         }
 
-        /* Separator between market sections (7-9) and tools (10-12) */
-        a[data-testid="stSidebarNavLink"]:nth-child(11) {
+        /* Separator between market sections (7-10) and tools (11-13) */
+        a[data-testid="stSidebarNavLink"]:nth-child(12) {
             margin-top: 12px;
             padding-top: 12px;
             border-top: 1px solid rgba(201,168,76,0.15);
         }
 
-        /* Separator between tools (10-12) and analytics (13-19) */
-        a[data-testid="stSidebarNavLink"]:nth-child(14) {
+        /* Separator between tools (11-13) and analytics (14-24) */
+        a[data-testid="stSidebarNavLink"]:nth-child(15) {
             margin-top: 12px;
             padding-top: 12px;
             border-top: 1px solid rgba(201,168,76,0.15);

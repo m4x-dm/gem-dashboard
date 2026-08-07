@@ -1,4 +1,4 @@
-"""Testy dla pages/22_earnings_calendar.py + watchlist + earnings calendar helpers."""
+"""Testy dla pages/23_earnings_calendar.py + watchlist + earnings calendar helpers."""
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock

@@ -1,4 +1,4 @@
-"""Strona 20: Side-by-Side — porownanie dwoch aktywow obok siebie."""
+"""Strona 21: Side-by-Side — porownanie dwoch aktywow obok siebie."""
 
 import streamlit as st
 import pandas as pd
@@ -20,7 +20,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Side-by-Side", page_icon="🔀", layout="wide")
 setup_sidebar()
-if not require_premium(20): st.stop()
+if not require_premium(21): st.stop()
 
 st.markdown("# 🔀 Side-by-Side")
 st.caption("Porownaj dwa aktywa obok siebie — cena, drawdown, statystyki i Relative Strength")

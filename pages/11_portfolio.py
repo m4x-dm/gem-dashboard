@@ -1,4 +1,4 @@
-"""Strona 10: Portfolio Builder — budowanie i analiza portfela."""
+"""Strona 11: Portfolio Builder — budowanie i analiza portfela."""
 
 import streamlit as st
 import pandas as pd
@@ -23,7 +23,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Portfolio Builder", page_icon="🏗️", layout="wide")
 setup_sidebar()
-if not require_premium(10): st.stop()
+if not require_premium(11): st.stop()
 
 st.markdown("# 🏗️ Portfolio Builder")
 st.caption("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki")

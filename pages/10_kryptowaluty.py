@@ -1,4 +1,4 @@
-"""Strona 8: Kryptowaluty — top 200, ranking momentum, Alt/BTC, wykresy, backtest."""
+"""Strona 10: Kryptowaluty — top 200, ranking momentum, Alt/BTC, wykresy, backtest."""
 
 import streamlit as st
 import pandas as pd
@@ -29,7 +29,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Kryptowaluty", page_icon="₿", layout="wide")
 setup_sidebar()
-if not require_premium(9): st.stop()
+if not require_premium(10): st.stop()
 
 st.markdown("# ₿ Kryptowaluty — Top 200")
 

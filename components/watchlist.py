@@ -1,7 +1,7 @@
 """Watchlist user-defined (localStorage przez streamlit-local-storage).
 
 Cross-feature module — uzywany przez:
-- pages/22_earnings_calendar.py (filter "tylko watchlist")
+- pages/23_earnings_calendar.py (filter "tylko watchlist")
 - (v2) pages/7_sp500.py + 8_gpw.py screener F13 (filter)
 
 Format storage: JSON array tickerow (sorted, deduplicated).

@@ -1,4 +1,4 @@
-"""Strona 9: Amerykanskie Akcje S&P 500 — 11 sektorow GICS."""
+"""Strona 7: Amerykanskie Akcje S&P 500 — 11 sektorow GICS."""
 
 import streamlit as st
 import pandas as pd

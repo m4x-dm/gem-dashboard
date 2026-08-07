@@ -16,22 +16,22 @@ PAGE_INFO = {
     5: ("\U0001f52c", "Backtest", "GEM vs Buy&Hold \u2014 krzywa kapitalu, Sharpe, MDD i wiecej"),
     7: ("\U0001f1fa\U0001f1f8", "S&P 500", "Ranking, wykresy i backtest ~456 spolek z indeksu S&P 500"),
     8: ("\U0001f1f5\U0001f1f1", "Polskie Akcje GPW", "120 spolek z WIG20, mWIG40 i sWIG80 \u2014 momentum i backtest"),
-    9: ("\U0001fa99", "Kryptowaluty", "Top 200 kryptowalut \u2014 ranking, alt/BTC ratio, analiza techniczna"),
-    10: ("\U0001f3d7\ufe0f", "Portfolio Builder", "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
-    11: ("\U0001f50e", "Screener", "Cross-asset ranking momentum ze wszystkich klas aktywow"),
-    12: ("\U0001f30d", "Makro Dashboard", "VIX, yield curve, DXY, S&P+200MA, zloto, ropa"),
-    13: ("\U0001f4c5", "Sezonowosc", "Heatmapa miesiecznych zwrotow i wzorce sezonowe"),
-    14: ("\U0001f4b1", "Waluta PLN/USD", "Wplyw kursu USD/PLN na zwroty ETF-ow w zlotowkach"),
-    15: ("\U0001f4c9", "Drawdowny", "Analiza spadkow od szczytu \u2014 glebokosc, czas trwania, odbudowa"),
-    16: ("\U0001f6a6", "Historia Sygnalow", "Pelna historia zmian sygnalu GEM w czasie"),
-    17: ("\U0001f3b2", "Monte Carlo", "Symulacja przyszlych zwrotow \u2014 ile mozesz miec za N lat?"),
-    18: ("\U0001f504", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow"),
-    19: ("\U0001f517", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar"),
-    20: ("\U0001f500", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS"),
-    21: ("\U0001f680", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
-    22: ("📅", "Earnings Calendar", "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlist"),
-    23: ("👥", "Insider Screener", "Bulk insider activity SP500 — top buyers/sellers, sektory, beat streak"),
-    24: ("🎯", "Top Picks", "Miesieczna piatka spolek SP500 + GPW z regula momentum i track recordem"),
+    9: ("🎯", "Top Picks", "Miesieczna piatka spolek SP500 + GPW z regula momentum i track recordem"),
+    10: ("\U0001fa99", "Kryptowaluty", "Top 200 kryptowalut \u2014 ranking, alt/BTC ratio, analiza techniczna"),
+    11: ("\U0001f3d7\ufe0f", "Portfolio Builder", "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
+    12: ("\U0001f50e", "Screener", "Cross-asset ranking momentum ze wszystkich klas aktywow"),
+    13: ("\U0001f30d", "Makro Dashboard", "VIX, yield curve, DXY, S&P+200MA, zloto, ropa"),
+    14: ("\U0001f4c5", "Sezonowosc", "Heatmapa miesiecznych zwrotow i wzorce sezonowe"),
+    15: ("\U0001f4b1", "Waluta PLN/USD", "Wplyw kursu USD/PLN na zwroty ETF-ow w zlotowkach"),
+    16: ("\U0001f4c9", "Drawdowny", "Analiza spadkow od szczytu \u2014 glebokosc, czas trwania, odbudowa"),
+    17: ("\U0001f6a6", "Historia Sygnalow", "Pelna historia zmian sygnalu GEM w czasie"),
+    18: ("\U0001f3b2", "Monte Carlo", "Symulacja przyszlych zwrotow \u2014 ile mozesz miec za N lat?"),
+    19: ("\U0001f504", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow"),
+    20: ("\U0001f517", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar"),
+    21: ("\U0001f500", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS"),
+    22: ("\U0001f680", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
+    23: ("📅", "Earnings Calendar", "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlist"),
+    24: ("👥", "Insider Screener", "Bulk insider activity SP500 — top buyers/sellers, sektory, beat streak"),
 }
 
 # Link do zakupu na Naffy (do uzupelnienia po stworzeniu produktu)
@@ -161,7 +161,7 @@ def _render_lock_screen(page_num: int):
             margin-bottom:24px;
         ">
             <div style="color:#C9A84C;font-weight:700;font-size:16px;margin-bottom:6px;">
-                Odblokuj wszystkie 16 stron
+                Odblokuj wszystkie 21 stron
             </div>
             <div style="color:#9CA3AF;font-size:13px;">
                 Jednorazowy dostep &middot; 49 zl &middot; Lifetime

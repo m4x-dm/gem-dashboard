@@ -1,4 +1,4 @@
-"""Strona 18: Rotacja Sektorowa — momentum sektorow GICS w czasie."""
+"""Strona 19: Rotacja Sektorowa — momentum sektorow GICS w czasie."""
 
 import streamlit as st
 import pandas as pd
@@ -16,7 +16,7 @@ from components.auth import require_premium
 
 st.set_page_config(page_title="Rotacja Sektorowa", page_icon="🔄", layout="wide")
 setup_sidebar()
-if not require_premium(18): st.stop()
+if not require_premium(19): st.stop()
 
 st.markdown("# 🔄 Rotacja Sektorowa")
 st.caption("Momentum 11 sektorow GICS — ktory sektor prowadzi?")

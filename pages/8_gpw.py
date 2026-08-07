@@ -1,4 +1,4 @@
-"""Strona 7: Polskie Akcje GPW — WIG20 / mWIG40 / sWIG80."""
+"""Strona 8: Polskie Akcje GPW — WIG20 / mWIG40 / sWIG80."""
 
 import streamlit as st
 import pandas as pd
