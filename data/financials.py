@@ -646,6 +646,72 @@ def fetch_earnings_trend(ticker: str) -> pd.DataFrame | None:
     return out
 
 
+def _trend_row_for_one(ticker: str) -> dict | None:
+    """Rewizja konsensusu 90d dla 1 tickera. None gdy brak danych."""
+    try:
+        df = fetch_earnings_trend(ticker)
+    except Exception:
+        return None
+    if df is None or df.empty or "0q" not in df.index:
+        return None
+
+    row = df.loc["0q"]
+    current = row.get("eps_current")
+    ago = row.get("eps_90d_ago")
+    if current is None or ago is None:
+        return None
+    try:
+        current, ago = float(current), float(ago)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(current) or not np.isfinite(ago) or ago == 0:
+        return None
+
+    return {
+        "ticker": ticker,
+        "eps_current": current,
+        "eps_90d_ago": ago,
+        "revision_90d_pct": (current - ago) / abs(ago) * 100.0,
+    }
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram rewizje konsensusu...")
+def bulk_fetch_earnings_trend(
+    tickers_tuple: tuple[str, ...],
+    max_workers: int = 8,
+) -> pd.DataFrame:
+    """Bulk rewizje konsensusu EPS (okno 90d) dla universe.
+
+    Uzywane przez EARNINGS_SCORER w data/top_picks.py.
+
+    Args:
+        tickers_tuple: tuple (hashable dla cache). NIE prefiksowac '_' —
+            Streamlit ignoruje argumenty z '_' i doszloby do kolizji cache
+            miedzy universe'ami.
+
+    Returns:
+        DataFrame z kolumnami: ticker, eps_current, eps_90d_ago,
+        revision_90d_pct. Wiersze tylko dla tickerow z kompletem danych.
+        Pusty DataFrame gdy zaden ticker nie ma danych.
+    """
+    if not tickers_tuple:
+        return pd.DataFrame(
+            columns=["ticker", "eps_current", "eps_90d_ago", "revision_90d_pct"]
+        )
+
+    rows: list[dict] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for result in executor.map(_trend_row_for_one, tickers_tuple):
+            if result is not None:
+                rows.append(result)
+
+    if not rows:
+        return pd.DataFrame(
+            columns=["ticker", "eps_current", "eps_90d_ago", "revision_90d_pct"]
+        )
+    return pd.DataFrame(rows)
+
+
 def _fetch_earnings_for_one(ticker: str, retries: int = 3) -> dict | None:
     """Pobiera earnings history dla 1 tickera z retry (exp backoff 1s, 2s, 4s).
 

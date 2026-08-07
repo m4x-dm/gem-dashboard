@@ -480,3 +480,46 @@ def test_bulk_fetch_earnings_history_returns_dataframe_with_required_columns():
     # MISS ma streak 0 (ostatni kwartal miss)
     miss_row = result[result["ticker"] == "MISS"].iloc[0]
     assert miss_row["beat_streak"] == 0
+
+
+# ====== bulk_fetch_earnings_trend (2026-08-07) ======
+
+def test_bulk_earnings_trend_sklada_revision_90d(monkeypatch):
+    """Rewizja 90d = (eps_current - eps_90d_ago) / |eps_90d_ago|, wiersz 0q."""
+    import data.financials as fin
+
+    def fake_trend(ticker):
+        if ticker == "BRAK":
+            return None
+        base = {"AAA": (2.0, 1.6), "BBB": (1.0, 1.25)}[ticker]
+        return pd.DataFrame(
+            {"eps_current": [base[0]], "eps_90d_ago": [base[1]]},
+            index=["0q"],
+        )
+
+    monkeypatch.setattr(fin, "fetch_earnings_trend", fake_trend)
+    out = fin.bulk_fetch_earnings_trend.__wrapped__(("AAA", "BBB", "BRAK"))
+
+    assert set(out["ticker"]) == {"AAA", "BBB"}
+    aaa = out.set_index("ticker").loc["AAA", "revision_90d_pct"]
+    bbb = out.set_index("ticker").loc["BBB", "revision_90d_pct"]
+    assert aaa == pytest.approx(25.0)      # (2.0-1.6)/1.6 = +25%
+    assert bbb == pytest.approx(-20.0)     # (1.0-1.25)/1.25 = -20%
+
+
+def test_bulk_earnings_trend_pomija_zerowy_mianownik(monkeypatch):
+    import data.financials as fin
+
+    def fake_trend(ticker):
+        return pd.DataFrame({"eps_current": [1.0], "eps_90d_ago": [0.0]}, index=["0q"])
+
+    monkeypatch.setattr(fin, "fetch_earnings_trend", fake_trend)
+    out = fin.bulk_fetch_earnings_trend.__wrapped__(("AAA",))
+    assert out.empty or pd.isna(out.iloc[0]["revision_90d_pct"])
+
+
+def test_bulk_earnings_trend_pusty_input_daje_pusty_df():
+    import data.financials as fin
+    out = fin.bulk_fetch_earnings_trend.__wrapped__(())
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
