@@ -6,6 +6,7 @@ Wszystkie funkcje wrapped w try/except — fail = None / empty (graceful).
 Uzywane przez tab "Finanse spolki" w pages/7_sp500.py + pages/8_gpw.py.
 """
 
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -1114,14 +1115,21 @@ def _normalize_transaction_type(raw: str) -> str:
     Purchase variants ("Purchase", "Buy") -> "Buy"
     Pozostale (Exercise of Options, Conversion, Other) zostawione,
     z odcietym suffix w nawiasie (np. "Other (Acquisition)" -> "Other").
+
+    Od 2026-08 Yahoo podaje typ jako cale zdanie w kolumnie "Text"
+    ("Stock Gift at price 0.00 per share.") — ogon "at price ..." obcinamy,
+    zeby Type nadal byl krotka etykieta. Pusty/NaN daje pusty string.
     """
-    raw_str = str(raw)
+    raw_str = "" if raw is None else str(raw).strip()
+    if raw_str.lower() in {"", "nan", "none", "nat"}:
+        return ""
     raw_lower = raw_str.lower()
     if "sale" in raw_lower or "sell" in raw_lower:
         return "Sell"
     if "purchase" in raw_lower or "buy" in raw_lower:
         return "Buy"
-    return raw_str.split("(")[0].strip()
+    label = re.split(r"\s+at\s+price\s+", raw_str, maxsplit=1)[0]
+    return label.split("(")[0].strip().rstrip(".")
 
 
 def _try_insider_endpoint(ticker: str, attr_name: str) -> pd.DataFrame | dict | None:
@@ -1184,16 +1192,34 @@ def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
 
     out = df.copy()
 
-    # Normalize Type column (yfinance moze uzyc 'Transaction', 'Type' lub 'Action')
-    type_col = None
-    for cand in ["Transaction", "Type", "Action"]:
-        if cand in out.columns:
-            type_col = cand
-            break
-    if type_col is None:
+    # Typ transakcji. Yahoo od sierpnia 2026 zwraca kolumne "Transaction"
+    # pusta w 100% wierszy (zmierzone na AAPL/JPM/XOM), a opis podaje wylacznie
+    # w "Text" ("Sale at price 307.75 per share."). Bierzemy pierwsza kolumne,
+    # ktora dla danego wiersza ma cokolwiek — per wiersz, nie per kolumna,
+    # bo zrodla bywaja wypelnione czesciowo.
+    raw_type = pd.Series("", index=out.index, dtype=object)
+    for cand in ["Transaction", "Type", "Action", "Text"]:
+        if cand not in out.columns:
+            continue
+        col = out[cand].astype(str).str.strip()
+        col = col.mask(col.str.lower().isin(["nan", "none", "nat"]), "")
+        raw_type = raw_type.mask(raw_type == "", col)
+
+    out["Type"] = raw_type.apply(_normalize_transaction_type)
+    if (out["Type"] == "").all():
         return None
 
-    out["Type"] = out[type_col].apply(_normalize_transaction_type)
+    # Data transakcji siedzi w kolumnie, nie w indeksie — bez tego
+    # _compute_buy_streak grupowal po RangeIndex zrzutowanym na epoch 1970.
+    if not isinstance(out.index, pd.DatetimeIndex):
+        for date_col in ["Start Date", "Date", "startDate"]:
+            if date_col not in out.columns:
+                continue
+            parsed = pd.to_datetime(out[date_col], errors="coerce")
+            if parsed.notna().any():
+                out = out.loc[parsed.notna()].copy()
+                out.index = pd.DatetimeIndex(parsed.dropna())
+                break
 
     keep = []
     for cand in ["Insider", "Position", "Type", "Shares", "Value"]:
@@ -1202,6 +1228,9 @@ def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     if not keep or "Type" not in keep:
         return None
     out = out[keep]
+
+    if isinstance(out.index, pd.DatetimeIndex):
+        out = out.sort_index(ascending=False)
 
     return out
 
@@ -1297,6 +1326,20 @@ def fetch_major_holders(ticker: str) -> dict | None:
 # Bulk Insider Screener (F16)
 # ---------------------------------------------------------------------------
 
+def _limit_to_recent_months(transactions: pd.DataFrame, months: int = 6) -> pd.DataFrame:
+    """Przycina transakcje do ostatnich N miesiecy.
+
+    Bez DatetimeIndex zwraca wejscie bez zmian — lepiej policzyc na szerszym
+    oknie niz wyzerowac tabele, gdy Yahoo nie poda daty.
+    """
+    if transactions is None or transactions.empty:
+        return transactions
+    if not isinstance(transactions.index, pd.DatetimeIndex):
+        return transactions
+    cutoff = pd.Timestamp.now().normalize() - pd.DateOffset(months=months)
+    return transactions[transactions.index >= cutoff]
+
+
 def _compute_buy_streak(transactions: pd.DataFrame) -> int:
     """Liczy kolejne ostatnie miesiace gdzie buy_value > sell_value.
 
@@ -1386,6 +1429,9 @@ def _aggregate_insider_for_ticker(ticker: str) -> dict | None:
 
     # Insider transactions agregat
     if transactions is not None and not transactions.empty and "Type" in transactions.columns:
+        # Kolumna nazywa sie net_value_6m, wiec okno musi byc realnie 6-miesieczne.
+        # Wczesniej sumowala cala dostepna historie (czasem 2+ lata).
+        transactions = _limit_to_recent_months(transactions, months=6)
         buys = transactions[transactions["Type"] == "Buy"]
         sells = transactions[transactions["Type"] == "Sell"]
         buy_value = float(buys["Value"].sum()) if "Value" in buys.columns else 0.0

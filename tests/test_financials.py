@@ -523,3 +523,130 @@ def test_bulk_earnings_trend_pusty_input_daje_pusty_df():
     out = fin.bulk_fetch_earnings_trend.__wrapped__(())
     assert isinstance(out, pd.DataFrame)
     assert out.empty
+
+
+# ---------------------------------------------------------------------------
+# Regresja 2026-08-20: Yahoo przestal wypelniac kolumne "Transaction"
+# w insider_transactions — typ transakcji jest tylko w kolumnie "Text",
+# a data w kolumnie "Start Date" (nie w indeksie).
+# ---------------------------------------------------------------------------
+
+def _real_shape_insider_df():
+    """Ksztalt, ktory yfinance 1.2.0 realnie zwraca (zmierzone na AAPL/JPM/XOM).
+
+    Kolumna "Transaction" istnieje, ale jest pusta w 100% wierszy.
+    Typ transakcji siedzi w "Text", data w "Start Date", indeks to RangeIndex.
+    """
+    return pd.DataFrame({
+        "Shares": [1439, 116, 30104, 500],
+        "Value": [442852.0, 34236.0, float("nan"), 250000.0],
+        "URL": ["", "", "", ""],
+        "Text": [
+            "Sale at price 307.75 per share.",
+            "Sale at price 295.14 per share.",
+            "Stock Gift at price 0.00 per share.",
+            "Purchase at price 500.00 per share.",
+        ],
+        "Insider": ["NEWSTEAD JENNIFER", "BORDERS BEN", "NEWSTEAD JENNIFER", "COOK TIMOTHY"],
+        "Position": ["General Counsel", "Officer", "General Counsel", "CEO"],
+        "Transaction": ["", "", "", ""],
+        "Start Date": pd.to_datetime(
+            ["2026-08-11", "2026-06-16", "2026-06-15", "2026-07-01"]
+        ),
+        "Ownership": ["D", "D", "D", "D"],
+    })
+
+
+def test_insider_transactions_klasyfikuje_z_kolumny_text():
+    """Pusta kolumna Transaction nie moze zerowac buy/sell — typ jest w Text."""
+    from unittest.mock import MagicMock, patch
+
+    mock_ticker = MagicMock()
+    mock_ticker.insider_transactions = _real_shape_insider_df()
+
+    from data.financials import fetch_insider_transactions
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_transactions.__wrapped__("TEST_TEXT")
+
+    assert result is not None, "pusta kolumna Transaction nie moze dawac None"
+    types = result["Type"].tolist()
+    assert types.count("Sell") == 2, f"oczekiwano 2 Sell, jest {types}"
+    assert types.count("Buy") == 1, f"oczekiwano 1 Buy, jest {types}"
+    # Darowizna nie jest ani kupnem, ani sprzedaza — zostaje krotka etykieta
+    assert "Stock Gift" in types
+
+
+def test_insider_transactions_ma_datetime_index_ze_start_date():
+    """Kontrakt z docstringa: indeks to DatetimeIndex z data transakcji."""
+    from unittest.mock import MagicMock, patch
+
+    mock_ticker = MagicMock()
+    mock_ticker.insider_transactions = _real_shape_insider_df()
+
+    from data.financials import fetch_insider_transactions
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_transactions.__wrapped__("TEST_DATE")
+
+    assert isinstance(result.index, pd.DatetimeIndex), (
+        f"indeks powinien byc DatetimeIndex, jest {type(result.index).__name__}"
+    )
+    assert result.index.max() == pd.Timestamp("2026-08-11")
+
+
+def test_normalize_transaction_type_obcina_ogon_at_price():
+    """Text to zdanie — Type nie moze byc calym zdaniem."""
+    from data.financials import _normalize_transaction_type
+
+    assert _normalize_transaction_type("Sale at price 307.75 per share.") == "Sell"
+    assert _normalize_transaction_type("Purchase at price 500.00 per share.") == "Buy"
+    assert _normalize_transaction_type("Stock Gift at price 0.00 per share.") == "Stock Gift"
+
+
+def test_normalize_transaction_type_pusty_daje_pusty():
+    from data.financials import _normalize_transaction_type
+
+    assert _normalize_transaction_type("") == ""
+    assert _normalize_transaction_type("nan") == ""
+
+
+def test_compute_buy_streak_liczy_na_realnym_ksztalcie():
+    """Streak musi dzialac na DF wychodzacym z fetch_insider_transactions."""
+    from unittest.mock import MagicMock, patch
+
+    df = _real_shape_insider_df()
+    mock_ticker = MagicMock()
+    mock_ticker.insider_transactions = df
+
+    from data.financials import fetch_insider_transactions, _compute_buy_streak
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        result = fetch_insider_transactions.__wrapped__("TEST_STREAK")
+
+    streak = _compute_buy_streak(result)
+    # Najnowszy miesiac (2026-08) to sama sprzedaz -> streak zerowy
+    assert streak == 0
+
+
+def test_limit_to_recent_months_odcina_stare_transakcje():
+    from data.financials import _limit_to_recent_months
+
+    now = pd.Timestamp.now().normalize()
+    df = pd.DataFrame(
+        {"Type": ["Buy", "Buy", "Sell"], "Value": [100.0, 200.0, 300.0]},
+        index=pd.DatetimeIndex([
+            now - pd.Timedelta(days=10),    # w oknie
+            now - pd.Timedelta(days=400),   # poza oknem
+            now - pd.Timedelta(days=30),    # w oknie
+        ]),
+    )
+    out = _limit_to_recent_months(df, months=6)
+    assert len(out) == 2
+    assert float(out["Value"].sum()) == 400.0
+
+
+def test_limit_to_recent_months_bez_dat_zwraca_wejscie():
+    """Brak DatetimeIndex nie moze wyzerowac tabeli."""
+    from data.financials import _limit_to_recent_months
+
+    df = pd.DataFrame({"Type": ["Buy"], "Value": [100.0]})
+    out = _limit_to_recent_months(df, months=6)
+    assert len(out) == 1
