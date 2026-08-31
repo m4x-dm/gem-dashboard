@@ -16,7 +16,7 @@ from components.cards import kpi_card, section_band, top_pick_cards
 from components.charts import category_pie, equity_chart, picks_return_bar
 from components.formatting import GREEN, MUTED, RED, fmt_number, fmt_pct
 from components.sidebar import render_footer, setup_sidebar
-from data.downloader import download_prices, download_stooq
+from data.downloader import benchmark_status, download_prices, download_stooq
 from data.financials import bulk_fetch_universe
 from data.top_picks import (
     HISTORY_PATHS,
@@ -232,6 +232,21 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
         equity = portfolio_equity(history, prices, market)
         if equity.empty:
             continue
+
+        # Cicha degradacja benchmarku kosztowala 4 miesiace (stooq przestal
+        # oddawac CSV, cache zamarzl). Plaska linia ma sie ujawnic, nie udawac.
+        bench_state = benchmark_status(bench_raw)
+        if bench_state["stale"]:
+            if bench_state["last_date"] is None:
+                st.warning(
+                    f"Brak danych benchmarku {bench} - ponizsze porownanie jest niepelne."
+                )
+            else:
+                st.warning(
+                    f"Benchmark {bench} ma ostatnie notowanie z {bench_state['last_date']} "
+                    f"({bench_state['age_days']} dni temu). Porownanie 'vs {bench}' jest "
+                    "nieaktualne - zrodlo danych wymaga sprawdzenia."
+                )
 
         curves = {f"Top Picks {label}": equity}
         bench_total = None
