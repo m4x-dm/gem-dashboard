@@ -15,7 +15,8 @@ from components.financials_ui import (
     render_sprawozdania_screener,
     render_sprawozdania_deep_dive,
 )
-from data.downloader import download_prices, download_single, download_stooq, STOOQ_TICKERS
+from data.downloader import (benchmark_status, download_prices, download_single,
+                             download_stooq, STOOQ_TICKERS)
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
     correlation_matrix, relative_strength,
@@ -304,7 +305,7 @@ with tab2:
 with tab3:
     st.markdown("### Porownanie spolek GPW")
 
-    # Indeksy GPW (dane ze stooq.com)
+    # Indeksy GPW (ETF-y Beta przez yfinance, sklejone z cache)
     GPW_INDEX_NAMES = {"WIG20": "WIG20 (indeks)", "mWIG40": "mWIG40 (indeks)", "sWIG80": "sWIG80 (indeks)"}
     GPW_INDEX_CAT = {t: "Indeksy GPW" for t in GPW_INDEX_NAMES}
 
@@ -344,14 +345,24 @@ with tab3:
     else:
         with st.spinner("Pobieram dane..."):
             cmp_prices = pd.DataFrame()
+            cmp_stale = []
             for t in selected_cmp:
                 if t in STOOQ_TICKERS:
                     s = download_stooq(t, period=cmp_period)
+                    if s is not None:
+                        _state = benchmark_status(s)
+                        if _state["stale"]:
+                            cmp_stale.append(
+                                f"{t} (ostatnie notowanie {_state['last_date']})")
                 else:
                     s = download_single(t, period=cmp_period)
                 if s is not None:
                     cmp_prices[t] = s
             cmp_prices = cmp_prices.dropna(how="all")
+
+        if cmp_stale:
+            st.warning("Nieaktualne dane indeksow: " + ", ".join(cmp_stale) +
+                       ". Porownanie moze wprowadzac w blad.")
 
         if cmp_is_strategy and len(cmp_prices) > 273:
             cmp_prices = cmp_prices.iloc[-273:-21]
@@ -523,7 +534,7 @@ with tab4:
 # ========================== TAB 5: RELATIVE STRENGTH ==========================
 with tab5:
     st.markdown("### Relative Strength vs WIG20")
-    st.caption("RS > 100 = spolka outperformuje WIG20 (dane ze stooq.com)")
+    st.caption("RS > 100 = spolka outperformuje WIG20 (benchmark: ETF Beta WIG20TR)")
 
     rs_options_gpw = {t: f"{t} — {GPW_NAMES.get(t, t)}" for t in ALL_GPW_TICKERS}
     rs_selected_gpw = st.multiselect(
@@ -542,7 +553,7 @@ with tab5:
     rs_period = rs_period_map[rs_period_label]
 
     if rs_selected_gpw:
-        # Pobierz WIG20 ze stooq jako benchmark
+        # Benchmark WIG20: ETF Beta przez yfinance (stooq nie oddaje juz CSV)
         wig20_data = download_stooq("WIG20", period=rs_period)
         with st.spinner("Pobieram dane..."):
             rs_prices_gpw = {}
@@ -550,6 +561,14 @@ with tab5:
                 s = download_single(t, period=rs_period)
                 if s is not None:
                     rs_prices_gpw[t] = s
+
+        _wig_state = benchmark_status(wig20_data)
+        if _wig_state["stale"] and _wig_state["last_date"]:
+            st.warning(
+                f"WIG20 ma ostatnie notowanie z {_wig_state['last_date']} "
+                f"({_wig_state['age_days']} dni temu). Sila wzgledna liczona "
+                "wobec nieaktualnego benchmarku jest mylaca."
+            )
 
         if wig20_data is not None and len(wig20_data) > 20:
             for t in rs_selected_gpw:

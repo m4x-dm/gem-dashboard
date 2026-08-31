@@ -209,6 +209,103 @@ def get_risk_free_rate() -> float | None:
 
 STOOQ_TICKERS = {"WIG20": "wig20", "mWIG40": "mwig40", "sWIG80": "swig80"}
 
+# Zrodlo LIVE dla indeksow GPW: ETF-y Beta notowane na GPW, ciagniete przez
+# yfinance. Powod: stooq.com i stooq.pl od 2026-08 oddaja blokade HTML zamiast
+# CSV, a data/cache/*.csv zamarzly na 2026-04-16 (cicha degradacja).
+#
+# ETF-y sa TOTAL RETURN (z dywidendami), tak samo jak ceny spolek pobierane
+# z auto_adjust=True. Wczesniejszy benchmark byl price index, wiec systematycznie
+# zawyzal przewage strategii o ok. 2,2-2,6 p.p. rocznie.
+#
+# Korelacja dziennych zwrotow z odpowiednim indeksem (pomiar 2026-08-31):
+#   ETFBW20TR.WA 0,922 (0,993 na ostatnich 2 latach)  historia od 2019-01-07
+#   ETFBM40TR.WA 0,960                                 historia od 2019-09-05
+#   ETFBS80TR.WA 0,913                                 historia od 2021-12-14
+GPW_INDEX_ETF = {
+    "WIG20": "ETFBW20TR.WA",
+    "mWIG40": "ETFBM40TR.WA",
+    "sWIG80": "ETFBS80TR.WA",
+}
+
+# Po ilu dniach bez nowej sesji benchmark uznajemy za nieswiezy.
+BENCHMARK_MAX_AGE_DAYS = 14
+
+
+def _clean_index_series(series: pd.Series | None) -> pd.Series | None:
+    """Sortuje po dacie, usuwa NaN i duplikaty. None dla pustej serii."""
+    if series is None or len(series) == 0:
+        return None
+    out = pd.Series(series).dropna()
+    if out.empty:
+        return None
+    out.index = pd.to_datetime(out.index)
+    if getattr(out.index, "tz", None) is not None:
+        out.index = out.index.tz_localize(None)
+    out = out[~out.index.duplicated(keep="last")].sort_index()
+    return out if len(out) else None
+
+
+def splice_series(hist: pd.Series | None,
+                  live: pd.Series | None) -> pd.Series | None:
+    """Skleja historie z cache z seria live (ETF) na wspolnej dacie - chain-linking.
+
+    ETF-y siegaja 2019, a symulacje potrzebuja wczesniejszej historii. Czesc
+    live jest przeskalowana wspolczynnikiem tak, zeby na dacie styku zgadzala
+    sie z historia - dzieki temu nie ma skoku, a zwroty po styku sa dokladnie
+    takie jak w oryginalnej serii live.
+
+    Zwraca live bez zmian, gdy nie ma czego skleic (brak historii, brak
+    wspolnych dat, albo live siega dalej wstecz niz historia).
+    """
+    hist = _clean_index_series(hist)
+    live = _clean_index_series(live)
+
+    if hist is None and live is None:
+        return None
+    if live is None:
+        return hist
+    if hist is None:
+        return live
+    if live.index[0] <= hist.index[0]:
+        return live
+
+    common = hist.index.intersection(live.index)
+    if len(common) == 0:
+        return live
+
+    join = None
+    for candidate in common:
+        value = float(live.loc[candidate])
+        if value != 0.0 and pd.notna(value):
+            join = candidate
+            break
+    if join is None:
+        return live
+
+    scale = float(hist.loc[join]) / float(live.loc[join])
+    tail = live.loc[join:].iloc[1:] * scale
+    out = pd.concat([hist.loc[:join], tail])
+    return _clean_index_series(out)
+
+
+def benchmark_status(series: pd.Series | None,
+                     max_age_days: int = BENCHMARK_MAX_AGE_DAYS) -> dict:
+    """Sprawdza, czy benchmark jest swiezy.
+
+    Cicha degradacja jest gorsza od braku danych: plaska linia z zamrozonego
+    cache wyglada jak prawdziwy benchmark. UI ma na czym oprzec ostrzezenie.
+    """
+    series = _clean_index_series(series)
+    if series is None:
+        return {"stale": True, "last_date": None, "age_days": None}
+    last = pd.Timestamp(series.index[-1]).normalize()
+    age = int((pd.Timestamp.now().normalize() - last).days)
+    return {
+        "stale": age > max_age_days,
+        "last_date": last.date().isoformat(),
+        "age_days": age,
+    }
+
 
 def _load_stooq_csv(stooq_sym: str, period: str) -> pd.Series | None:
     """Laduje dane indeksu GPW z lokalnego CSV cache (fallback gdy stooq.com niedostepny)."""
@@ -231,39 +328,51 @@ def _load_stooq_csv(stooq_sym: str, period: str) -> pd.Series | None:
         return None
 
 
-@st.cache_data(ttl=3600, show_spinner="Pobieram dane ze Stooq...")
-def download_stooq(symbol: str, period: str = "15y") -> pd.Series | None:
-    """Pobiera cenę zamknięcia indeksu GPW ze stooq.com z fallbackiem na lokalny CSV."""
+@st.cache_data(ttl=3600, show_spinner="Pobieram benchmark GPW...")
+def download_gpw_index(symbol: str, period: str = "15y") -> pd.Series | None:
+    """Pobiera benchmark indeksu GPW: ETF przez yfinance + historia z cache.
+
+    Kolejnosc: ETF Beta (live, total return) sklejony z lokalnym CSV dla
+    okresu sprzed startu ETF-a. Gdy ETF-a nie ma, zostaje sam cache - wtedy
+    dane sa nieswieze i _track_source oznacza je sufiksem "-stale".
+
+    stooq.com zostal usuniety z lancucha: od 2026-08 oddaje blokade HTML
+    zamiast CSV na obu domenach, wiec kosztowal 15 s timeoutu i zawsze
+    konczyl sie fallbackiem.
+    """
     stooq_sym = STOOQ_TICKERS.get(symbol)
     if not stooq_sym:
         return None
-    # 1. Try stooq.com live
-    try:
-        url = f"https://stooq.com/q/d/l/?s={stooq_sym}&i=d"
-        resp = requests.get(url, headers=_HEADERS, timeout=15)
-        resp.raise_for_status()
-        df = pd.read_csv(StringIO(resp.text))
-        if not df.empty and "Close" in df.columns and "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-            df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
-            if not df.empty:
-                days = PERIOD_DAYS.get(period, 5475)
-                if days < 999999:
-                    cutoff = pd.Timestamp.now() - timedelta(days=days)
-                    df = df[df.index >= cutoff]
-                result = df["Close"].dropna()
-                if len(result) > 0:
-                    _track_source(symbol, "stooq")
-                    return result
-    except Exception:
-        pass
-    # 2. Fallback: local CSV cache
-    result = _load_stooq_csv(stooq_sym, period)
-    if result is not None:
-        _track_source(symbol, "cache")
-        return result
-    _track_failure(symbol)
-    return None
+
+    hist = _load_stooq_csv(stooq_sym, period)
+
+    live = None
+    etf = GPW_INDEX_ETF.get(symbol)
+    if etf:
+        try:
+            live = _yfinance_single(etf, period)
+        except Exception:
+            live = None
+
+    result = splice_series(hist, live)
+    if result is None:
+        _track_failure(symbol)
+        return None
+
+    if live is not None and hist is not None:
+        source = "etf+cache"
+    elif live is not None:
+        source = "etf"
+    else:
+        source = "cache"
+    if benchmark_status(result)["stale"]:
+        source += "-stale"
+    _track_source(symbol, source)
+    return result
+
+
+# Alias wsteczny: strony 4, 8 i 9 wolaja te funkcje pod stara nazwa.
+download_stooq = download_gpw_index
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

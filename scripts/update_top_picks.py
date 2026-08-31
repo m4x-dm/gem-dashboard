@@ -102,8 +102,9 @@ def download(tickers: list[str], period: str = "12y") -> tuple[pd.DataFrame, pd.
 def fetch_benchmark(cfg: dict, index: pd.DatetimeIndex) -> pd.Series | None:
     """Benchmark rynku, znormalizowany do 10 000 na pierwszej dacie `index`.
 
-    GPW idzie przez stooq (yfinance nie ma historii indeksow WIG) — z fallbackiem
-    na data/cache/*.csv, ktory dziala takze gdy stooq zablokuje IP runnera.
+    GPW idzie przez download_gpw_index: ETF Beta (total return, przez yfinance)
+    sklejony z data/cache/*.csv dla okresu sprzed startu ETF-a. Yahoo nie ma
+    samych indeksow WIG, a stooq od 2026-08 oddaje blokade HTML zamiast CSV.
     """
     if cfg.get("benchmark_source") == "stooq":
         from data.downloader import download_stooq
