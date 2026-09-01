@@ -50,5 +50,57 @@
         "name": "Caterpillar Inc."
       }
     ]
+  },
+  "2026-09-01": {
+    "generated_at": "2026-09-01T10:57:33Z",
+    "asof": "2026-08-31",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "INTC",
+        "group": "Information Technology",
+        "score": 0.8535,
+        "entry_price": 89.51,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Intel Corp."
+      },
+      {
+        "ticker": "REGN",
+        "group": "Health Care",
+        "score": 0.8273,
+        "entry_price": 799.08,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Regeneron Pharmaceuticals"
+      },
+      {
+        "ticker": "GS",
+        "group": "Financials",
+        "score": 0.8268,
+        "entry_price": 1025.9,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Goldman Sachs"
+      },
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.8121,
+        "entry_price": 958.73,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "UNH",
+        "group": "Health Care",
+        "score": 0.7975,
+        "entry_price": 389.41,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "UnitedHealth Group"
+      }
+    ]
   }
 }

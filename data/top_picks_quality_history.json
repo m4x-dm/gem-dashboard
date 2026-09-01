@@ -97,5 +97,104 @@
         "name": "KGHM Polska Miedz"
       }
     ]
+  },
+  "2026-09-01": {
+    "generated_at": "2026-09-01T10:57:33Z",
+    "asof": "2026-09-01",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "NVDA",
+        "group": "Information Technology",
+        "score": 0.9772,
+        "entry_price": 220.78,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "NVIDIA Corp."
+      },
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.9684,
+        "entry_price": 958.73,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "GOOGL",
+        "group": "Communication Services",
+        "score": 0.8625,
+        "entry_price": 339.35,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Alphabet Inc. (A)"
+      },
+      {
+        "ticker": "LLY",
+        "group": "Health Care",
+        "score": 0.7872,
+        "entry_price": 1156.73,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Eli Lilly & Co."
+      },
+      {
+        "ticker": "V",
+        "group": "Financials",
+        "score": 0.7545,
+        "entry_price": 379.37,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Visa Inc."
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.9332,
+        "entry_price": 180.78,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "SNT.WA",
+        "group": "Ochrona zdrowia",
+        "score": 0.8182,
+        "entry_price": 334.2,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "Synektik"
+      },
+      {
+        "ticker": "KGH.WA",
+        "group": "Surowce",
+        "score": 0.8019,
+        "entry_price": 345.45,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "KGHM Polska Miedz"
+      },
+      {
+        "ticker": "ING.WA",
+        "group": "Banki",
+        "score": 0.7894,
+        "entry_price": 438.0,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "ING Bank Slaski"
+      },
+      {
+        "ticker": "GPW.WA",
+        "group": "Finanse",
+        "score": 0.7735,
+        "entry_price": 95.95,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "GPW"
+      }
+    ]
   }
 }

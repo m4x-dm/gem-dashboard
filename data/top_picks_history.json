@@ -97,5 +97,104 @@
         "name": "Synektik"
       }
     ]
+  },
+  "2026-09-01": {
+    "generated_at": "2026-09-01T10:57:33Z",
+    "asof": "2026-09-01",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "PANW",
+        "group": "Information Technology",
+        "score": 0.8697,
+        "entry_price": 382.13,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Palo Alto Networks"
+      },
+      {
+        "ticker": "UNH",
+        "group": "Health Care",
+        "score": 0.8131,
+        "entry_price": 389.41,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "UnitedHealth Group"
+      },
+      {
+        "ticker": "MRK",
+        "group": "Health Care",
+        "score": 0.8051,
+        "entry_price": 147.76,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Merck & Co."
+      },
+      {
+        "ticker": "AMD",
+        "group": "Information Technology",
+        "score": 0.7869,
+        "entry_price": 470.72,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Advanced Micro Devices"
+      },
+      {
+        "ticker": "BAC",
+        "group": "Financials",
+        "score": 0.7455,
+        "entry_price": 61.94,
+        "entry_date": "2026-08-31",
+        "weight": 0.2,
+        "name": "Bank of America"
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "ASB.WA",
+        "group": "Technologia",
+        "score": 0.897,
+        "entry_price": 130.8,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "ASBISc Enterprises"
+      },
+      {
+        "ticker": "PCO.WA",
+        "group": "Konsument defensywny",
+        "score": 0.8727,
+        "entry_price": 43.14,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "Pepco Group"
+      },
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.8606,
+        "entry_price": 180.78,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "GPW.WA",
+        "group": "Finanse",
+        "score": 0.7485,
+        "entry_price": 95.95,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "GPW"
+      },
+      {
+        "ticker": "ZAB.WA",
+        "group": "Konsument defensywny",
+        "score": 0.7242,
+        "entry_price": 31.48,
+        "entry_date": "2026-09-01",
+        "weight": 0.2,
+        "name": "Zabka Group"
+      }
+    ]
   }
 }
