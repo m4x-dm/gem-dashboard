@@ -196,5 +196,104 @@
         "name": "Zabka Group"
       }
     ]
+  },
+  "2026-10-01": {
+    "generated_at": "2026-10-01T12:15:46Z",
+    "asof": "2026-10-01",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "AMD",
+        "group": "Information Technology",
+        "score": 0.8667,
+        "entry_price": 611.76,
+        "entry_date": "2026-09-30",
+        "weight": 0.2,
+        "name": "Advanced Micro Devices"
+      },
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.8566,
+        "entry_price": 1065.11,
+        "entry_date": "2026-09-30",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "MRK",
+        "group": "Health Care",
+        "score": 0.801,
+        "entry_price": 145.31,
+        "entry_date": "2026-09-30",
+        "weight": 0.2,
+        "name": "Merck & Co."
+      },
+      {
+        "ticker": "AMGN",
+        "group": "Health Care",
+        "score": 0.7859,
+        "entry_price": 421.51,
+        "entry_date": "2026-09-30",
+        "weight": 0.2,
+        "name": "Amgen Inc."
+      },
+      {
+        "ticker": "DE",
+        "group": "Industrials",
+        "score": 0.697,
+        "entry_price": 671.55,
+        "entry_date": "2026-09-30",
+        "weight": 0.2,
+        "name": "Deere & Co."
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "ASB.WA",
+        "group": "Technologia",
+        "score": 0.9,
+        "entry_price": 186.9,
+        "entry_date": "2026-10-01",
+        "weight": 0.2,
+        "name": "ASBISc Enterprises"
+      },
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.8794,
+        "entry_price": 149.96,
+        "entry_date": "2026-10-01",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "PCO.WA",
+        "group": "Konsument defensywny",
+        "score": 0.7941,
+        "entry_price": 45.0,
+        "entry_date": "2026-10-01",
+        "weight": 0.2,
+        "name": "Pepco Group"
+      },
+      {
+        "ticker": "PKO.WA",
+        "group": "Banki",
+        "score": 0.7471,
+        "entry_price": 121.98,
+        "entry_date": "2026-10-01",
+        "weight": 0.2,
+        "name": "PKO Bank Polski"
+      },
+      {
+        "ticker": "BFT.WA",
+        "group": "Konsument cykliczny",
+        "score": 0.7088,
+        "entry_price": 5060.0,
+        "entry_date": "2026-10-01",
+        "weight": 0.2,
+        "name": "Benefit Systems"
+      }
+    ]
   }
 }
