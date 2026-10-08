@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 from io import StringIO
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 _CACHE_DIR = Path(__file__).parent / "cache"

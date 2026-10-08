@@ -13,7 +13,6 @@ from data.downloader import download_prices
 from data.momentum import backtest_gem_extended
 from components.cards import stats_table
 from components.charts import equity_chart
-from components.formatting import GOLD, MUTED, GREEN, RED, BG_CARD, BORDER
 from components.auth import require_premium
 
 st.set_page_config(page_title="GEM Extended", page_icon="🚀", layout="wide")

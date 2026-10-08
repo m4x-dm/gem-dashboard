@@ -18,3 +18,6 @@ aktywacja_*.pdf
 pdf_kody/
 screeny/
 .superpowers/
+
+# cache runtime (parquet) — data/cache/*.csv SA sledzone (historia indeksow GPW), wiec tylko podkatalog
+data/cache/financials/

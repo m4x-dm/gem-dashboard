@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
-from components.constants import GOLD, BG, BG2, GRID, CHART_COLORS as COLORS  # noqa: F401
+from components.constants import GOLD, BG2, GRID, CHART_COLORS as COLORS
 
 
 def _base_layout(title: str = "", height: int = 450) -> dict:

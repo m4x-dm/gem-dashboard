@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import setup_sidebar, render_footer
 from data.etf_universe import ALL_TICKERS as ETF_TICKERS, ETF_NAMES
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES

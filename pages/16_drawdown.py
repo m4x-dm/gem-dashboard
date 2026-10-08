@@ -2,15 +2,13 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, render_footer
 from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import top_drawdowns, drawdown_series
-from components.charts import drawdown_chart, _base_layout, COLORS, GOLD, BG2
-from components.formatting import fmt_pct, MUTED, BG_CARD, BORDER
-from components.constants import PERIOD_MAP_FULL, RED, GREEN
+from components.charts import drawdown_chart, _base_layout, GOLD
+from components.constants import PERIOD_MAP_FULL, RED
 from components.auth import require_premium
 
 st.set_page_config(page_title="Analiza Drawdownow", page_icon="📉", layout="wide")

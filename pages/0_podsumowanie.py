@@ -2,7 +2,6 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
 from data.downloader import download_prices, download_single
@@ -14,8 +13,8 @@ from components.cards import (
     data_status_card, alert_banner,
 )
 from components.charts import sparkline_chart
-from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
-from components.constants import GREEN, RED, GOLD
+from components.formatting import color_for_value, MUTED, BG_CARD, BORDER
+from components.constants import GREEN, RED
 
 st.set_page_config(page_title="Podsumowanie", page_icon="🏠", layout="wide")
 setup_sidebar()

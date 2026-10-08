@@ -7,9 +7,9 @@ import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.downloader import download_prices
 from data.momentum import backtest_gem
-from components.charts import _base_layout, category_pie, GOLD, BG2, COLORS
+from components.charts import _base_layout
 from components.formatting import MUTED, BG_CARD, BORDER
-from components.constants import GREEN, RED
+from components.constants import GREEN
 from components.auth import require_premium
 
 st.set_page_config(page_title="Historia Sygnalow", page_icon="🚦", layout="wide")

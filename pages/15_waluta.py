@@ -9,8 +9,8 @@ from components.sidebar import setup_sidebar, render_footer
 from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import latest_returns
-from components.charts import price_chart, _base_layout, COLORS, GOLD, BG2
-from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
+from components.charts import _base_layout, GOLD
+from components.formatting import fmt_pct, color_for_value, BORDER
 from components.constants import PERIOD_MAP_FULL
 from components.auth import require_premium
 

@@ -2,7 +2,6 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS as ETF_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
@@ -15,7 +14,7 @@ from components.formatting import (
     fmt_pct, color_for_value,
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
-from components.charts import _base_layout, COLORS
+from components.charts import _base_layout
 from components.auth import require_premium
 
 st.set_page_config(page_title="Cross-Asset Screener", page_icon="🔎", layout="wide")

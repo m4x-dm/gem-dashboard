@@ -11,7 +11,6 @@ from data.downloader import download_single
 from data.momentum import (
     latest_returns, calc_stats, correlation_matrix, relative_strength,
 )
-from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
 from components.charts import (
     price_chart, drawdown_chart, correlation_heatmap, rs_chart,
 )

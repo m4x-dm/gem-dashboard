@@ -9,7 +9,7 @@ from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG, BG2, BG_CARD, BORDER,
 )
 from components.constants import CHART_COLORS
-from data.financials import format_currency, format_large_number
+from data.financials import format_large_number
 
 
 def signal_card(signal_data: dict) -> None:

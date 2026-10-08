@@ -13,7 +13,7 @@ import streamlit as st
 from streamlit_local_storage import LocalStorage
 
 from components.auth import require_premium
-from components.formatting import GOLD, GREEN, RED
+from components.formatting import GREEN, RED
 from components.sidebar import setup_sidebar, render_footer
 from components.watchlist import get_watchlist, toggle_ticker
 from data.financials import (

@@ -1,9 +1,8 @@
 """Polskie formatowanie: procenty, liczby, kolory."""
 
 import numpy as np
-import pandas as pd
 
-from components.constants import GOLD, GREEN, RED, MUTED, BG, BG2, BG_CARD, BORDER  # noqa: F401
+from components.constants import GREEN, RED, MUTED
 
 
 def fmt_pct(value: float | None, decimals: int = 2) -> str:

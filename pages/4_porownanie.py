@@ -7,7 +7,6 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
 from data.downloader import (benchmark_status, download_single, download_stooq,
                              STOOQ_TICKERS)
 from data.momentum import latest_returns, correlation_matrix, calc_stats, relative_strength
-from components.formatting import fmt_pct, color_for_value, GOLD, BG_CARD, BORDER, MUTED
 from components.charts import price_chart, correlation_heatmap, rs_chart
 from components.cards import comparison_card, stats_table
 from components.auth import require_premium

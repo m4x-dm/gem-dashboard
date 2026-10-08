@@ -1,14 +1,13 @@
 """Strona 18: Monte Carlo — symulacja przyszlych zwrotow."""
 
 import streamlit as st
-import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from components.sidebar import setup_sidebar, get_risk_free, render_footer
 from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monte_carlo_simulation, backtest_gem
-from components.charts import fan_chart, _base_layout, GOLD, BG2, COLORS
+from components.charts import fan_chart, _base_layout, GOLD
 from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED
 from components.auth import require_premium

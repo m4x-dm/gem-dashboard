@@ -9,7 +9,7 @@ from data.downloader import download_single
 from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
-from components.charts import sparkline_chart, _base_layout, COLORS, BG2, GRID
+from components.charts import sparkline_chart
 from components.cards import macro_card
 from components.auth import require_premium
 

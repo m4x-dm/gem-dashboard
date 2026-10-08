@@ -8,7 +8,7 @@ from components.sidebar import setup_sidebar, render_footer
 from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monthly_returns_matrix
-from components.charts import seasonality_heatmap, _base_layout, COLORS, BG2, GOLD
+from components.charts import seasonality_heatmap, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL
 from components.auth import require_premium
 

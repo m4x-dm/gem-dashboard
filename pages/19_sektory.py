@@ -10,7 +10,7 @@ from data.momentum import latest_returns
 from components.charts import (
     price_chart, ranking_bar_chart, _base_layout, COLORS, GOLD, BG2,
 )
-from components.formatting import fmt_pct, color_for_value, MUTED, BG_CARD, BORDER
+from components.formatting import fmt_pct
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
 from components.auth import require_premium
 

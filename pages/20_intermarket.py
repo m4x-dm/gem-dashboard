@@ -12,7 +12,6 @@ from components.charts import (
 )
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
-from components.cards import macro_card
 from components.sidebar import get_risk_free
 from components.auth import require_premium
 
