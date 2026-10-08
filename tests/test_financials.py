@@ -358,13 +358,21 @@ def test_compute_buy_streak_empty():
 
 def test_aggregate_insider_for_ticker_full_data():
     """Mock 3 endpoint — transactions + institutional + ratios."""
+    # Daty wzglednie do dzis — _aggregate_insider_for_ticker tnie okno do 6 mies.
+    # przez _limit_to_recent_months, wiec sztywne daty wypadaja z okna z uplywem
+    # czasu i test psuje sie sam (ten sam idiom co test_limit_to_recent_months_*).
+    now = pd.Timestamp.now().normalize()
     mock_transactions = pd.DataFrame({
         "Insider": ["TIM COOK", "LUCA MAESTRI", "ELON MUSK"],
         "Position": ["CEO", "CFO", "Other"],
         "Type": ["Buy", "Sell", "Buy"],
         "Shares": [5000, 10000, 3000],
         "Value": [1_000_000, 2_000_000, 600_000],
-    }, index=pd.to_datetime(["2026-05-15", "2026-04-20", "2026-03-10"]))
+    }, index=pd.DatetimeIndex([
+        now - pd.Timedelta(days=30),
+        now - pd.Timedelta(days=60),
+        now - pd.Timedelta(days=90),
+    ]))
 
     mock_institutional = pd.DataFrame({
         "Holder": ["Vanguard Group Inc", "BlackRock Inc."],
