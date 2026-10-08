@@ -69,7 +69,15 @@ nie psuje linkow.
 - **Theme:** Gold `#C9A84C` accent, dark bg `#0B0E1A` — matches inwestowanie.edu.pl
 - **Risk-free rate:** ^IRX (13-week T-bill) auto-fetched, with manual override in sidebar
 - **GEM logic:** Classic (QQQ/VEA/EEM/ACWI/AGG) + Extended (31 ETFs, composite score)
-- **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Wybór jest zależny od reżimu, nie uniwersalnie lepszy.** Re-test na QQQ/VEA/EEM/ACWI/AGG (3712 sesji, 2012-01-03 → 2026-10-07, rf nieistotne — wynik identyczny dla rf 0–5%):
+- **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Wybór jest zależny od reżimu, nie uniwersalnie lepszy.** Re-test na QQQ/VEA/EEM/ACWI/AGG (3712 sesji, 2012-01-03 → 2026-10-07, rf nieistotne — wynik identyczny dla rf 0–5%), liczby **po usunięciu lookaheadu** (sygnał z `idx-1`):
+  - pełny okres: **12M-1 (273/21) wypada lepiej** — CAGR 16,73% / Sharpe 0,87 vs czyste 12M 14,69% / 0,80 (30 zmian sygnału w obu)
+  - okna kroczące 5-letnie pokazują **zmianę znaku przewagi** (CAGR 12M-1 minus czyste 12M): 2012-2016 +6,05 pp · 2015-2019 +13,35 pp · 2017-2021 +1,87 pp · 2019-2023 −3,62 pp · 2020-2024 −3,98 pp · 2021-2025 +1,79 pp · 2022-2026 −1,17 pp. Przewaga 12M-1 jest duża i stabilna w latach 2012–2019, a w ostatnich latach przewagi **nie ma po żadnej stronie** (oscyluje wokół zera)
+  - czyli: pełny okres przemawia za 12M-1, ale jest zdominowany przez wczesne lata 2010; w ostatniej dekadzie różnica jest w granicach szumu
+  - **Liczb z pierwotnego uzasadnienia (15,8% vs 11,2%, Sharpe 0,65 vs 0,42, MaxDD -29% vs -36%, PF 15,7 vs 3,8) NIE udało się odtworzyć** w re-teście 2026-10-08 — ani dla jednego, ani dla drugiego wariantu. Prawdopodobna przyczyna: inna wersja danych yfinance (restatementy adjusted close). Traktować tamte liczby jako nieaktualne.
+  - prawdziwy out-of-sample od decyzji to na 2026-10-08 dopiero **94 sesje**, w których oba warianty dały identyczny sygnał (EEM, zero zmian) — decyzja nie została jeszcze sprawdzona OOS
+  - uzasadnienie teoretyczne bez zmian: skip-month (Jegadeesh & Titman 1993) neutralizuje short-term reversal **pojedynczych akcji**; na koszykach ETF indeksowych efekt jest słabszy
+  - **Decyzja: default zostaje `252/0`** — zmiana wymagałaby dowodu z out-of-sample, a ten jeszcze nie istnieje. Temat do rewizji, gdy OOS urośnie do ~2 lat.
+  - Backwards compat: `backtest_gem(prices, rf, lookback=273, skip=21)` nadal odtwarza wariant 12M-1. Re-test: `python scripts/recheck_skip_month.py`
   - pełny okres: **12M-1 (273/21) wypada lepiej** — CAGR 16,08% / Sharpe 0,84 vs czyste 12M 14,51% / 0,79
   - okna kroczące 5-letnie pokazują **zmianę znaku przewagi** (CAGR 12M-1 minus czyste 12M): 2012-2016 +6,05 pp · 2015-2019 +13,29 pp · 2017-2021 +0,11 pp · 2019-2023 −5,33 pp · 2022-2026 −3,25 pp. Punkt zwrotny ok. 2017/2018
   - czyli: **czyste 12M jest lepsze w ostatniej dekadzie, 12M-1 w pierwszej połowie okresu**; pełny okres jest zdominowany przez wczesne lata 2010

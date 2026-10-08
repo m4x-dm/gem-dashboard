@@ -340,7 +340,11 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
         idx = prices_clean.index.get_loc(date)
 
         if i % 21 == 0:
-            new_signal = _resolve_signal(idx)
+            # Sygnal z danych do zamkniecia POPRZEDNIEJ sesji — przy skip=0
+            # _resolve_signal(idx) siegalo po cene z dnia idx, a potem inkasowany
+            # byl zwrot z tego samego dnia (lookahead). Spojne z trend_filter
+            # i vol targetingiem, ktore juz uzywaja idx-1.
+            new_signal = _resolve_signal(idx - 1)
             if new_signal != current_signal:
                 # Realize segment: tax Belka na zysku, koszt roundtrip
                 current_eq = gem_equity[-1]
@@ -635,12 +639,16 @@ def backtest_tqqq_mom(prices: pd.DataFrame, risk_free_annual: float,
 
         # Rebalans co 21 dni (miesieczny)
         if i % 21 == 0:
-            if idx >= lookback and idx >= skip:
-                qqq_ret = prices_clean["QQQ"].iloc[idx - skip] / prices_clean["QQQ"].iloc[idx - lookback] - 1
+            # Sygnal z danych do zamkniecia poprzedniej sesji (brak lookaheadu —
+            # przy skip=0 cena z dnia idx decydowala o zwrocie z dnia idx).
+            sig_idx = idx - 1
+            if sig_idx >= lookback and sig_idx >= skip:
+                qqq_ret = (prices_clean["QQQ"].iloc[sig_idx - skip]
+                           / prices_clean["QQQ"].iloc[sig_idx - lookback] - 1)
             else:
                 qqq_ret = 0
 
-            if _regime_blocks_idx(idx):
+            if _regime_blocks_idx(sig_idx):
                 new_signal = "AGG"
             else:
                 new_signal = "TQQQ" if qqq_ret > rf_decimal else "AGG"
@@ -800,7 +808,8 @@ def backtest_gem_extended(prices: pd.DataFrame, risk_free_annual: float,
         idx = prices_clean.index.get_loc(date)
 
         if i % rebalance_freq == 0:
-            new_sig = _signal(idx)
+            # Sygnal z danych do zamkniecia poprzedniej sesji (brak lookaheadu).
+            new_sig = _signal(idx - 1)
             if set(new_sig) != set(current):
                 # turnover = frakcja zmienionych
                 if current:
