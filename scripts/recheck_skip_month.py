@@ -28,7 +28,10 @@ from data.momentum import backtest_gem
 
 TICKERS = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
 START = "2012-01-01"
-RF = 0.02
+# UWAGA: backtest_gem przyjmuje risk_free_annual w PROCENTACH (rf_decimal = arg/100).
+# RF = 0.02 oznaczaloby 0,02%, a nie 2% — latwa pomylka, ktora raz juz zafalszowala
+# test wrazliwosci. 4.0 = 4%.
+RF = 4.0
 
 VARIANTS = [
     ("12M-1 klasyczne (273/21)", {"lookback": 273, "skip": 21}),

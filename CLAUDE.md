@@ -69,7 +69,20 @@ nie psuje linkow.
 - **Theme:** Gold `#C9A84C` accent, dark bg `#0B0E1A` — matches inwestowanie.edu.pl
 - **Risk-free rate:** ^IRX (13-week T-bill) auto-fetched, with manual override in sidebar
 - **GEM logic:** Classic (QQQ/VEA/EEM/ACWI/AGG) + Extended (31 ETFs, composite score)
-- **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Wybór jest zależny od reżimu, nie uniwersalnie lepszy.** Re-test na QQQ/VEA/EEM/ACWI/AGG (3712 sesji, 2012-01-03 → 2026-10-07, rf nieistotne — wynik identyczny dla rf 0–5%), liczby **po usunięciu lookaheadu** (sygnał z `idx-1`):
+- **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Re-test nie potwierdza, że to lepszy wybór.**
+  - ⚠️ **`risk_free_annual` podaje się w PROCENTACH** (`rf_decimal = arg / 100`). `rf=0.02` to 0,02%, nie 2%. Ta pomyłka zafałszowała pierwszą wersję tego re-testu — „skan rf 0–5%" był faktycznie skanem 0–0,05%, stąd fałszywy wniosek, że rf nie ma znaczenia.
+  - Re-test na QQQ/VEA/EEM/ACWI/AGG (3712 sesji, 2012-01-03 → 2026-10-07), liczby po usunięciu lookaheadu. **12M-1 wygrywa przy KAŻDYM poziomie rf**, a przewaga rośnie wraz z rf:
+    | rf | 12M-1 (273/21) | czyste 12M (252/0) | przewaga |
+    |---|---|---|---|
+    | 0% | 16,73% / Sharpe 0,87 | 14,69% / 0,80 | +2,0 pp |
+    | 2% | 16,70% / 0,77 | 13,68% / 0,65 | +3,0 pp |
+    | 4% | 16,22% / 0,66 | 12,59% / 0,51 | +3,6 pp |
+    | 5% | 16,55% / 0,63 | 9,95% / 0,33 | +6,6 pp |
+  - Okna kroczące 5-letnie (CAGR 12M-1 minus czyste 12M): przy rf=0% przewaga 12M-1 w latach 2012–2017 (+6 do +13 pp) i lekko ujemna w 2018–2024 (−1,8 do −4,0 pp); przy **rf=4% 12M-1 wygrywa w 8 z 11 okien**, ujemne tylko 2019-2023 (−2,3), 2020-2024 (−3,8) i 2022-2026 (−1,2). Teza o „zmianie reżimu ok. 2017/2018" jest więc **słaba** — widać ją głównie przy rf≈0.
+  - **Liczb z pierwotnego uzasadnienia zmiany (15,8% vs 11,2%, Sharpe 0,65 vs 0,42) nie udało się odtworzyć** dla żadnego wariantu ani poziomu rf. Traktować jako nieaktualne.
+  - **Default nadal `252/0` — ale bez dowodu, że jest lepszy.** Out-of-sample od decyzji to dopiero ~95 sesji, w których oba warianty dały identyczny sygnał (EEM), więc nie ma czego oceniać. Przy kolejnej rewizji rozważyć powrót do `273/21`, bo dane historyczne przemawiają za nim przy każdym rf.
+  - Uzasadnienie teoretyczne: skip-month (Jegadeesh & Titman 1993) neutralizuje short-term reversal **pojedynczych akcji**; dla koszyków ETF efekt miał być słabszy — dane tego nie potwierdzają.
+  - Backwards compat: `backtest_gem(prices, rf, lookback=273, skip=21)` = wariant 12M-1. Re-test: `python scripts/recheck_skip_month.py` (RF = 4.0, czyli 4%).
   - pełny okres: **12M-1 (273/21) wypada lepiej** — CAGR 16,73% / Sharpe 0,87 vs czyste 12M 14,69% / 0,80 (30 zmian sygnału w obu)
   - okna kroczące 5-letnie pokazują **zmianę znaku przewagi** (CAGR 12M-1 minus czyste 12M): 2012-2016 +6,05 pp · 2015-2019 +13,35 pp · 2017-2021 +1,87 pp · 2019-2023 −3,62 pp · 2020-2024 −3,98 pp · 2021-2025 +1,79 pp · 2022-2026 −1,17 pp. Przewaga 12M-1 jest duża i stabilna w latach 2012–2019, a w ostatnich latach przewagi **nie ma po żadnej stronie** (oscyluje wokół zera)
   - czyli: pełny okres przemawia za 12M-1, ale jest zdominowany przez wczesne lata 2010; w ostatniej dekadzie różnica jest w granicach szumu
