@@ -298,6 +298,14 @@ def setup_sidebar():
 
 def render_footer():
     """Stopka na dole strony."""
+    from components.version import version_label
+
+    label = version_label()
+    version_html = (
+        '<p style="margin:6px 0 0;color:#374151;font-size:10px;letter-spacing:0.04em">%s</p>'
+        % label
+    ) if label else ""
+
     st.html(
         '<div style="text-align:center;color:#4B5563;font-size:11px;'
         'padding:32px 16px 16px;border-top:1px solid rgba(201,168,76,0.1);'
@@ -307,6 +315,7 @@ def render_footer():
         'finansowej ani prawnej. Wyniki historyczne i symulacje nie gwarantują przyszłych zwrotów. '
         'Przed podjęciem decyzji inwestycyjnych skonsultuj się z licencjonowanym doradcą finansowym.</p>'
         '<p style="margin:0">&copy; 2026 M4X &middot; Wszelkie prawa zastrzeżone</p>'
+        + version_html +
         '</div>'
     )
 
