@@ -876,6 +876,188 @@ def backtest_gem_extended(prices: pd.DataFrame, risk_free_annual: float,
     return result
 
 
+GM_EQUITY_EX_US = ["EFA", "EEM"]    # rynki rozwiniete ex-US, rynki wschodzace
+GM_BONDS = ["TBILL", "IEF"]         # bony 3M (syntetyczne z ^IRX), obligacje USA 7-10Y
+
+
+def tbill_index(irx: pd.Series) -> pd.Series:
+    """Indeks total return bonow 3M z rentownosci ^IRX (w %).
+
+    Odsetki narastaja dziennie wg rentownosci znanej na zamkniecie poprzedniej
+    sesji. Pozwala trzymac "obligacje 3M" bez ETF-u (SHV/BIL startuja dopiero w 2007).
+    """
+    y = irx.dropna()
+    if y.empty:
+        return y
+    daily = y.shift(1).fillna(y.iloc[0]) / 100 / 252
+    return (1 + daily).cumprod() * 100
+
+
+def gold_momentum_pick(mom: dict[str, float], gold: str = "GLD",
+                       us: str = "SPY") -> tuple[str, str]:
+    """Regula Gold Momentum (Inwestomat). Zwraca (galaz, aktywo).
+
+    1. Momentum absolutne: najwyzszy zwrot z akcji USA (us) / zloto / bony 3M wybiera galaz.
+    2. Galaz akcji: najlepszy z us / EFA / EEM (momentum relatywne).
+    Autor uzywa S&P 500 (us="SPY"); us="QQQ" = wariant z Nasdaq-100 jak w GEM.
+       Galaz obligacji: lepsze z bonow 3M / obligacji 7-10Y. Galaz zlota: zloto.
+    """
+    branch = max([us, gold, "TBILL"], key=lambda a: mom[a])
+    if branch == us:
+        return "Akcje", max([us] + GM_EQUITY_EX_US, key=lambda a: mom[a])
+    if branch == "TBILL":
+        return "Obligacje", max(GM_BONDS, key=lambda a: mom[a])
+    return "Zloto", gold
+
+
+def _gm_monthly(prices: pd.DataFrame, tbill: pd.Series, gold: str,
+                us: str = "SPY") -> pd.DataFrame | None:
+    cols = [us] + GM_EQUITY_EX_US + [gold, "IEF"]
+    if any(c not in prices.columns for c in cols) or tbill is None or tbill.empty:
+        return None
+    daily = prices[cols].copy()
+    daily["TBILL"] = tbill.reindex(daily.index).ffill()
+    return daily.ffill().dropna().resample("ME").last().dropna()
+
+
+def backtest_gold_momentum(prices: pd.DataFrame, tbill: pd.Series,
+                           gold: str = "GLD", lookback_months: int = 12,
+                           us: str = "SPY",
+                           start_capital: float = 10000,
+                           transaction_cost: float = 0.0,
+                           tax_belka: float = 0.0) -> dict | None:
+    """Backtest strategii Gold Momentum na danych miesiecznych.
+
+    Decyzja na zamkniecie miesiaca m (momentum z cen koncow miesiecy m i
+    m-lookback), pozycja trzymana przez miesiac m+1 — brak lookaheadu.
+    Ostatni wiersz moze byc niepelnym biezacym miesiacem.
+
+    Args:
+        prices: dzienne ceny (total return) us (SPY/QQQ), EFA, EEM, IEF + ticker zlota
+        tbill: indeks bonow 3M z tbill_index()
+        tax_belka / transaction_cost: przy kazdej zmianie aktywa (jak backtest_gem)
+
+    Returns dict: equity (nazwa -> miesieczna Series), stats, signals
+        [(data_wejscia, aktywo)], branches (Series galezi per miesiac), monthly.
+    """
+    m = _gm_monthly(prices, tbill, gold, us)
+    L = lookback_months
+    if m is None or len(m) < L + 3:
+        return None
+    rets = m.pct_change()
+    mom = m / m.shift(L) - 1
+    dates = m.index[L:]
+
+    equity = [start_capital]
+    seg_start = start_capital
+    signals: list[tuple] = []
+    branches = {}
+    current = None
+    for i in range(L, len(m) - 1):
+        branch, asset = gold_momentum_pick(mom.iloc[i].to_dict(), gold, us)
+        branches[m.index[i]] = branch
+        eq = equity[-1]
+        if asset != current:
+            if current is not None:
+                if tax_belka > 0 and eq > seg_start:
+                    eq -= tax_belka * (eq - seg_start)
+                if transaction_cost > 0:
+                    eq *= 1 - transaction_cost
+                equity[-1] = eq
+                seg_start = eq
+            signals.append((m.index[i], asset))
+            current = asset
+        equity.append(eq * (1 + rets[asset].iloc[i + 1]))
+
+    curves = {"GEM Gold Momentum": pd.Series(equity, index=dates, name="GEM Gold Momentum")}
+    for t in (us, gold, "EFA", "EEM"):
+        p = m[t].loc[dates]
+        curves[f"{t} B&H"] = start_capital * p / p.iloc[0]
+    tb = m["TBILL"].loc[dates]
+    years = (len(dates) - 1) / 12
+    rf_decimal = (tb.iloc[-1] / tb.iloc[0]) ** (1 / years) - 1 if years > 0 else 0.0
+
+    stats = {n: calc_stats(s, 12, rf_decimal) for n, s in curves.items()}
+    stats["GEM Gold Momentum"].update(trade_stats(signals, curves["GEM Gold Momentum"]))
+    return {
+        "equity": curves,
+        "stats": stats,
+        "signals": signals,
+        "branches": pd.Series(branches),
+        "rf_decimal": rf_decimal,
+    }
+
+
+def gold_momentum_now(prices: pd.DataFrame, tbill: pd.Series, gold: str = "GLD",
+                      lookback_months: int = 12, us: str = "SPY") -> dict | None:
+    """Biezacy sygnal z ostatniego zamkniecia: zwrot od tej samej daty L miesiecy temu."""
+    cols = [us] + GM_EQUITY_EX_US + [gold, "IEF"]
+    if any(c not in prices.columns for c in cols) or tbill is None or tbill.empty:
+        return None
+    d = prices[cols].copy()
+    d["TBILL"] = tbill.reindex(d.index).ffill()
+    d = d.ffill().dropna()
+    if d.empty:
+        return None
+    last = d.index[-1]
+    past_date = last - pd.DateOffset(months=lookback_months)
+    if past_date < d.index[0]:
+        return None
+    past = d.loc[:past_date].iloc[-1]
+    mom = (d.iloc[-1] / past - 1).to_dict()
+    branch, asset = gold_momentum_pick(mom, gold, us)
+    return {"date": last, "returns": mom, "branch": branch, "asset": asset}
+
+
+def gold_momentum_sensitivity(prices: pd.DataFrame, tbill: pd.Series, gold: str = "GLD",
+                              windows=range(3, 16), us: str = "SPY") -> pd.DataFrame:
+    """CAGR / Max DD / liczba zmian dla roznych okien momentum, na WSPOLNYM okresie
+    (start wyznacza najdluzsze okno, zeby krotkie okna nie mialy przewagi dluzszej historii)."""
+    windows = list(windows)
+    longest = max(windows)
+    m = _gm_monthly(prices, tbill, gold, us)
+    if m is None or len(m) < longest + 3:
+        return pd.DataFrame()
+    start = m.index[longest]
+    rows = []
+    for w in windows:
+        res = backtest_gold_momentum(prices, tbill, gold, lookback_months=w, us=us)
+        if res is None:
+            continue
+        eq = res["equity"]["GEM Gold Momentum"].loc[start:]
+        eq = eq / eq.iloc[0]
+        s = calc_stats(eq, 12, res["rf_decimal"])
+        n_sw = sum(1 for d, _ in res["signals"] if d >= start)
+        rows.append({"Okno (mies.)": w, "CAGR": s["CAGR"], "Max Drawdown": s["Max Drawdown"],
+                     "Sharpe": s["Sharpe"], "Zmiany": n_sw})
+    return pd.DataFrame(rows).set_index("Okno (mies.)")
+
+
+def annual_returns(equity_curves: dict[str, pd.Series]) -> pd.DataFrame:
+    """Zwroty kalendarzowe (rok x strategia). Pierwszy rok liczony od startu krzywej."""
+    out = {}
+    for name, eq in equity_curves.items():
+        eq = eq.dropna()
+        if eq.empty:
+            continue
+        year_end = eq.groupby(eq.index.year).last()
+        prev = year_end.shift(1)
+        prev.iloc[0] = eq.iloc[0]
+        out[name] = year_end / prev - 1
+    return pd.DataFrame(out)
+
+
+def signal_time_share(signals_log: list, index: pd.DatetimeIndex) -> pd.Series:
+    """Udzial sesji spedzonych w kazdym aktywie (suma = 1)."""
+    if not signals_log or len(index) == 0:
+        return pd.Series(dtype=float)
+    held = pd.Series(np.nan, index=index, dtype=object)
+    for date, sig in signals_log:
+        held.loc[date] = sig
+    held = held.ffill().dropna()
+    return held.value_counts(normalize=True)
+
+
 def rolling_momentum(prices: pd.Series, window: int = 252) -> pd.Series:
     """Rolling momentum (stopa zwrotu) dla jednego tickera."""
     return prices.pct_change(periods=window)

@@ -32,6 +32,7 @@ PAGE_INFO = {
     22: ("\U0001f680", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
     23: ("📅", "Earnings Calendar", "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlist"),
     24: ("👥", "Insider Screener", "Bulk insider activity SP500 — top buyers/sellers, sektory, beat streak"),
+    25: ("🥇", "GEM Gold Momentum", "Momentum ze zlotem w wersji GEM: Nasdaq-100 / zloto / obligacje, backtest od 2005 vs GEM klasyczny"),
 }
 
 # Link do zakupu na Naffy (do uzupelnienia po stworzeniu produktu)

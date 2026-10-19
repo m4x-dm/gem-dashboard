@@ -44,6 +44,7 @@ cards = [
     (22, "🚀", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight", "pages/22_gem_extended.py"),
     (23, "📅", "Earnings Calendar", "Kalendarz nadchodzacych raportow SP500+GPW (±28 dni) z watchlist i cross-link do F13", "pages/23_earnings_calendar.py"),
     (24, "👥", "Insider Screener", "Bulk insider screener SP500 — kto kupuje, kto sprzedaje, sektorowa heatmapa, cross-link do F13", "pages/24_insider_screener.py"),
+    (25, "🥇", "GEM Gold Momentum", "Momentum ze zlotem: QQQ / zloto / obligacje — backtest, porownanie z GEM, wrazliwosc na okno", "pages/25_gem_gold_momentum.py"),
 ]
 
 premium = is_premium()

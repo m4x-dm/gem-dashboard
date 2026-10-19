@@ -1,7 +1,7 @@
 # CLAUDE.md — GEM ETF Dashboard
 
 ## Overview
-Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~456 US stocks from S&P 500. 25 pages total (0–24; 4 free, 21 premium).
+Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~456 US stocks from S&P 500. 26 pages total (0–25; 4 free, 22 premium).
 
 ## Tech Stack
 - **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**, **reportlab**
@@ -58,6 +58,7 @@ pages/
   22_gem_extended.py    # GEM Extended (configurable universe + top N + safe asset fallback)
   23_earnings_calendar.py # Earnings Calendar (±28 dni), watchlist localStorage, cross-link do F13 Sprawozdania Q
   24_insider_screener.py  # Bulk Insider Screener SP500 (456), top buyers/sellers, sektorowa heatmapa, cross-link do F13 Insiders
+  25_gem_gold_momentum.py # GEM Gold Momentum (regula inwestomat.eu, QQQ zamiast S&P 500): QQQ/zloto/bony 3M -> galaz, potem QQQ/EFA/EEM lub bony/IEF; vs GEM klasyczny, wrazliwosc 3-15M
 ```
 
 **Numeracja stron = kolejnosc w sidebarze.** Top Picks siedzi pod GPW (2026-08-07), wiec
@@ -103,6 +104,7 @@ nie psuje linkow.
 - **Backtest GEM:** Monthly rebalancing, GEM vs QQQ B&H vs ACWI B&H vs AGG B&H. Strategy selector: GEM Klasyczny, QQQ+SMA200, TQQQ+Momentum, Porownanie wszystkich
 - **Backtest QQQ+SMA200:** Daily trend following — QQQ when price > SMA(200), AGG otherwise. `backtest_sma200()` in `momentum.py`
 - **Backtest TQQQ+Momentum:** Synthetic TQQQ (QQQ daily return × 3), monthly momentum timing (QQQ 12M no-skip > rf → TQQQ, else AGG). `backtest_tqqq_mom()` in `momentum.py`. **Od 2026-05-23 default zmieniony z 12M-1 skip-month na czyste 12M.**
+- **GEM Gold Momentum (page 25, `pages/25_gem_gold_momentum.py`):** `backtest_gold_momentum()` w `momentum.py` — regula z inwestomat.eu/strategia-momentum-ze-zlotem: na koniec miesiaca najwyzsze momentum (default 12M) z SPY / zloto (GLD|IAU) / bony 3M wybiera galaz; akcje -> najlepszy z SPY/EFA/EEM, obligacje -> bony 3M vs IEF, zloto -> zloto. Backtest MIESIECZNY (decyzja na zamknieciu m, pozycja w m+1). Bony 3M syntetyczne z ^IRX (`tbill_index()`), bo SHV/BIL dopiero od 2007. Start najwczesniej XI 2005 (GLD od XI 2004). Autorowe ~20% CAGR to lata 1972-2025 (hossa zlota lat 70.) — NIE do odtworzenia na yfinance; dla 2006-2025 nasz backtest daje 6444 USD z 1000 / DD -28,6% vs autor 7469 / -29% (EFA zamiast MSCI World ex-US). Parametr `us` (akcje USA): funkcje maja default SPY (wersja autora, do walidacji), strona ma na sztywno QQQ (jak GEM). 2005-11→2026-10: SPY 8,6% / DD -31%, QQQ 12,9% / DD -29% / Sharpe 0,68 (QQQ B&H 15,4% / DD -50%). Od 2009-03: GM-QQQ 10,7% vs GEM klasyczny 9,4% (GM-SPY 6,2%). QQQ = wybor po fakcie (hindsight). Testy: `tests/test_gem_gold.py`.
 - **GEM Extended (page 22):** Rozszerzenie GEM o konfigurowalne universe (do 10+ ETF + krypto), top N equal-weight, safe_asset fallback (AGG/TLT/IEF/BIL/SHV/BND). `backtest_gem_extended()` w `momentum.py`. 5 presets (5-ETF baseline / 8-ETF gold-REIT-TLT / 3 z BTC). Backtest 11.5y (2014-2026) z BTC + 9 ETF Top-2: CAGR 42,8% / Sharpe 1,10 / MaxDD -52% (vs baseline 5-ETF: CAGR 15,8% / Sharpe 0,65 / MaxDD -29%). Strona ma duży disclaimer expander: hindsight bias (BTC), -50%+ DD, survivorship bias, deviation from Antonacci GEM philosophy. Commit 794bdd3.
 - **Backtest GPW:** Momentum rotation (top N stocks) vs equal-weight B&H
 - **Backtest Crypto:** Momentum rotation (top N) vs BTC B&H vs equal-weight B&H (365 trading days/year)
