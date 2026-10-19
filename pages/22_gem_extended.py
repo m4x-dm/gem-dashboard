@@ -229,7 +229,7 @@ equity_dict = {f"GEM Ext Top-{top_n}": res["equity"]}
 if "equity_benchmark" in res:
     equity_dict[f"{benchmark_choice} B&H"] = res["equity_benchmark"]
 equity_dict[f"{safe_asset} B&H"] = res["equity_safe"]
-equity_chart(equity_dict)
+st.plotly_chart(equity_chart(equity_dict), width="stretch")
 
 # ====== Historia trzymanych pozycji ======
 st.markdown("## 🔄 Historia rotacji (kazda zmiana holdings)")
