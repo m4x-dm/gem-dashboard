@@ -3,6 +3,8 @@
 import streamlit as st
 from components.auth import init_auth, is_premium, activate_code, deactivate, NAFFY_URL
 
+PORTAL_URL = "https://inwestowanie.edu.pl/"
+
 
 def inject_css():
     """Globalny CSS — ukrycie menu, stylowanie sidebar i kart."""
@@ -142,6 +144,12 @@ def setup_sidebar():
     with st.sidebar:
         st.markdown("## 📈 GEM Dashboard")
         st.caption("Global Equity Momentum — analiza ETF-ow")
+        st.markdown(
+            f'<a href="{PORTAL_URL}?utm_source=gem-dashboard&utm_medium=app&utm_campaign=sidebar" '
+            'target="_blank" rel="noopener" style="color:#C9A84C;font-size:13px;text-decoration:none;">'
+            '📚 Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
+            unsafe_allow_html=True,
+        )
         st.divider()
 
         # === PREMIUM ===
@@ -317,6 +325,14 @@ def render_footer():
         '<p style="margin:0">&copy; 2026 M4X &middot; Wszelkie prawa zastrzeżone</p>'
         + version_html +
         '</div>'
+    )
+    # Link poza st.html(): st.html renderuje w sandboxowanym iframe, z ktorego linki nie zawsze sie otwieraja
+    st.markdown(
+        f'<p style="text-align:center;font-size:12px;margin:0 0 16px;">'
+        f'<a href="{PORTAL_URL}strategia-gem/?utm_source=gem-dashboard&utm_medium=app&utm_campaign=footer" '
+        'target="_blank" rel="noopener" style="color:#C9A84C;text-decoration:none;">'
+        'Jak działa strategia GEM i jak inwestować w ETF-y: inwestowanie.edu.pl ↗</a></p>',
+        unsafe_allow_html=True,
     )
 
 
