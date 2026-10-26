@@ -174,7 +174,7 @@ st.divider()
 # Sekcja 3: Top 5 ETFs
 # =====================================================================
 st.markdown("### Top 5 ETF-ow wg momentum")
-ranking = build_ranking(prices, rf)
+ranking = build_ranking(prices, rf, skip_month=False)
 names = dict(ETF_NAMES)
 categories = dict(ETF_CATEGORY_MAP)
 for t in st.session_state.get("custom_tickers", []):

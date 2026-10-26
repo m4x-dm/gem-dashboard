@@ -30,7 +30,7 @@ st.divider()
 
 # Rozszerzony ranking
 st.markdown("### Top 5 ETF-ow — rozszerzony ranking momentum")
-ranking = build_ranking(prices, rf)
+ranking = build_ranking(prices, rf, skip_month=False)
 
 # Nazwy dla custom tickerow
 custom = st.session_state.get("custom_tickers", [])

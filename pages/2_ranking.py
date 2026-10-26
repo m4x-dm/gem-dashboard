@@ -20,7 +20,7 @@ prices = download_prices(tickers)
 
 rf = get_risk_free()
 
-ranking = build_ranking(prices, rf)
+ranking = build_ranking(prices, rf, skip_month=False)
 
 # Dodaj nazwy i kategorie
 ranking["Nazwa"] = ranking.index.map(lambda t: ETF_NAMES.get(t, t))

@@ -71,7 +71,7 @@ def _build_class_ranking(_tickers_tuple, _rf, class_name, period="2y"):
     prices = download_prices(tickers, period=period)
     if prices.empty:
         return pd.DataFrame()
-    ranking = build_ranking(prices, _rf)
+    ranking = build_ranking(prices, _rf, skip_month=class_name != "ETF")
     ranking["Klasa"] = class_name
     return ranking
 

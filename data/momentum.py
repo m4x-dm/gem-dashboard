@@ -54,8 +54,11 @@ def calc_returns(prices: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return result
 
 
-def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
+def latest_returns(prices: pd.DataFrame, skip_month: bool = True) -> pd.DataFrame:
     """Zwraca ostatnie stopy zwrotu dla kazdego tickera. Kolumny: 1M, 3M, 6M, 12M.
+
+    skip_month=True (akcje/krypto): 12M = 12-1, price(t-21)/price(t-273)-1.
+    skip_month=False (ETF, GEM): 12M = price(t)/price(t-252)-1, spojnie z backtest_gem.
 
     Zoptymalizowana wersja — oblicza tylko ostatni wiersz zamiast pelnych DataFrames.
     Forward-fill eliminuje trailing NaN gdy zrodla danych konczą sie na roznych datach.
@@ -74,10 +77,10 @@ def latest_returns(prices: pd.DataFrame) -> pd.DataFrame:
             ret = pd.Series(np.nan, index=prices.columns)
         result[label] = ret.replace([np.inf, -np.inf], np.nan)
 
-    # 12M momentum: skip-month (12-1) when enough data, else simple 12M
-    # iloc[-1] = today (t), iloc[-1-skip] = t-21, iloc[-1-total] = t-273
-    skip = 21
-    total = 273
+    # 12M momentum: akcje/krypto = skip-month 12-1 (t-21 / t-273), ETF/GEM = czyste 12M
+    # (t / t-252). Przy krotszej historii (>=230 wierszy) prosty zwrot od poczatku.
+    skip = 21 if skip_month else 0
+    total = 273 if skip_month else 252
     if n >= total + 1:
         ret_12m = prices.iloc[-1 - skip] / prices.iloc[-1 - total] - 1
     elif n >= 230:
@@ -149,17 +152,19 @@ def rank_based_score(rets: pd.DataFrame,
     return score
 
 
-def build_ranking(prices: pd.DataFrame, risk_free_annual: float) -> pd.DataFrame:
+def build_ranking(prices: pd.DataFrame, risk_free_annual: float,
+                  skip_month: bool = True) -> pd.DataFrame:
     """Buduje ranking ETF-ow z wynikiem kompozytowym i sygnalem momentum absolutnego.
 
     Args:
         prices: DataFrame z cenami (kolumny = tickery)
         risk_free_annual: roczna stopa wolna od ryzyka w % (np. 4.5)
+        skip_month: True dla akcji/krypto (12-1), False dla ETF (czyste 12M)
 
     Returns:
         DataFrame z kolumnami: 1M, 3M, 6M, 12M, Wynik, Momentum_abs
     """
-    rets = latest_returns(prices)
+    rets = latest_returns(prices, skip_month=skip_month)
     rf_decimal = risk_free_annual / 100.0
 
     rets["Wynik"] = rets.apply(composite_score, axis=1)
@@ -178,8 +183,11 @@ def gem_classic_signal(prices: pd.DataFrame, risk_free_annual: float) -> dict:
         signal_label: opis po polsku
         qqq_12m, vea_12m, eem_12m, acwi_12m, agg_12m: stopy zwrotu 12M
         risk_free: stopa wolna
+
+    Momentum 12M bez skip-month (price(t)/price(t-252)-1) — ta sama definicja
+    co w backtest_gem (lookback=252, skip=0).
     """
-    rets = latest_returns(prices)
+    rets = latest_returns(prices, skip_month=False)
     rf_decimal = risk_free_annual / 100.0
 
     qqq_ret = rets.loc["QQQ", "12M"] if "QQQ" in rets.index else np.nan
