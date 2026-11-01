@@ -154,5 +154,57 @@
         "name": "Caterpillar Inc."
       }
     ]
+  },
+  "2026-11-01": {
+    "generated_at": "2026-11-01T12:31:16Z",
+    "asof": "2026-10-30",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "REGN",
+        "group": "Health Care",
+        "score": 0.8434,
+        "entry_price": 927.89,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Regeneron Pharmaceuticals"
+      },
+      {
+        "ticker": "ANET",
+        "group": "Information Technology",
+        "score": 0.8146,
+        "entry_price": 168.86,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Arista Networks"
+      },
+      {
+        "ticker": "LLY",
+        "group": "Health Care",
+        "score": 0.8126,
+        "entry_price": 1417.54,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Eli Lilly & Co."
+      },
+      {
+        "ticker": "CRM",
+        "group": "Information Technology",
+        "score": 0.8116,
+        "entry_price": 229.17,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Salesforce Inc."
+      },
+      {
+        "ticker": "RTX",
+        "group": "Industrials",
+        "score": 0.7712,
+        "entry_price": 199.8,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "RTX Corp."
+      }
+    ]
   }
 }

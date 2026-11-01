@@ -295,5 +295,104 @@
         "name": "Benefit Systems"
       }
     ]
+  },
+  "2026-11-01": {
+    "generated_at": "2026-11-01T12:31:16Z",
+    "asof": "2026-10-30",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.8778,
+        "entry_price": 884.74,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "MRK",
+        "group": "Health Care",
+        "score": 0.8717,
+        "entry_price": 149.52,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Merck & Co."
+      },
+      {
+        "ticker": "AMD",
+        "group": "Information Technology",
+        "score": 0.8687,
+        "entry_price": 504.8,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Advanced Micro Devices"
+      },
+      {
+        "ticker": "TMO",
+        "group": "Health Care",
+        "score": 0.8465,
+        "entry_price": 697.0,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Thermo Fisher Scientific"
+      },
+      {
+        "ticker": "XOM",
+        "group": "Energy",
+        "score": 0.7848,
+        "entry_price": 187.25,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Exxon Mobil Corp."
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "ASB.WA",
+        "group": "Technologia",
+        "score": 0.9853,
+        "entry_price": 160.0,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "ASBISc Enterprises"
+      },
+      {
+        "ticker": "CRI.WA",
+        "group": "Przemysl",
+        "score": 0.8147,
+        "entry_price": 800.0,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Creotech Instruments"
+      },
+      {
+        "ticker": "PKO.WA",
+        "group": "Banki",
+        "score": 0.7529,
+        "entry_price": 114.52,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "PKO Bank Polski"
+      },
+      {
+        "ticker": "EBP.WA",
+        "group": "Banki",
+        "score": 0.7412,
+        "entry_price": 775.8,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Erste Bank Polska"
+      },
+      {
+        "ticker": "PCO.WA",
+        "group": "Konsument defensywny",
+        "score": 0.7206,
+        "entry_price": 49.2,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Pepco Group"
+      }
+    ]
   }
 }

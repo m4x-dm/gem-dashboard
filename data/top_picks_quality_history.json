@@ -295,5 +295,104 @@
         "name": "ING Bank Slaski"
       }
     ]
+  },
+  "2026-11-01": {
+    "generated_at": "2026-11-01T12:31:16Z",
+    "asof": "2026-10-30",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 0.9795,
+        "entry_price": 884.74,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Micron Technology"
+      },
+      {
+        "ticker": "NVDA",
+        "group": "Information Technology",
+        "score": 0.9743,
+        "entry_price": 204.64,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "NVIDIA Corp."
+      },
+      {
+        "ticker": "GOOGL",
+        "group": "Communication Services",
+        "score": 0.8583,
+        "entry_price": 279.84,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Alphabet Inc. (A)"
+      },
+      {
+        "ticker": "V",
+        "group": "Financials",
+        "score": 0.7806,
+        "entry_price": 413.59,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Visa Inc."
+      },
+      {
+        "ticker": "LLY",
+        "group": "Health Care",
+        "score": 0.773,
+        "entry_price": 1417.54,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Eli Lilly & Co."
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "SNT.WA",
+        "group": "Ochrona zdrowia",
+        "score": 0.9391,
+        "entry_price": 327.0,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "Synektik"
+      },
+      {
+        "ticker": "XTB.WA",
+        "group": "Finanse",
+        "score": 0.9145,
+        "entry_price": 139.74,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "XTB"
+      },
+      {
+        "ticker": "CDR.WA",
+        "group": "Komunikacja",
+        "score": 0.8377,
+        "entry_price": 257.5,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "CD Projekt"
+      },
+      {
+        "ticker": "KGH.WA",
+        "group": "Surowce",
+        "score": 0.7715,
+        "entry_price": 281.6,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "KGHM Polska Miedz"
+      },
+      {
+        "ticker": "ING.WA",
+        "group": "Banki",
+        "score": 0.7507,
+        "entry_price": 453.8,
+        "entry_date": "2026-10-30",
+        "weight": 0.2,
+        "name": "ING Bank Slaski"
+      }
+    ]
   }
 }
