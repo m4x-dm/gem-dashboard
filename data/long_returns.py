@@ -171,3 +171,39 @@ def rolling_summary(rolling: pd.Series) -> dict:
         "p75": float(r.quantile(0.75)), "max": float(r.max()),
         "pct_negative": float((r < 0).mean()), "count": int(len(r)),
     }
+
+
+def align_end(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
+    """Przycina wszystkie szeregi do najwczesniejszego wspolnego ostatniego miesiaca."""
+    valid = {k: v.dropna() for k, v in series.items() if not v.dropna().empty}
+    if not valid:
+        return {}
+    end = min(v.index[-1] for v in valid.values())
+    return {k: v[v.index <= end] for k, v in valid.items()}
+
+
+def common_window(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
+    """Wspolny okres: od najpozniejszego startu do najwczesniejszego konca."""
+    aligned = align_end(series)
+    if not aligned:
+        return {}
+    start = max(v.index[0] for v in aligned.values())
+    return {k: v[v.index >= start] for k, v in aligned.items()}
+
+
+def annual_volatility(series_m: pd.Series) -> float:
+    """Zmiennosc roczna: odchylenie standardowe miesiecznych stop (ddof=0) x sqrt(12)."""
+    r = series_m.dropna().pct_change().dropna()
+    return float(r.std(ddof=0) * np.sqrt(12)) if len(r) > 1 else float("nan")
+
+
+def data_since_label(series_m: pd.Series, proxy_ticker: str | None,
+                     proxy_end: pd.Timestamp | None) -> str:
+    """'1993' albo '1980 (proxy VFINX do 01.1993)'."""
+    s = series_m.dropna()
+    if s.empty:
+        return "—"
+    year = str(s.index[0].year)
+    if proxy_ticker and proxy_end is not None:
+        return f"{year} (proxy {proxy_ticker} do {proxy_end:%m.%Y})"
+    return year

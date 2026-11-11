@@ -9,9 +9,13 @@ import pytest
 from data.long_returns import (
     PERIOD_YEARS,
     PROXY_MAP,
+    align_end,
+    annual_volatility,
     calendar_year_returns,
     combine_fx,
+    common_window,
     convert_to_pln,
+    data_since_label,
     parse_fred_csv,
     period_label,
     period_returns,
@@ -206,3 +210,30 @@ def test_rolling_summary():
 def test_rolling_summary_empty():
     out = rolling_summary(pd.Series(dtype=float))
     assert out["count"] == 0 and np.isnan(out["median"])
+
+
+def test_align_end_cuts_to_earliest_last_month():
+    a = _monthly([1, 2, 3, 4], start="2026-07-31")
+    b = _monthly([1, 2, 3], start="2026-07-31")
+    out = align_end({"A": a, "B": b})
+    assert out["A"].index[-1] == out["B"].index[-1] == pd.Timestamp("2026-09-30")
+
+
+def test_common_window_cuts_to_latest_start():
+    a = _monthly(range(1, 11), start="2000-01-31")
+    b = _monthly(range(1, 6), start="2000-06-30")
+    out = common_window({"A": a, "B": b})
+    assert out["A"].index[0] == out["B"].index[0] == pd.Timestamp("2000-06-30")
+    assert len(out["A"]) == len(out["B"])
+
+
+def test_annual_volatility():
+    s = _monthly([100, 110, 99, 108.9])  # stopy +10%, -10%, +10%
+    r = s.pct_change().dropna()
+    assert annual_volatility(s) == pytest.approx(r.std(ddof=0) * np.sqrt(12))
+
+
+def test_data_since_label():
+    s = _monthly([1, 2], start="1980-01-31")
+    assert data_since_label(s, None, None) == "1980"
+    assert data_since_label(s, "VFINX", pd.Timestamp("1993-01-31")) == "1980 (proxy VFINX do 01.1993)"
