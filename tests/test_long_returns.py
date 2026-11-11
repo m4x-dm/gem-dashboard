@@ -38,6 +38,7 @@ def test_period_years_constant():
 @pytest.mark.parametrize("years,label", [
     (1, "1 rok"), (3, "3 lata"), (5, "5 lat"), (10, "10 lat"),
     (15, "15 lat"), (20, "20 lat"), (22, "22 lata"), (25, "25 lat"), (30, "30 lat"),
+    (2, "2 lata"), (12, "12 lat"), (14, "14 lat"), (21, "21 lat"), (24, "24 lata"),
 ])
 def test_period_label(years, label):
     assert period_label(years) == label
@@ -237,3 +238,71 @@ def test_data_since_label():
     s = _monthly([1, 2], start="1980-01-31")
     assert data_since_label(s, None, None) == "1980"
     assert data_since_label(s, "VFINX", pd.Timestamp("1993-01-31")) == "1980 (proxy VFINX do 01.1993)"
+
+
+def test_period_returns_missing_month_is_date_based():
+    s = _growth(6)
+    s = s.drop(s.index[30])
+    df = period_returns(s)
+    assert df.loc["1 rok", "cagr"] == pytest.approx(0.10, abs=1e-9)
+    assert df.loc["3 lata", "cagr"] == pytest.approx(0.10, abs=1e-9)
+
+
+def test_period_returns_nan_when_start_month_missing():
+    s = _growth(6)
+    s = s.drop(s.index[-13])  # brak miesiaca bazowego dla "1 rok"
+    df = period_returns(s)
+    assert np.isnan(df.loc["1 rok", "cagr"])
+    assert df.loc["3 lata", "cagr"] == pytest.approx(0.10, abs=1e-9)
+
+
+def test_rolling_cagr_missing_month_not_distorted():
+    s = _growth(6)
+    missing = s.index[30]
+    s = s.drop(missing)
+    r = rolling_cagr(s, 1)
+    assert missing not in r.index
+    assert (missing + pd.offsets.MonthEnd(12)) not in r.index
+    assert len(r) == 59
+    np.testing.assert_allclose(r.values, 0.10)
+
+
+def test_common_window_no_overlap_returns_empty():
+    a = _monthly([1, 2, 3], start="2005-01-31")
+    b = _monthly([1, 2, 3], start="2010-01-31")
+    assert common_window({"A": a, "B": b}) == {}
+
+
+def test_to_monthly_tz_aware():
+    idx = pd.bdate_range("2026-08-01", "2026-10-15", tz="America/New_York")
+    daily = pd.Series(np.arange(len(idx), dtype=float), index=idx)
+    m = to_monthly(daily, today=pd.Timestamp("2026-11-11"))
+    assert m.index.tz is None
+    assert m.index[-1] == pd.Timestamp("2026-10-31")
+
+
+def test_convert_to_pln_drops_zero_rate():
+    usd = _monthly([100, 110, 121])
+    fx = _monthly([4.0, 0.0, 4.0])
+    pln = convert_to_pln(usd, fx)
+    assert len(pln) == 2 and np.isfinite(pln.values).all()
+
+
+def test_parse_fred_csv_drops_zero():
+    s = parse_fred_csv("observation_date,X" + chr(10) + "2000-01-01,0" + chr(10) + "2000-02-01,2.0" + chr(10))
+    assert list(s.values) == [2.0]
+
+
+def test_period_returns_unsorted_input_same_as_sorted():
+    s = _growth(6)
+    pd.testing.assert_frame_equal(period_returns(s.iloc[::-1]), period_returns(s))
+
+
+def test_rolling_summary_drops_inf():
+    out = rolling_summary(pd.Series([0.1, np.inf, 0.2]))
+    assert out["count"] == 2 and out["max"] == 0.2
+
+
+def test_combine_fx_without_yfinance():
+    fred = _monthly([3.0, 3.1])
+    pd.testing.assert_series_equal(combine_fx(fred, None), fred, check_freq=False)

@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 
 PERIOD_YEARS: tuple[int, ...] = (1, 3, 5, 10, 15, 20, 25, 30)
+SINCE_START = "Od startu"
+FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PLM618N"
 
 # ETF -> stary fundusz indeksowy Vanguard o tej samej ekspozycji (dane yfinance od 1980-1996).
 # Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
@@ -32,6 +34,13 @@ PROXY_MAP: dict[str, str] = {
 }
 
 
+def _clean(s: pd.Series) -> pd.Series:
+    """dropna, tylko wartosci > 0, sort po indeksie, bez duplikatow indeksu (zostaje ostatni)."""
+    s = s.dropna()
+    s = s[s > 0].sort_index()
+    return s[~s.index.duplicated(keep="last")].astype(float)
+
+
 def period_label(years: int) -> str:
     """Polska etykieta okresu: 1 rok, 3 lata, 5 lat, 22 lata, 25 lat."""
     if years == 1:
@@ -42,8 +51,13 @@ def period_label(years: int) -> str:
 
 
 def to_monthly(daily: pd.Series, today: pd.Timestamp | None = None) -> pd.Series:
-    """Ceny z konca miesiaca (indeks = koniec miesiaca), bez biezacego niepelnego miesiaca."""
+    """Ceny z konca miesiaca (indeks = koniec miesiaca).
+
+    Miesiac `today` jest zawsze odrzucany (niepelny).
+    """
     s = daily.dropna()
+    if getattr(s.index, "tz", None) is not None:
+        s = s.tz_localize(None)
     if s.empty:
         return s.astype(float)
     m = s.resample("ME").last().dropna()
@@ -54,28 +68,25 @@ def to_monthly(daily: pd.Series, today: pd.Timestamp | None = None) -> pd.Series
     return m.astype(float)
 
 
-SINCE_START = "Od startu"
-
-
 def period_returns(series_m: pd.Series, years: tuple[int, ...] = PERIOD_YEARS) -> pd.DataFrame:
     """Stopa skumulowana i CAGR dla okresow konczacych sie na ostatnim punkcie szeregu.
 
     Wiersze: etykiety okresow + 'Od startu'. NaN, gdy historii za malo.
     CAGR 'Od startu' tylko dla historii >= 1 rok.
     """
-    s = series_m.dropna()
+    s = _clean(series_m)
     rows: dict[str, tuple[float, float]] = {}
-    n_months = len(s) - 1
     for y in years:
-        w = 12 * y
-        if n_months >= w:
-            total = s.iloc[-1] / s.iloc[-1 - w] - 1
-            rows[period_label(y)] = (total, (1 + total) ** (1 / y) - 1)
-        else:
-            rows[period_label(y)] = (np.nan, np.nan)
-    if n_months >= 1:
+        if len(s) >= 2:
+            start = s.index[-1] - pd.offsets.MonthEnd(12 * y)
+            if start in s.index:
+                total = s.iloc[-1] / s.loc[start] - 1
+                rows[period_label(y)] = (total, (1 + total) ** (1 / y) - 1)
+                continue
+        rows[period_label(y)] = (np.nan, np.nan)
+    if len(s) >= 2:
         total = s.iloc[-1] / s.iloc[0] - 1
-        yrs = n_months / 12
+        yrs = (s.index[-1].to_period("M") - s.index[0].to_period("M")).n / 12
         cagr = (1 + total) ** (1 / yrs) - 1 if yrs >= 1 else np.nan
         rows[SINCE_START] = (total, cagr)
     else:
@@ -90,8 +101,8 @@ def splice_proxy(etf_m: pd.Series, proxy_m: pd.Series) -> tuple[pd.Series, pd.Ti
     od startu poziomy = ETF. Zwraca (szereg, miesiac startu ETF-u) albo (ETF, None),
     gdy proxy nie ma danych z miesiaca startu i wczesniej.
     """
-    etf = etf_m.dropna()
-    proxy = proxy_m.dropna()
+    etf = _clean(etf_m)
+    proxy = _clean(proxy_m)
     if etf.empty:
         return etf, None
     start = etf.index[0]
@@ -104,21 +115,23 @@ def splice_proxy(etf_m: pd.Series, proxy_m: pd.Series) -> tuple[pd.Series, pd.Ti
     return spliced, start
 
 
-FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PLM618N"
-
-
 def parse_fred_csv(text: str) -> pd.Series:
     """CSV z FRED (observation_date, wartosc) -> Series z indeksem koniec miesiaca."""
     df = pd.read_csv(io.StringIO(text))
     dates = pd.to_datetime(df.iloc[:, 0]) + pd.offsets.MonthEnd(0)
     vals = pd.to_numeric(df.iloc[:, 1], errors="coerce")
     s = pd.Series(vals.values, index=pd.DatetimeIndex(dates), dtype=float).dropna()
+    s = s[s > 0]
     s.name = "USDPLN"
     return s
 
 
 def combine_fx(fred_m: pd.Series | None, yf_m: pd.Series | None) -> pd.Series | None:
-    """Kurs miesieczny: FRED (srednia miesieczna, dluga historia), dalej miesiace z yfinance."""
+    """Kurs miesieczny: FRED (srednia miesieczna, dluga historia), dalej miesiace z yfinance.
+
+    Uwaga: FRED to srednia z miesiaca, yfinance to kurs z konca miesiaca — na styku
+    jest niewielki uskok.
+    """
     if fred_m is None or fred_m.empty:
         return yf_m
     if yf_m is None or yf_m.empty:
@@ -129,8 +142,10 @@ def combine_fx(fred_m: pd.Series | None, yf_m: pd.Series | None) -> pd.Series | 
 
 def convert_to_pln(usd_m: pd.Series, fx_m: pd.Series) -> pd.Series:
     """Cena w USD x kurs USD/PLN; tylko miesiace, dla ktorych jest kurs."""
-    idx = usd_m.dropna().index.intersection(fx_m.dropna().index)
-    out = usd_m.loc[idx] * fx_m.loc[idx]
+    usd = _clean(usd_m)
+    fx = _clean(fx_m)
+    idx = usd.index.intersection(fx.index)
+    out = usd.loc[idx] * fx.loc[idx]
     out.name = usd_m.name
     return out
 
@@ -140,7 +155,7 @@ def calendar_year_returns(series_m: pd.Series) -> tuple[pd.Series, int | None]:
 
     Zwraca (Series rok -> zwrot, rok YTD albo None, gdy ostatni miesiac to grudzien).
     """
-    s = series_m.dropna()
+    s = _clean(series_m)
     if s.empty:
         return pd.Series(dtype=float), None
     year_end = s.groupby(s.index.year).last()
@@ -154,14 +169,16 @@ def calendar_year_returns(series_m: pd.Series) -> tuple[pd.Series, int | None]:
 
 def rolling_cagr(series_m: pd.Series, years: int) -> pd.Series:
     """CAGR w kroczacym oknie `years` lat; punkt = miesiac konca okna."""
-    s = series_m.dropna()
+    s = _clean(series_m)
     w = 12 * years
-    return ((s / s.shift(w)) ** (1 / years) - 1).dropna()
+    base = s.reindex(s.index - pd.offsets.MonthEnd(w))
+    r = (s / base.values) ** (1 / years) - 1
+    return r.replace([np.inf, -np.inf], np.nan).dropna()
 
 
 def rolling_summary(rolling: pd.Series) -> dict:
     """Rozklad kroczacych CAGR: min, p25, median, p75, max, pct_negative, count."""
-    r = rolling.dropna()
+    r = rolling.replace([np.inf, -np.inf], np.nan).dropna()
     if r.empty:
         nan = float("nan")
         return {"min": nan, "p25": nan, "median": nan, "p75": nan, "max": nan,
@@ -179,16 +196,20 @@ def align_end(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
     if not valid:
         return {}
     end = min(v.index[-1] for v in valid.values())
-    return {k: v[v.index <= end] for k, v in valid.items()}
+    cut = {k: v[v.index <= end] for k, v in valid.items()}
+    return {k: v for k, v in cut.items() if not v.empty}
 
 
 def common_window(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
-    """Wspolny okres: od najpozniejszego startu do najwczesniejszego konca."""
-    aligned = align_end(series)
-    if not aligned:
+    """Wspolny okres: od najpozniejszego startu do najwczesniejszego konca ({} gdy brak nakladania)."""
+    valid = {k: v.dropna() for k, v in series.items() if not v.dropna().empty}
+    if not valid:
         return {}
-    start = max(v.index[0] for v in aligned.values())
-    return {k: v[v.index >= start] for k, v in aligned.items()}
+    start = max(v.index[0] for v in valid.values())
+    end = min(v.index[-1] for v in valid.values())
+    if start > end:
+        return {}
+    return {k: v[(v.index >= start) & (v.index <= end)] for k, v in valid.items()}
 
 
 def annual_volatility(series_m: pd.Series) -> float:
