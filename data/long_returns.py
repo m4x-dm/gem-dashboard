@@ -237,11 +237,15 @@ def annual_volatility(series_m: pd.Series) -> float:
 
 def data_since_label(series_m: pd.Series, proxy_ticker: str | None,
                      proxy_end: pd.Timestamp | None) -> str:
-    """'1993' albo '1980 (proxy VFINX do 01.1993)'."""
+    """'1993' albo '1980 (proxy VFINX do 01.1993)'.
+
+    Rok pierwszego miesiaca ZE STOPA ZWROTU (pierwszy punkt to tylko baza), wiec szereg
+    od 31.12.1995 daje '1996', a od 31.01.1980 — '1980'.
+    """
     s = series_m.dropna()
     if s.empty:
         return "—"
-    year = str(s.index[0].year)
+    year = str((s.index[0] + pd.offsets.MonthEnd(1)).year)
     if proxy_ticker and proxy_end is not None:
         return f"{year} (proxy {proxy_ticker} do {proxy_end:%m.%Y})"
     return year

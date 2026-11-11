@@ -242,6 +242,12 @@ def test_data_since_label():
     assert data_since_label(s, "VFINX", pd.Timestamp("1993-01-31")) == "1980 (proxy VFINX do 01.1993)"
 
 
+def test_data_since_label_december_start_shows_next_year():
+    s = _monthly([1, 2, 3], start="1995-12-31")
+    assert data_since_label(s, None, None) == "1996"
+    assert data_since_label(s, "VBMFX", pd.Timestamp("2003-09-30")) == "1996 (proxy VBMFX do 09.2003)"
+
+
 def test_period_returns_missing_month_is_date_based():
     s = _growth(6)
     s = s.drop(s.index[30])
