@@ -23,6 +23,8 @@ SINCE_START = "Od startu"
 FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PLM618N"
 # FRED zrywa polaczenie dla podrobionego UA przegladarki ("Mozilla/5.0") — tylko uczciwy UA.
 FRED_HEADERS = {"User-Agent": "gem-dashboard/1.0 (+https://gem-dashboard.streamlit.app)"}
+# Tryb PLN od 1996: wczesniej hiperinflacja i denominacja zlotego znieksztalcaja stopy zwrotu.
+PLN_START = pd.Timestamp("1996-01-31")
 
 # ETF -> stary fundusz indeksowy Vanguard o tej samej ekspozycji (dane yfinance od 1980-1996).
 # Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
@@ -149,11 +151,14 @@ def combine_fx(fred_m: pd.Series | None, yf_m: pd.Series | None) -> pd.Series | 
     return pd.concat([fred_m, newer])
 
 
-def convert_to_pln(usd_m: pd.Series, fx_m: pd.Series) -> pd.Series:
-    """Cena w USD x kurs USD/PLN; tylko miesiace, dla ktorych jest kurs."""
+def convert_to_pln(usd_m: pd.Series, fx_m: pd.Series,
+                   start: pd.Timestamp | None = PLN_START) -> pd.Series:
+    """Cena w USD x kurs USD/PLN; tylko miesiace, dla ktorych jest kurs, od `start` (domyslnie 01.1996)."""
     usd = _clean(usd_m)
     fx = _clean(fx_m)
     idx = usd.index.intersection(fx.index)
+    if start is not None:
+        idx = idx[idx >= start]
     out = usd.loc[idx] * fx.loc[idx]
     out.name = usd_m.name
     return out

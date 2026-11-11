@@ -416,3 +416,18 @@ def test_fred_request_uses_honest_user_agent(monkeypatch):
     assert sent["url"] == lr.FRED_USDPLN_URL
     ua = sent["headers"].get("User-Agent", "")
     assert "Mozilla" not in ua
+
+
+def test_convert_to_pln_drops_months_before_1996():
+    usd = _growth(10, start="1990-01-31")  # 1990-01 .. 2000-01
+    fx = pd.Series(2.0, index=usd.index)
+    pln = convert_to_pln(usd, fx)
+    assert pln.index[0] == pd.Timestamp("1996-01-31")
+    assert (pln.index >= lr.PLN_START).all()
+    assert pln.index[-1] == usd.index[-1]
+
+
+def test_convert_to_pln_start_none_keeps_full_history():
+    usd = _growth(10, start="1990-01-31")
+    fx = pd.Series(2.0, index=usd.index)
+    assert convert_to_pln(usd, fx, start=None).index[0] == pd.Timestamp("1990-01-31")

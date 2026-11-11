@@ -226,7 +226,8 @@ else:
                        f"Sharpe/Sortino ze stopa wolna {rf_txt}% (biezaca).")
 
 st.caption(
-    "Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna). "
+    "Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna; "
+    "w trybie PLN dane od 1996 (po denominacji i stabilizacji zlotego)). "
     "Fundusze proxy maja wyzsze oplaty niz ETF-y, wiec odcinek z proxy jest lekko zanizony. "
     "Wyniki historyczne nie gwarantuja przyszlych."
 )
