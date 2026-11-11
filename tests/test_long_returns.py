@@ -8,8 +8,10 @@ import pytest
 
 from data.long_returns import (
     PERIOD_YEARS,
+    PROXY_MAP,
     period_label,
     period_returns,
+    splice_proxy,
     to_monthly,
 )
 
@@ -81,3 +83,39 @@ def test_period_returns_since_start_under_one_year_has_no_cagr():
 def test_period_returns_empty():
     df = period_returns(pd.Series(dtype=float))
     assert df["cagr"].isna().all()
+
+
+def test_proxy_map_contents():
+    assert PROXY_MAP["SPY"] == "VFINX"
+    assert PROXY_MAP["AGG"] == "VBMFX"
+    assert "GLD" not in PROXY_MAP and "QQQ" not in PROXY_MAP
+
+
+def test_splice_proxy_uses_proxy_returns_before_start_and_etf_after():
+    proxy = _monthly([50, 55, 60, 66, 70, 77, 80], start="2000-01-31")
+    etf = _monthly([200, 210, 231, 240], start="2000-04-30")  # start = 4. miesiac proxy
+    spliced, proxy_end = splice_proxy(etf, proxy)
+    assert proxy_end == pd.Timestamp("2000-04-30")
+    assert spliced.index[0] == pd.Timestamp("2000-01-31")
+    # od startu ETF-u poziomy identyczne z ETF-em (brak skoku)
+    pd.testing.assert_series_equal(spliced.loc["2000-04-30":], etf, check_names=False, check_freq=False)
+    # przed startem stopy zwrotu jak w proxy
+    r_sp = spliced.pct_change().loc[:"2000-04-30"].dropna()
+    r_px = proxy.pct_change().loc[:"2000-04-30"].dropna()
+    np.testing.assert_allclose(r_sp.values, r_px.values)
+
+
+def test_splice_proxy_no_overlap_returns_etf_unchanged():
+    proxy = _monthly([1, 2, 3], start="2010-01-31")  # proxy po starcie ETF-u
+    etf = _monthly([10, 11], start="2005-01-31")
+    spliced, proxy_end = splice_proxy(etf, proxy)
+    assert proxy_end is None
+    pd.testing.assert_series_equal(spliced, etf, check_freq=False)
+
+
+def test_splice_proxy_missing_start_month_in_proxy_returns_etf():
+    proxy = pd.Series([1.0, 2.0], index=pd.to_datetime(["2000-01-31", "2000-02-29"]))
+    etf = _monthly([10, 11], start="2000-04-30")
+    spliced, proxy_end = splice_proxy(etf, proxy)
+    assert proxy_end is None
+    pd.testing.assert_series_equal(spliced, etf, check_freq=False)

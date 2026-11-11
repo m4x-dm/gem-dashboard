@@ -13,6 +13,24 @@ import pandas as pd
 
 PERIOD_YEARS: tuple[int, ...] = (1, 3, 5, 10, 15, 20, 25, 30)
 
+# ETF -> stary fundusz indeksowy Vanguard o tej samej ekspozycji (dane yfinance od 1980-1996).
+# Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
+# (test_proxy_quality_network). Bez proxy: QQQ, ACWI, EWJ, EWU, FXI, TIP, GLD, IAU, GSG,
+# DBC, VNQI, sektory XL*.
+PROXY_MAP: dict[str, str] = {
+    "SPY": "VFINX", "VOO": "VFINX",
+    "VTI": "VTSMX",
+    "IWM": "NAESX",
+    "VEA": "VGTSX", "EFA": "VGTSX",
+    "EEM": "VEIEX", "VWO": "VEIEX",
+    "VGK": "VEURX",
+    "AGG": "VBMFX", "BND": "VBMFX",
+    "TLT": "VUSTX",
+    "IEF": "VFITX",
+    "SHY": "VBISX",
+    "VNQ": "VGSIX",
+}
+
 
 def period_label(years: int) -> str:
     """Polska etykieta okresu: 1 rok, 3 lata, 5 lat, 22 lata, 25 lat."""
@@ -63,3 +81,24 @@ def period_returns(series_m: pd.Series, years: tuple[int, ...] = PERIOD_YEARS) -
     else:
         rows[SINCE_START] = (np.nan, np.nan)
     return pd.DataFrame.from_dict(rows, orient="index", columns=["total", "cagr"])
+
+
+def splice_proxy(etf_m: pd.Series, proxy_m: pd.Series) -> tuple[pd.Series, pd.Timestamp | None]:
+    """Wydluza historie ETF-u o stopy zwrotu proxy sprzed jego startu.
+
+    Proxy skalowane tak, by w pierwszym miesiacu ETF-u mialo jego poziom: brak skoku,
+    od startu poziomy = ETF. Zwraca (szereg, miesiac startu ETF-u) albo (ETF, None),
+    gdy proxy nie ma danych z miesiaca startu i wczesniej.
+    """
+    etf = etf_m.dropna()
+    proxy = proxy_m.dropna()
+    if etf.empty:
+        return etf, None
+    start = etf.index[0]
+    before = proxy[proxy.index <= start]
+    if len(before) < 2 or before.index[-1] != start:
+        return etf, None
+    scaled = before / before.iloc[-1] * etf.iloc[0]
+    spliced = pd.concat([scaled.iloc[:-1], etf])
+    spliced.name = etf_m.name
+    return spliced, start
