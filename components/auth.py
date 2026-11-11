@@ -14,6 +14,7 @@ PAGE_INFO = {
     3: ("\U0001f4c8", "Wykresy", "Interaktywne wykresy cen, momentum i drawdown dla wybranych ETF-ow"),
     4: ("\u2696\ufe0f", "Porownanie", "Head-to-head 2\u20134 ETF-ow z macierza korelacji i statystykami"),
     5: ("\U0001f52c", "Backtest", "GEM vs Buy&Hold \u2014 krzywa kapitalu, Sharpe, MDD i wiecej"),
+    26: ("\U0001f4cf", "Stopy zwrotu", "Stopy zwrotu ETF-ow do 30 lat: okresy, lata, okna kroczace, PLN i proxy"),
     7: ("\U0001f1fa\U0001f1f8", "S&P 500", "Ranking, wykresy i backtest ~456 spolek z indeksu S&P 500"),
     8: ("\U0001f1f5\U0001f1f1", "Polskie Akcje GPW", "120 spolek z WIG20, mWIG40 i sWIG80 \u2014 momentum i backtest"),
     9: ("🎯", "Top Picks", "Trzy miesieczne piatki spolek: momentum cenowe, jakosc wynikow kwartalnych i jakosc biznesu"),
