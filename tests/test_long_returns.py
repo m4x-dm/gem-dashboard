@@ -9,6 +9,9 @@ import pytest
 from data.long_returns import (
     PERIOD_YEARS,
     PROXY_MAP,
+    combine_fx,
+    convert_to_pln,
+    parse_fred_csv,
     period_label,
     period_returns,
     splice_proxy,
@@ -119,3 +122,45 @@ def test_splice_proxy_missing_start_month_in_proxy_returns_etf():
     spliced, proxy_end = splice_proxy(etf, proxy)
     assert proxy_end is None
     pd.testing.assert_series_equal(spliced, etf, check_freq=False)
+
+
+FRED_SAMPLE = (
+    "observation_date,CCUSMA02PLM618N\n"
+    "1996-01-01,2.4775\n"
+    "1996-02-01,.\n"
+    "1996-03-01,2.5310\n"
+)
+
+
+def test_parse_fred_csv_month_end_index_and_skips_missing():
+    s = parse_fred_csv(FRED_SAMPLE)
+    assert list(s.index) == [pd.Timestamp("1996-01-31"), pd.Timestamp("1996-03-31")]
+    assert s.iloc[0] == pytest.approx(2.4775)
+
+
+def test_combine_fx_appends_only_newer_months():
+    fred = _monthly([3.0, 3.1], start="2026-08-31")
+    yf_m = _monthly([9.9, 3.2, 3.3], start="2026-08-31")  # sierpien zignorowany
+    out = combine_fx(fred, yf_m)
+    assert list(out.values) == [3.0, 3.1, 3.3]
+    assert out.index[-1] == pd.Timestamp("2026-10-31")
+
+
+def test_combine_fx_without_fred():
+    yf_m = _monthly([3.2, 3.3])
+    pd.testing.assert_series_equal(combine_fx(None, yf_m), yf_m, check_freq=False)
+
+
+def test_convert_to_pln_constant_rate_keeps_returns():
+    usd = _monthly([100, 110, 121])
+    fx = _monthly([4.0, 4.0, 4.0])
+    pln = convert_to_pln(usd, fx)
+    np.testing.assert_allclose(pln.pct_change().dropna().values, [0.10, 0.10])
+
+
+def test_convert_to_pln_compounds_fx_and_drops_months_without_rate():
+    usd = _monthly([100, 110, 121])
+    fx = _monthly([4.0, 4.2], start="2000-02-29")  # brak kursu za styczen
+    pln = convert_to_pln(usd, fx)
+    assert list(pln.index) == list(fx.index)
+    assert pln.pct_change().iloc[-1] == pytest.approx(1.10 * 1.05 - 1)

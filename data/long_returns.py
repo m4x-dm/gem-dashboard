@@ -102,3 +102,34 @@ def splice_proxy(etf_m: pd.Series, proxy_m: pd.Series) -> tuple[pd.Series, pd.Ti
     spliced = pd.concat([scaled.iloc[:-1], etf])
     spliced.name = etf_m.name
     return spliced, start
+
+
+FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PLM618N"
+
+
+def parse_fred_csv(text: str) -> pd.Series:
+    """CSV z FRED (observation_date, wartosc) -> Series z indeksem koniec miesiaca."""
+    df = pd.read_csv(io.StringIO(text))
+    dates = pd.to_datetime(df.iloc[:, 0]) + pd.offsets.MonthEnd(0)
+    vals = pd.to_numeric(df.iloc[:, 1], errors="coerce")
+    s = pd.Series(vals.values, index=pd.DatetimeIndex(dates), dtype=float).dropna()
+    s.name = "USDPLN"
+    return s
+
+
+def combine_fx(fred_m: pd.Series | None, yf_m: pd.Series | None) -> pd.Series | None:
+    """Kurs miesieczny: FRED (srednia miesieczna, dluga historia), dalej miesiace z yfinance."""
+    if fred_m is None or fred_m.empty:
+        return yf_m
+    if yf_m is None or yf_m.empty:
+        return fred_m
+    newer = yf_m[yf_m.index > fred_m.index[-1]]
+    return pd.concat([fred_m, newer])
+
+
+def convert_to_pln(usd_m: pd.Series, fx_m: pd.Series) -> pd.Series:
+    """Cena w USD x kurs USD/PLN; tylko miesiace, dla ktorych jest kurs."""
+    idx = usd_m.dropna().index.intersection(fx_m.dropna().index)
+    out = usd_m.loc[idx] * fx_m.loc[idx]
+    out.name = usd_m.name
+    return out
