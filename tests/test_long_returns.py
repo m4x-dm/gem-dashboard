@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import data.long_returns as lr
 from data.long_returns import (
     PERIOD_YEARS,
     PROXY_MAP,
@@ -306,3 +307,33 @@ def test_rolling_summary_drops_inf():
 def test_combine_fx_without_yfinance():
     fred = _monthly([3.0, 3.1])
     pd.testing.assert_series_equal(combine_fx(fred, None), fred, check_freq=False)
+
+
+def test_annual_volatility_ignores_gap():
+    s = _monthly([100, 110, 99, 108.9, 120, 130])
+    gapped = s.drop(s.index[3])  # brak jednego miesiaca
+    full = gapped.asfreq("ME").pct_change(fill_method=None).dropna()
+    assert len(full) == 3
+    assert annual_volatility(gapped) == pytest.approx(full.std(ddof=0) * np.sqrt(12))
+    # naiwne pct_change() po dropna dalo by 4 stopy (z jedna dwumiesieczna)
+    assert len(gapped.pct_change().dropna()) == 4
+
+
+def test_load_monthly_impl_splices_when_proxy_enabled(monkeypatch):
+    days_proxy = pd.bdate_range("1990-01-01", "2000-12-29")
+    days_etf = pd.bdate_range("1995-01-02", "2000-12-29")
+    fake = {
+        "VFINX": pd.Series(np.linspace(10, 50, len(days_proxy)), index=days_proxy),
+        "SPY": pd.Series(np.linspace(100, 300, len(days_etf)), index=days_etf),
+    }
+    monkeypatch.setattr(lr, "download_single", lambda t, period="max": fake.get(t))
+    s, proxy_t, end = lr._load_monthly_impl("SPY", True)
+    assert proxy_t == "VFINX" and end == pd.Timestamp("1995-01-31")
+    assert s.index[0] == pd.Timestamp("1990-01-31")
+    s2, proxy_t2, end2 = lr._load_monthly_impl("SPY", False)
+    assert proxy_t2 is None and end2 is None and s2.index[0] == pd.Timestamp("1995-01-31")
+
+
+def test_load_monthly_impl_missing_ticker(monkeypatch):
+    monkeypatch.setattr(lr, "download_single", lambda t, period="max": None)
+    assert lr._load_monthly_impl("SPY", True) == (None, None, None)

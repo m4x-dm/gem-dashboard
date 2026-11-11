@@ -10,6 +10,10 @@ import io
 
 import numpy as np
 import pandas as pd
+import requests
+import streamlit as st
+
+from data.downloader import download_single
 
 PERIOD_YEARS: tuple[int, ...] = (1, 3, 5, 10, 15, 20, 25, 30)
 SINCE_START = "Od startu"
@@ -214,7 +218,7 @@ def common_window(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
 
 def annual_volatility(series_m: pd.Series) -> float:
     """Zmiennosc roczna: odchylenie standardowe miesiecznych stop (ddof=0) x sqrt(12)."""
-    r = series_m.dropna().pct_change().dropna()
+    r = _clean(series_m).asfreq("ME").pct_change(fill_method=None).dropna()
     return float(r.std(ddof=0) * np.sqrt(12)) if len(r) > 1 else float("nan")
 
 
@@ -228,3 +232,51 @@ def data_since_label(series_m: pd.Series, proxy_ticker: str | None,
     if proxy_ticker and proxy_end is not None:
         return f"{year} (proxy {proxy_ticker} do {proxy_end:%m.%Y})"
     return year
+
+
+# --- Warstwa pobierania (cache 24 h) ---------------------------------------------
+
+
+def _load_monthly_impl(ticker: str, use_proxy: bool
+                       ) -> tuple[pd.Series | None, str | None, pd.Timestamp | None]:
+    """(szereg miesieczny, ticker proxy albo None, koniec odcinka proxy albo None)."""
+    daily = download_single(ticker, period="max")
+    if daily is None or daily.dropna().empty:
+        return None, None, None
+    m = to_monthly(daily)
+    m.name = ticker
+    if not use_proxy or ticker not in PROXY_MAP:
+        return m, None, None
+    proxy_ticker = PROXY_MAP[ticker]
+    proxy_daily = download_single(proxy_ticker, period="max")
+    if proxy_daily is None or proxy_daily.dropna().empty:
+        return m, None, None
+    spliced, end = splice_proxy(m, to_monthly(proxy_daily))
+    if end is None:
+        return m, None, None
+    return spliced, proxy_ticker, end
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram dlugie historie cen...")
+def load_monthly(ticker: str, use_proxy: bool):
+    return _load_monthly_impl(ticker, use_proxy)
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram kurs USD/PLN...")
+def fetch_usdpln_monthly() -> tuple[pd.Series | None, str]:
+    """Kurs USD/PLN miesiecznie. Zrodlo: 'fred' (od 1957, dalej doklejony yfinance),
+    'yfinance' (od 12.2003, gdy FRED niedostepny) albo 'none'."""
+    fred = None
+    try:
+        resp = requests.get(FRED_USDPLN_URL, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        parsed = parse_fred_csv(resp.text)
+        fred = parsed if len(parsed) > 12 else None
+    except Exception:
+        fred = None
+    yf_daily = download_single("USDPLN=X", period="max")
+    yf_m = to_monthly(yf_daily) if yf_daily is not None else None
+    fx = combine_fx(fred, yf_m)
+    if fx is None or fx.empty:
+        return None, "none"
+    return fx, ("fred" if fred is not None else "yfinance")
