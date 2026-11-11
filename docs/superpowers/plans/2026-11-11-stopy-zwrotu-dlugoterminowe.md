@@ -1194,10 +1194,10 @@ else:
                 "Calmar": f"{stats['Calmar']:.2f}".replace(".", ","),
             })
         st.dataframe(pd.DataFrame(risk).set_index("ETF"), width="stretch")
+        rf_txt = f"{rf_decimal * 100:.2f}".replace(".", ",")
         st.caption("Max drawdown liczony z zamkniec miesiecznych — glebokosc spadkow wewnatrz miesiaca "
                    "jest wieksza. Linia przerywana = odcinek z funduszu proxy. "
-                   f"Sharpe/Sortino ze stopa wolna {rf_decimal * 100:.2f}% (biezaca)".replace(".", ",")
-                   + ".")
+                   f"Sharpe/Sortino ze stopa wolna {rf_txt}% (biezaca).")
 
 st.caption(
     "Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna). "
