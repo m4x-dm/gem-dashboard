@@ -26,6 +26,7 @@ cards = [
     (4, "⚖️", "Porownanie", "Head-to-head 2-4 ETF-ow + macierz korelacji", "pages/4_porownanie.py"),
     (5, "🔬", "Backtest", "GEM vs Buy&Hold — krzywa kapitalu i statystyki", "pages/5_backtest.py"),
     (6, "📖", "O strategii", "Opis strategii GEM Gary'ego Antonacciego", "pages/6_info.py"),
+    (26, "📏", "Stopy zwrotu", "Stopy zwrotu ETF-ow do 30 lat: CAGR, lata kalendarzowe, okna kroczace, PLN", "pages/6_stopy_zwrotu.py"),
     (7, "🇺🇸", "S&P 500", "Ranking, wykresy i backtest ~500 spolek z indeksu S&P 500", "pages/7_sp500.py"),
     (8, "🇵🇱", "Polskie Akcje GPW", "140 spolek z WIG20, mWIG40 i sWIG80", "pages/8_gpw.py"),
     (9, "🎯", "Top Picks", "Piatka miesiaca z SP500 i GPW — regula momentum, limit sektorowy, track record", "pages/9_top_picks.py"),

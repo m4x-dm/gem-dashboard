@@ -40,6 +40,7 @@ pages/
   4_porownanie.py       # Compare 2-4 ETFs/indices + stats + correlation (incl. WIG20/mWIG40/sWIG80)
   5_backtest.py         # Backtest strategii (GEM, QQQ+SMA200, TQQQ+Momentum, porownanie)
   6_info.py             # GEM strategy explanation (Polish)
+  6_stopy_zwrotu.py     # Long-term ETF returns up to 30 years (premium id 26, see below)
   7_sp500.py            # S&P 500 US stocks (8 tabs: ranking, wykresy, porownanie+stats, backtest, RS, screening, finanse, sprawozdania Q)
   8_gpw.py              # Polish stocks GPW (8 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest, RS, screening, finanse, sprawozdania Q)
   9_top_picks.py        # Top Picks — 3 zakladki (momentum / earnings / jakosc), miesieczne piatki SP500+GPW
@@ -141,7 +142,8 @@ nie psuje linkow.
   - **Aggregate:** sum of 5 signals (-5 to +5). Threshold: >=3 = KUP, <=-3 = SPRZEDAJ, else NEUTRALNY. With 4 indicators (no EMA200): >=2 / <=-2.
   - Functions: `calc_ema()`, `calc_macd()`, `calc_rsi()`, `calc_bollinger()` in `momentum.py`. Charts: `ta_overview_chart()`, `macd_chart()`, `rsi_chart()` in `charts.py`. Card: `ta_signal_card()` in `cards.py`.
   - Daily signal markers on chart (BUY triangles up green, SELL triangles down red). Signal history table (last 20).
-- **Sidebar separators:** nth-child(8) = ETF→markets, nth-child(11) = markets→tools, nth-child(14) = tools→analytics
+- **Sidebar separators:** nth-child(9) = ETF→markets, nth-child(13) = markets→tools, nth-child(16) = tools→analytics
+- `pages/6_stopy_zwrotu.py` — **Stopy zwrotu dlugoterminowe** (premium, id gatingu 26; plik `6_` dla kolejnosci w menu przed S&P 500). 4 zakladki: tabela okresow 1–30 lat (CAGR/skumulowana), heatmapa lat kalendarzowych, kroczacy CAGR z rozkladem, wzrost 10 000 (log) + ryzyko. Dane miesieczne. Logika: `data/long_returns.py` (PROXY_MAP ETF→fundusz Vanguard, splice ze stop zwrotu, USD/PLN z FRED `CCUSMA02PLM618N` + yfinance). Separatory sidebar: nth-child(9/13/16).
 - **Multi-source Fallback (F2):** `download_single()` tries yfinance → stooq.com → CoinGecko. `download_prices()` (bulk) also retries failed tickers individually via `_yfinance_single()` before stooq/CoinGecko fallback. Tracks sources in `st.session_state["_data_sources"]` and failures in `["_data_failures"]`. `COINGECKO_IDS` dict in `crypto_universe.py` (~50 top coins).
 - **Small-selection download pattern:** Pages with 2-5 ticker selection (comparison, charts, RS tabs on pages 7, 8) use `download_single()` per ticker instead of bulk `download_prices()`. Each ticker gets its own cache entry and full fallback chain. More reliable than bulk download which can silently fail for individual tickers. Ranking/backtest tabs with 100+ tickers still use bulk `download_prices()`.
 - **`latest_returns()` thresholds:** yfinance returns fewer rows than ideal trading days (6mo=123 not 126, 1y=250 not 252). Minimum thresholds: 1M≥19, 3M≥58, 6M≥115, 12M≥230. Uses ideal lookback (21/63/126) capped at `n-1`. 12M fallback: simple return from `iloc[0]` to `iloc[-1]` when skip-month (273 rows) unavailable but 230+ rows available.
