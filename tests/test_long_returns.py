@@ -397,3 +397,22 @@ def test_proxy_quality_network(etf, proxy):
     corr = correlation_with_proxy(e, p)
     print(f"CORR {etf} vs {proxy}: {corr:.4f}")
     assert corr > 0.95, f"{etf} vs {proxy}: korelacja {corr:.3f}"
+
+
+def test_fred_request_uses_honest_user_agent(monkeypatch):
+    """FRED zrywa polaczenie dla podrobionego UA przegladarki — nie wysylamy 'Mozilla'."""
+    sent = {}
+
+    def fake_get(url, *args, **kwargs):
+        sent["url"] = url
+        sent["headers"] = kwargs.get("headers") or {}
+        raise ConnectionError("stop")
+
+    monkeypatch.setattr(lr.requests, "get", fake_get)
+    monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: None)
+    lr._fetch_usdpln_cached.clear()
+    lr._fetch_usdpln_yf_cached.clear()
+    assert lr.fetch_usdpln_monthly() == (None, "none")
+    assert sent["url"] == lr.FRED_USDPLN_URL
+    ua = sent["headers"].get("User-Agent", "")
+    assert "Mozilla" not in ua

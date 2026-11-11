@@ -21,6 +21,8 @@ _fetch_daily = _yfinance_single
 PERIOD_YEARS: tuple[int, ...] = (1, 3, 5, 10, 15, 20, 25, 30)
 SINCE_START = "Od startu"
 FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PLM618N"
+# FRED zrywa polaczenie dla podrobionego UA przegladarki ("Mozilla/5.0") — tylko uczciwy UA.
+FRED_HEADERS = {"User-Agent": "gem-dashboard/1.0 (+https://gem-dashboard.streamlit.app)"}
 
 # ETF -> stary fundusz indeksowy Vanguard o tej samej ekspozycji (dane yfinance od 1980-1996).
 # Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
@@ -293,7 +295,7 @@ def load_monthly(ticker: str, use_proxy: bool):
 @st.cache_data(ttl=86400, show_spinner="Pobieram kurs USD/PLN...")
 def _fetch_usdpln_cached() -> tuple[pd.Series, str]:
     try:
-        resp = requests.get(FRED_USDPLN_URL, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        resp = requests.get(FRED_USDPLN_URL, timeout=20, headers=FRED_HEADERS)
         resp.raise_for_status()
         fred = parse_fred_csv(resp.text)
     except Exception as exc:
