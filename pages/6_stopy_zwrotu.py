@@ -92,6 +92,11 @@ if currency == "PLN" and series:
             if len(s) < 13:
                 st.warning(f"{t}: za malo danych po przeliczeniu na PLN — pominiety.")
         series = {t: s for t, s in converted.items() if len(s) >= 13}
+        # Kurs PLN moze uciac caly odcinek proxy (np. kurs z yfinance od 12.2003) — wtedy bez etykiety proxy.
+        for t, s in series.items():
+            p_end = proxy_info[t][1]
+            if p_end is not None and s.index[0] > p_end:
+                proxy_info[t] = (None, None)
 
 before_align = list(series)
 series = align_end(series)
