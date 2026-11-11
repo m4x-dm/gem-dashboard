@@ -35,3 +35,28 @@ def test_rolling_returns_chart_one_trace_per_series_plus_zero_line():
     fig = rolling_returns_chart({"SPY": _m([0.1, 0.12]), "AGG": _m([0.03, 0.02])}, years=10)
     assert len(fig.data) == 2
     assert any(s.y0 == 0 for s in fig.layout.shapes)
+
+
+def test_growth_chart_polish_separators_and_axis_title():
+    fig = growth_chart({"SPY": _m([100, 110])}, {"SPY": None}, currency="PLN")
+    assert fig.layout.separators == ", "
+    assert fig.layout.yaxis.title.text == "Wartość (PLN)"
+
+
+def test_growth_chart_proxy_end_after_series_end_keeps_only_dashed_in_legend():
+    fig = growth_chart({"SPY": _m([100, 110])}, {"SPY": pd.Timestamp("2005-01-31")})
+    assert len(fig.data) == 1
+    assert fig.data[0].showlegend is True and fig.data[0].line.dash == "dash"
+
+
+def test_yearly_returns_heatmap_empty_df_no_crash():
+    fig = yearly_returns_heatmap(pd.DataFrame())
+    assert len(fig.data) == 0
+
+
+def test_yearly_returns_heatmap_layout_and_clipping():
+    df = pd.DataFrame({"SPY": [0.1, 5.0, 0.02]}, index=[2024, 2025, 2026])
+    fig = yearly_returns_heatmap(df)
+    assert fig.layout.margin.t == 90 and fig.layout.separators == ", "
+    assert fig.data[0].zmax == 100 and fig.data[0].zmin == -100
+    assert fig.data[0].text[0][0] == "10,0%"
