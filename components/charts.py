@@ -471,3 +471,68 @@ def picks_return_bar(labels: list[str], returns: list[float | None],
     fig.update_xaxes(title_text="Zwrot (%)", zeroline=True,
                      zerolinecolor="rgba(255,255,255,0.25)")
     return fig
+
+
+def growth_chart(series: dict[str, pd.Series], proxy_end: dict[str, pd.Timestamp | None],
+                 start_value: float = 10_000, currency: str = "USD",
+                 title: str = "") -> go.Figure:
+    """Wzrost kapitalu w skali log. Odcinek z proxy (do proxy_end wlacznie) linia przerywana."""
+    fig = go.Figure()
+    for i, (name, s) in enumerate(series.items()):
+        s = s.dropna()
+        if s.empty:
+            continue
+        v = s / s.iloc[0] * start_value
+        color = COLORS[i % len(COLORS)]
+        end = proxy_end.get(name)
+        hover = f"{name}<br>%{{x|%m.%Y}}<br>%{{y:,.0f}} {currency}<extra></extra>"
+        if end is not None and v.index[0] < end:
+            px = v[v.index <= end]
+            fig.add_trace(go.Scatter(x=px.index, y=px.values, name=name, mode="lines",
+                                     legendgroup=name, showlegend=False, hovertemplate=hover,
+                                     line=dict(color=color, width=2, dash="dash")))
+            v = v[v.index >= end]
+        fig.add_trace(go.Scatter(x=v.index, y=v.values, name=name, mode="lines",
+                                 legendgroup=name, hovertemplate=hover,
+                                 line=dict(color=color, width=2, dash="solid")))
+    fig.update_layout(**_base_layout(title or f"Wzrost {start_value:,.0f} {currency}".replace(",", " "),
+                                     height=480))
+    fig.update_yaxes(type="log")
+    return fig
+
+
+def yearly_returns_heatmap(df: pd.DataFrame, ytd_year: int | None = None,
+                           title: str = "Stopy zwrotu w latach kalendarzowych (%)") -> go.Figure:
+    """Heatmapa rok x ETF. Kolory: czerwony (ujemny) -> tlo -> zielony (dodatni)."""
+    vals = df.values.astype(float) * 100
+    labels = np.where(np.isnan(vals), "", np.vectorize(lambda v: f"{v:.1f}%")(vals))
+    y_labels = [f"{y} YTD" if ytd_year is not None and int(y) == ytd_year else str(y)
+                for y in df.index]
+    fig = go.Figure(go.Heatmap(
+        z=vals, x=[str(c) for c in df.columns], y=y_labels,
+        colorscale=[[0, "#EF4444"], [0.5, BG2], [1, "#22C55E"]], zmid=0,
+        text=labels, texttemplate="%{text}", textfont=dict(size=10),
+        hovertemplate="Rok: %{y}<br>%{x}: %{text}<extra></extra>",
+    ))
+    fig.update_layout(**_base_layout(title, height=max(400, len(df) * 24)))
+    fig.update_xaxes(side="top")
+    fig.update_yaxes(autorange="reversed")
+    return fig
+
+
+def rolling_returns_chart(rolling: dict[str, pd.Series], years: int,
+                          title: str = "") -> go.Figure:
+    """CAGR w kroczacym oknie; punkt = miesiac konca okna; linia zero."""
+    fig = go.Figure()
+    for i, (name, r) in enumerate(rolling.items()):
+        r = r.dropna()
+        if r.empty:
+            continue
+        fig.add_trace(go.Scatter(
+            x=r.index, y=r.values * 100, name=name, mode="lines",
+            line=dict(color=COLORS[i % len(COLORS)], width=2),
+            hovertemplate=f"{name}<br>okno do %{{x|%m.%Y}}<br>%{{y:.1f}}% rocznie<extra></extra>",
+        ))
+    fig.add_hline(y=0, line=dict(color="#6B7280", width=1, dash="dot"))
+    fig.update_layout(**_base_layout(title or f"Kroczacy CAGR — okno {years} lat (%)", height=450))
+    return fig
