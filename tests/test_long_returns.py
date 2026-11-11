@@ -15,6 +15,7 @@ from data.long_returns import (
     calendar_year_returns,
     combine_fx,
     common_window,
+    correlation_with_proxy,
     convert_to_pln,
     data_since_label,
     parse_fred_csv,
@@ -337,3 +338,24 @@ def test_load_monthly_impl_splices_when_proxy_enabled(monkeypatch):
 def test_load_monthly_impl_missing_ticker(monkeypatch):
     monkeypatch.setattr(lr, "download_single", lambda t, period="max": None)
     assert lr._load_monthly_impl("SPY", True) == (None, None, None)
+
+
+def test_correlation_with_proxy_identical_returns():
+    a = _monthly([100, 110, 99, 120, 118])
+    assert correlation_with_proxy(a, a * 3, min_months=3) == pytest.approx(1.0)
+
+
+def test_correlation_with_proxy_too_short_overlap_is_nan():
+    a = _monthly([1, 2], start="2000-01-31")
+    b = _monthly([1, 2], start="2010-01-31")
+    assert np.isnan(correlation_with_proxy(a, b))
+
+
+@pytest.mark.skipif(os.environ.get("RUN_NETWORK") != "1", reason="test sieciowy: RUN_NETWORK=1")
+@pytest.mark.parametrize("etf,proxy", sorted(PROXY_MAP.items()))
+def test_proxy_quality_network(etf, proxy):
+    e = lr.to_monthly(lr._yf_max(etf))
+    p = lr.to_monthly(lr._yf_max(proxy))
+    corr = correlation_with_proxy(e, p)
+    print(f"CORR {etf} vs {proxy}: {corr:.4f}")
+    assert corr > 0.95, f"{etf} vs {proxy}: korelacja {corr:.3f}"

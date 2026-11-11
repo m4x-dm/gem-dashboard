@@ -23,6 +23,7 @@ FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PL
 # Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
 # (test_proxy_quality_network). Bez proxy: QQQ, ACWI, EWJ, EWU, FXI, TIP, GLD, IAU, GSG,
 # DBC, VNQI, sektory XL*.
+# SHY: VBISX korelacja 0,886 < 0,95 — bez proxy.
 PROXY_MAP: dict[str, str] = {
     "SPY": "VFINX", "VOO": "VFINX",
     "VTI": "VTSMX",
@@ -33,7 +34,6 @@ PROXY_MAP: dict[str, str] = {
     "AGG": "VBMFX", "BND": "VBMFX",
     "TLT": "VUSTX",
     "IEF": "VFITX",
-    "SHY": "VBISX",
     "VNQ": "VGSIX",
 }
 
@@ -280,3 +280,24 @@ def fetch_usdpln_monthly() -> tuple[pd.Series | None, str]:
     if fx is None or fx.empty:
         return None, "none"
     return fx, ("fred" if fred is not None else "yfinance")
+
+
+def correlation_with_proxy(etf_m: pd.Series, proxy_m: pd.Series, min_months: int = 24) -> float:
+    """Korelacja miesiecznych stop zwrotu we wspolnym okresie (NaN, gdy < min_months)."""
+    r = pd.concat([_clean(etf_m).pct_change(fill_method=None),
+                   _clean(proxy_m).pct_change(fill_method=None)], axis=1).dropna()
+    if len(r) < min_months:
+        return float("nan")
+    return float(r.iloc[:, 0].corr(r.iloc[:, 1]))
+
+
+def _yf_max(ticker: str) -> pd.Series:
+    """Pelna historia z yfinance bez cache Streamlita (do testow sieciowych)."""
+    import yfinance as yf
+    d = yf.download(ticker, period="max", auto_adjust=True, progress=False)["Close"]
+    if isinstance(d, pd.DataFrame):
+        d = d.iloc[:, 0]
+    d = d.dropna()
+    if getattr(d.index, "tz", None) is not None:
+        d.index = d.index.tz_localize(None)
+    return d
