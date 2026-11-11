@@ -95,7 +95,7 @@ if currency == "PLN" and series:
         # Kurs PLN moze uciac caly odcinek proxy (np. kurs z yfinance od 12.2003) — wtedy bez etykiety proxy.
         for t, s in series.items():
             p_end = proxy_info[t][1]
-            if p_end is not None and s.index[0] > p_end:
+            if p_end is not None and s.index[0] >= p_end:
                 proxy_info[t] = (None, None)
 
 before_align = list(series)
@@ -188,7 +188,9 @@ else:
             st.info(f"Zaden z wybranych ETF-ow nie ma historii dluzszej niz {period_label(win)}.")
         st.dataframe(pd.DataFrame(rsum).set_index("ETF"), width="stretch")
         st.caption(f"Kazdy punkt to CAGR z {period_label(win)} konczacych sie w danym miesiacu. "
-                   "Okna nakladaja sie, wiec nie sa niezalezne.")
+                   "Okna nakladaja sie, wiec nie sa niezalezne. "
+                   "Liczba okien zalezy od dlugosci historii — przy porownaniu % okien ze strata "
+                   "zwroc uwage na kolumne 'Liczba okien'.")
 
     # --- 4. Wzrost i ryzyko --------------------------------------------------------
     with tab4:
@@ -223,7 +225,8 @@ else:
             rf_txt = f"{rf_decimal * 100:.2f}".replace(".", ",")
             st.caption("Max drawdown liczony z zamkniec miesiecznych — glebokosc spadkow wewnatrz miesiaca "
                        "jest wieksza. Linia przerywana = odcinek z funduszu proxy. "
-                       f"Sharpe/Sortino ze stopa wolna {rf_txt}% (biezaca).")
+                       f"Sharpe/Sortino ze stopa wolna USD (biezaca) {rf_txt}%"
+                       + ("; w trybie PLN Sharpe/Sortino tylko orientacyjnie." if currency == "PLN" else "."))
 
 st.caption(
     "Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna; "

@@ -1,7 +1,7 @@
 # CLAUDE.md — GEM ETF Dashboard
 
 ## Overview
-Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~456 US stocks from S&P 500. 26 pages total (0–25; 4 free, 22 premium).
+Polish-language Streamlit dashboard for ETF analysis using Gary Antonacci's Global Equity Momentum (GEM) strategy. Analyzes 37 ETFs globally + 140 Polish stocks from GPW (WIG20/mWIG40/sWIG80) + ~200 cryptocurrencies + ~456 US stocks from S&P 500. 27 pages total (0–25 plus `6_stopy_zwrotu.py`; 4 free, 23 premium).
 
 ## Tech Stack
 - **Python 3.14**, **Streamlit 1.55**, **yfinance**, **pandas**, **numpy**, **plotly**, **reportlab**
@@ -65,7 +65,7 @@ pages/
 **Numeracja stron = kolejnosc w sidebarze.** Top Picks siedzi pod GPW (2026-08-07), wiec
 strony 9–23 przesunely sie o +1. Numer w nazwie pliku, `require_premium(N)` i klucz w
 `PAGE_INFO` musza sie zgadzac; URL strony bierze sie z nazwy BEZ numeru, wiec przenumerowanie
-nie psuje linkow.
+nie psuje linkow. **Wyjatek:** `6_stopy_zwrotu.py` ma id gatingu 26 (`require_premium(26)`, `PAGE_INFO[26]`) — prefiks `6_` tylko dla kolejnosci w menu.
 
 ## Key Design Decisions
 - **Theme:** Gold `#C9A84C` accent, dark bg `#0B0E1A` — matches inwestowanie.edu.pl

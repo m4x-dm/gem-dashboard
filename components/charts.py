@@ -501,7 +501,7 @@ def growth_chart(series: dict[str, pd.Series], proxy_end: dict[str, pd.Timestamp
     fig.update_layout(**_base_layout(title or f"Wzrost {start_value:,.0f} {currency}".replace(",", " "),
                                      height=480))
     fig.update_layout(separators=", ")
-    fig.update_yaxes(type="log", title_text=f"Wartość ({currency})")
+    fig.update_yaxes(type="log", title_text=f"Wartosc ({currency})")
     return fig
 
 

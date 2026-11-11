@@ -40,7 +40,7 @@ def test_rolling_returns_chart_one_trace_per_series_plus_zero_line():
 def test_growth_chart_polish_separators_and_axis_title():
     fig = growth_chart({"SPY": _m([100, 110])}, {"SPY": None}, currency="PLN")
     assert fig.layout.separators == ", "
-    assert fig.layout.yaxis.title.text == "Wartość (PLN)"
+    assert fig.layout.yaxis.title.text == "Wartosc (PLN)"
 
 
 def test_growth_chart_proxy_end_after_series_end_keeps_only_dashed_in_legend():

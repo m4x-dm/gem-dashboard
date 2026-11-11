@@ -410,19 +410,21 @@ def test_fred_request_uses_honest_user_agent(monkeypatch):
 
     monkeypatch.setattr(lr.requests, "get", fake_get)
     monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: None)
+    lr._fetch_fred_usdpln.clear()
     lr._fetch_usdpln_cached.clear()
     lr._fetch_usdpln_yf_cached.clear()
     assert lr.fetch_usdpln_monthly() == (None, "none")
+    lr._fetch_fred_usdpln.clear()  # nie zostawiaj negatywnego wyniku w cache dla innych testow
     assert sent["url"] == lr.FRED_USDPLN_URL
     ua = sent["headers"].get("User-Agent", "")
     assert "Mozilla" not in ua
 
 
-def test_convert_to_pln_drops_months_before_1996():
+def test_convert_to_pln_drops_months_before_dec_1995():
     usd = _growth(10, start="1990-01-31")  # 1990-01 .. 2000-01
     fx = pd.Series(2.0, index=usd.index)
     pln = convert_to_pln(usd, fx)
-    assert pln.index[0] == pd.Timestamp("1996-01-31")
+    assert pln.index[0] == pd.Timestamp("1995-12-31")
     assert (pln.index >= lr.PLN_START).all()
     assert pln.index[-1] == usd.index[-1]
 

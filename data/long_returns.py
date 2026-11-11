@@ -24,7 +24,7 @@ FRED_USDPLN_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CCUSMA02PL
 # FRED zrywa polaczenie dla podrobionego UA przegladarki ("Mozilla/5.0") — tylko uczciwy UA.
 FRED_HEADERS = {"User-Agent": "gem-dashboard/1.0 (+https://gem-dashboard.streamlit.app)"}
 # Tryb PLN od 1996: wczesniej hiperinflacja i denominacja zlotego znieksztalcaja stopy zwrotu.
-PLN_START = pd.Timestamp("1996-01-31")
+PLN_START = pd.Timestamp("1995-12-31")  # grudzien 1995 = baza dla roku 1996
 
 # ETF -> stary fundusz indeksowy Vanguard o tej samej ekspozycji (dane yfinance od 1980-1996).
 # Para zostaje w mapie tylko, gdy korelacja miesiecznych stop we wspolnym okresie > 0,95
@@ -286,6 +286,7 @@ def _load_monthly_cached(ticker: str, use_proxy: bool):
 
 def load_monthly(ticker: str, use_proxy: bool):
     """(szereg, ticker proxy, koniec proxy); porazki nie sa cache'owane."""
+    use_proxy = use_proxy and ticker in PROXY_MAP
     try:
         return _load_monthly_cached(ticker, use_proxy)
     except _NoData:
@@ -297,15 +298,22 @@ def load_monthly(ticker: str, use_proxy: bool):
         return None, None, None
 
 
-@st.cache_data(ttl=86400, show_spinner="Pobieram kurs USD/PLN...")
-def _fetch_usdpln_cached() -> tuple[pd.Series, str]:
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_fred_usdpln() -> pd.Series | None:
+    """Kurs USD/PLN z FRED albo None przy dowolnym bledzie (krotki negatywny cache 1 h)."""
     try:
-        resp = requests.get(FRED_USDPLN_URL, timeout=20, headers=FRED_HEADERS)
+        resp = requests.get(FRED_USDPLN_URL, timeout=8, headers=FRED_HEADERS)
         resp.raise_for_status()
         fred = parse_fred_csv(resp.text)
-    except Exception as exc:
-        raise _NoData("fred") from exc
-    if len(fred) <= 12:
+    except Exception:
+        return None
+    return fred if len(fred) > 12 else None
+
+
+@st.cache_data(ttl=86400, show_spinner="Pobieram kurs USD/PLN...")
+def _fetch_usdpln_cached() -> tuple[pd.Series, str]:
+    fred = _fetch_fred_usdpln()
+    if fred is None:
         raise _NoData("fred")
     yf_daily = _fetch_daily("USDPLN=X", "max")
     yf_m = to_monthly(yf_daily) if yf_daily is not None else None
