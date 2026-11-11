@@ -9,6 +9,7 @@ import pytest
 from data.long_returns import (
     PERIOD_YEARS,
     period_label,
+    period_returns,
     to_monthly,
 )
 
@@ -48,3 +49,35 @@ def test_to_monthly_keeps_finished_month_when_data_ends_earlier():
 
 def test_to_monthly_empty():
     assert to_monthly(pd.Series(dtype=float)).empty
+
+
+def _growth(years, annual=0.10, start="1990-12-31"):
+    """Szereg rosnacy dokladnie `annual` rocznie, miesiecznie, years*12+1 punktow."""
+    n = years * 12 + 1
+    monthly = (1 + annual) ** (1 / 12)
+    return _monthly(100 * monthly ** np.arange(n), start=start)
+
+
+def test_period_returns_constant_growth():
+    s = _growth(12)  # 12 lat historii
+    df = period_returns(s)
+    assert list(df.columns) == ["total", "cagr"]
+    assert list(df.index) == ["1 rok", "3 lata", "5 lat", "10 lat", "15 lat",
+                              "20 lat", "25 lat", "30 lat", "Od startu"]
+    for lbl in ["1 rok", "3 lata", "5 lat", "10 lat", "Od startu"]:
+        assert df.loc[lbl, "cagr"] == pytest.approx(0.10, abs=1e-9)
+    assert df.loc["10 lat", "total"] == pytest.approx(1.10 ** 10 - 1, rel=1e-9)
+    for lbl in ["15 lat", "20 lat", "25 lat", "30 lat"]:
+        assert np.isnan(df.loc[lbl, "cagr"]) and np.isnan(df.loc[lbl, "total"])
+
+
+def test_period_returns_since_start_under_one_year_has_no_cagr():
+    s = _monthly([100, 101, 102, 103])
+    df = period_returns(s)
+    assert df.loc["Od startu", "total"] == pytest.approx(0.03)
+    assert np.isnan(df.loc["Od startu", "cagr"])
+
+
+def test_period_returns_empty():
+    df = period_returns(pd.Series(dtype=float))
+    assert df["cagr"].isna().all()

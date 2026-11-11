@@ -34,3 +34,32 @@ def to_monthly(daily: pd.Series, today: pd.Timestamp | None = None) -> pd.Series
     if len(m) and m.index[-1] >= current_month_end:
         m = m.iloc[:-1]
     return m.astype(float)
+
+
+SINCE_START = "Od startu"
+
+
+def period_returns(series_m: pd.Series, years: tuple[int, ...] = PERIOD_YEARS) -> pd.DataFrame:
+    """Stopa skumulowana i CAGR dla okresow konczacych sie na ostatnim punkcie szeregu.
+
+    Wiersze: etykiety okresow + 'Od startu'. NaN, gdy historii za malo.
+    CAGR 'Od startu' tylko dla historii >= 1 rok.
+    """
+    s = series_m.dropna()
+    rows: dict[str, tuple[float, float]] = {}
+    n_months = len(s) - 1
+    for y in years:
+        w = 12 * y
+        if n_months >= w:
+            total = s.iloc[-1] / s.iloc[-1 - w] - 1
+            rows[period_label(y)] = (total, (1 + total) ** (1 / y) - 1)
+        else:
+            rows[period_label(y)] = (np.nan, np.nan)
+    if n_months >= 1:
+        total = s.iloc[-1] / s.iloc[0] - 1
+        yrs = n_months / 12
+        cagr = (1 + total) ** (1 / yrs) - 1 if yrs >= 1 else np.nan
+        rows[SINCE_START] = (total, cagr)
+    else:
+        rows[SINCE_START] = (np.nan, np.nan)
+    return pd.DataFrame.from_dict(rows, orient="index", columns=["total", "cagr"])
