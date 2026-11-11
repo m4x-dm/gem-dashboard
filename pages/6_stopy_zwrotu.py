@@ -6,7 +6,9 @@ import pandas as pd
 import streamlit as st
 
 from components.auth import require_premium
-from components.charts import growth_chart, rolling_returns_chart, yearly_returns_heatmap
+from components.charts import (
+    growth_chart, picks_return_bar, rolling_returns_chart, yearly_returns_heatmap,
+)
 from components.formatting import fmt_pct
 from components.sidebar import get_risk_free, render_footer, setup_sidebar
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
@@ -116,19 +118,39 @@ else:
 
     # --- 1. Tabela okresow ---------------------------------------------------------
     with tab1:
-        mode = st.radio("Pokaz", ["Srednioroczna (CAGR)", "Skumulowana"], horizontal=True,
-                        key="lr_mode")
-        col = "cagr" if mode.startswith("Sred") else "total"
-        rows = []
-        for t, s in series.items():
-            pr = period_returns(s)
-            row = {"ETF": t}
-            for y in PERIOD_YEARS:
-                row[period_label(y)] = fmt_pct(pr.loc[period_label(y), col])
-            row[SINCE_START] = fmt_pct(pr.loc[SINCE_START, col])
-            row["Dane od"] = data_since_label(s, *proxy_info[t])
-            rows.append(row)
-        st.dataframe(pd.DataFrame(rows).set_index("ETF"), width="stretch")
+        period_cols = [period_label(y) for y in PERIOD_YEARS] + [SINCE_START]
+        pr_all = {t: period_returns(s) for t, s in series.items()}
+
+        def _period_table(col: str) -> pd.DataFrame:
+            rows = []
+            for t, pr in pr_all.items():
+                row = {"ETF": t}
+                for p in period_cols:
+                    row[p] = fmt_pct(pr.loc[p, col])
+                row["Dane od"] = data_since_label(series[t], *proxy_info[t])
+                rows.append(row)
+            return pd.DataFrame(rows).set_index("ETF")
+
+        st.markdown("#### Srednioroczna stopa zwrotu (CAGR)")
+        st.dataframe(_period_table("cagr"), width="stretch")
+
+        # Wykres CAGR dla wybranego okresu — tylko okresy, ktore ma co najmniej jeden ETF
+        available = [p for p in period_cols
+                     if any(pd.notna(pr.loc[p, "cagr"]) for pr in pr_all.values())]
+        if available:
+            default_p = "10 lat" if "10 lat" in available else available[-1]
+            bar_period = st.selectbox("Okres do wykresu CAGR", available,
+                                      index=available.index(default_p), key="lr_bar_period")
+            tickers = list(pr_all)
+            values = [pr_all[t].loc[bar_period, "cagr"] for t in tickers]
+            st.plotly_chart(picks_return_bar(tickers, values, title=f"CAGR — {bar_period}"),
+                            width="stretch")
+            missing = [t for t, v in zip(tickers, values) if pd.isna(v)]
+            if missing:
+                st.caption(f"Bez danych dla okresu {bar_period}: {', '.join(missing)}.")
+
+        st.markdown("#### Skumulowana stopa zwrotu")
+        st.dataframe(_period_table("total"), width="stretch")
         st.caption("„—” = historia krotsza niz okres. CAGR „Od startu” liczony dla historii od 1 roku.")
 
     # --- 2. Stopy roczne -----------------------------------------------------------

@@ -42,4 +42,7 @@ def test_page_renders(proxy, ccy):
     at.run()
     assert not at.exception, at.exception
     assert len(at.tabs) == 4
-    assert len(at.dataframe) >= 4
+    assert len(at.dataframe) >= 5  # CAGR + skumulowana + roczne + kroczace + ryzyko
+    headers = [m.value for m in at.markdown]
+    assert any("CAGR" in h for h in headers) and any("Skumulowana" in h for h in headers)
+    assert at.selectbox(key="lr_bar_period").value is not None
