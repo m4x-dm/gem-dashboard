@@ -9,11 +9,14 @@ import pytest
 from data.long_returns import (
     PERIOD_YEARS,
     PROXY_MAP,
+    calendar_year_returns,
     combine_fx,
     convert_to_pln,
     parse_fred_csv,
     period_label,
     period_returns,
+    rolling_cagr,
+    rolling_summary,
     splice_proxy,
     to_monthly,
 )
@@ -164,3 +167,42 @@ def test_convert_to_pln_compounds_fx_and_drops_months_without_rate():
     pln = convert_to_pln(usd, fx)
     assert list(pln.index) == list(fx.index)
     assert pln.pct_change().iloc[-1] == pytest.approx(1.10 * 1.05 - 1)
+
+
+def test_calendar_year_returns_skips_partial_first_year_and_flags_ytd():
+    # start w marcu 2000: rok 2000 niepelny -> pominiety; 2001 pelny; 2002 do marca -> YTD
+    idx = pd.date_range("2000-03-31", "2002-03-31", freq="ME")
+    s = pd.Series(np.linspace(100, 200, len(idx)), index=idx)
+    yearly, ytd_year = calendar_year_returns(s)
+    assert list(yearly.index) == [2001, 2002]
+    assert yearly.loc[2001] == pytest.approx(s.loc["2001-12-31"] / s.loc["2000-12-31"] - 1)
+    assert ytd_year == 2002
+
+
+def test_calendar_year_returns_full_last_year_has_no_ytd():
+    idx = pd.date_range("1999-12-31", "2001-12-31", freq="ME")
+    s = pd.Series(np.linspace(100, 150, len(idx)), index=idx)
+    yearly, ytd_year = calendar_year_returns(s)
+    assert list(yearly.index) == [2000, 2001]
+    assert ytd_year is None
+
+
+def test_rolling_cagr_window_count_and_value():
+    s = _growth(6)  # 73 punkty
+    r = rolling_cagr(s, 5)
+    assert len(r) == 73 - 60
+    np.testing.assert_allclose(r.values, 0.10)
+
+
+def test_rolling_summary():
+    r = pd.Series([-0.02, 0.01, 0.03, 0.05, 0.10])
+    out = rolling_summary(r)
+    assert out["min"] == -0.02 and out["max"] == 0.10
+    assert out["median"] == pytest.approx(0.03)
+    assert out["pct_negative"] == pytest.approx(0.2)
+    assert out["count"] == 5
+
+
+def test_rolling_summary_empty():
+    out = rolling_summary(pd.Series(dtype=float))
+    assert out["count"] == 0 and np.isnan(out["median"])

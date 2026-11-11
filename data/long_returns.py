@@ -133,3 +133,41 @@ def convert_to_pln(usd_m: pd.Series, fx_m: pd.Series) -> pd.Series:
     out = usd_m.loc[idx] * fx_m.loc[idx]
     out.name = usd_m.name
     return out
+
+
+def calendar_year_returns(series_m: pd.Series) -> tuple[pd.Series, int | None]:
+    """Zwroty w latach kalendarzowych. Pierwszy rok tylko, gdy szereg ma grudzien roku poprzedniego.
+
+    Zwraca (Series rok -> zwrot, rok YTD albo None, gdy ostatni miesiac to grudzien).
+    """
+    s = series_m.dropna()
+    if s.empty:
+        return pd.Series(dtype=float), None
+    year_end = s.groupby(s.index.year).last()
+    yearly = (year_end / year_end.shift(1) - 1).dropna()
+    yearly.index = yearly.index.astype(int)
+    ytd_year = int(s.index[-1].year) if s.index[-1].month != 12 else None
+    if ytd_year is not None and ytd_year not in yearly.index:
+        ytd_year = None
+    return yearly, ytd_year
+
+
+def rolling_cagr(series_m: pd.Series, years: int) -> pd.Series:
+    """CAGR w kroczacym oknie `years` lat; punkt = miesiac konca okna."""
+    s = series_m.dropna()
+    w = 12 * years
+    return ((s / s.shift(w)) ** (1 / years) - 1).dropna()
+
+
+def rolling_summary(rolling: pd.Series) -> dict:
+    """Rozklad kroczacych CAGR: min, p25, median, p75, max, pct_negative, count."""
+    r = rolling.dropna()
+    if r.empty:
+        nan = float("nan")
+        return {"min": nan, "p25": nan, "median": nan, "p75": nan, "max": nan,
+                "pct_negative": nan, "count": 0}
+    return {
+        "min": float(r.min()), "p25": float(r.quantile(0.25)), "median": float(r.median()),
+        "p75": float(r.quantile(0.75)), "max": float(r.max()),
+        "pct_negative": float((r < 0).mean()), "count": int(len(r)),
+    }
