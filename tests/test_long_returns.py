@@ -311,13 +311,48 @@ def test_combine_fx_without_yfinance():
 
 
 def test_annual_volatility_ignores_gap():
-    s = _monthly([100, 110, 99, 108.9, 120, 130])
-    gapped = s.drop(s.index[3])  # brak jednego miesiaca
-    full = gapped.asfreq("ME").pct_change(fill_method=None).dropna()
-    assert len(full) == 3
-    assert annual_volatility(gapped) == pytest.approx(full.std(ddof=0) * np.sqrt(12))
-    # naiwne pct_change() po dropna dalo by 4 stopy (z jedna dwumiesieczna)
-    assert len(gapped.pct_change().dropna()) == 4
+    # 100,110,121 (+10%,+10%), brak miesiaca, potem 133.1 po dwoch miesiacach -> pomijamy
+    s = _monthly([100, 110, 121, 999, 133.1, 146.41]).drop(_monthly([0] * 4).index[3])
+    # stopy z kolejnych miesiecy: +10%, +10%, +10% (146.41/133.1) -> std 0
+    assert annual_volatility(s) == pytest.approx(0.0, abs=1e-12)
+    s2 = _monthly([100, 120, 108, 999, 110]).drop(_monthly([0] * 4).index[3])
+    # kolejne stopy: +20%, -10% (110/999 pominiete) -> std = 0.15 -> x sqrt(12)
+    assert annual_volatility(s2) == pytest.approx(0.15 * np.sqrt(12))
+
+
+def test_annual_volatility_empty_is_nan():
+    assert np.isnan(annual_volatility(pd.Series(dtype=float)))
+
+
+def test_correlation_with_proxy_gap_in_one_series():
+    a = _monthly([100, 110, 99, 120, 118, 130, 125, 140]).drop(_monthly([0] * 8).index[3])
+    b = _monthly([50, 55, 49.5, 60, 59, 65, 62.5, 70])
+    c = correlation_with_proxy(a, b, min_months=3)
+    assert 0.9 < c <= 1.0
+
+
+def _clear_caches():
+    for f in (lr._load_monthly_cached, lr._fetch_usdpln_cached, lr._fetch_usdpln_yf_cached):
+        f.clear()
+
+
+def test_load_monthly_proxy_failure_returns_unspliced(monkeypatch):
+    _clear_caches()
+    days_etf = pd.bdate_range("1995-01-02", "2000-12-29")
+    fake = {"SPY": pd.Series(np.linspace(100, 300, len(days_etf)), index=days_etf)}
+    monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: fake.get(t))
+    s, proxy_t, end = lr.load_monthly("SPY", True)
+    assert proxy_t is None and end is None
+    assert s is not None and s.index[0] == pd.Timestamp("1995-01-31")
+    _clear_caches()
+
+
+def test_load_monthly_missing_etf_returns_none_triple(monkeypatch):
+    _clear_caches()
+    monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: None)
+    assert lr.load_monthly("SPY", True) == (None, None, None)
+    assert lr.load_monthly("SPY", False) == (None, None, None)
+    _clear_caches()
 
 
 def test_load_monthly_impl_splices_when_proxy_enabled(monkeypatch):
@@ -327,7 +362,7 @@ def test_load_monthly_impl_splices_when_proxy_enabled(monkeypatch):
         "VFINX": pd.Series(np.linspace(10, 50, len(days_proxy)), index=days_proxy),
         "SPY": pd.Series(np.linspace(100, 300, len(days_etf)), index=days_etf),
     }
-    monkeypatch.setattr(lr, "download_single", lambda t, period="max": fake.get(t))
+    monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: fake.get(t))
     s, proxy_t, end = lr._load_monthly_impl("SPY", True)
     assert proxy_t == "VFINX" and end == pd.Timestamp("1995-01-31")
     assert s.index[0] == pd.Timestamp("1990-01-31")
@@ -336,7 +371,7 @@ def test_load_monthly_impl_splices_when_proxy_enabled(monkeypatch):
 
 
 def test_load_monthly_impl_missing_ticker(monkeypatch):
-    monkeypatch.setattr(lr, "download_single", lambda t, period="max": None)
+    monkeypatch.setattr(lr, "_fetch_daily", lambda t, period: None)
     assert lr._load_monthly_impl("SPY", True) == (None, None, None)
 
 
@@ -354,8 +389,11 @@ def test_correlation_with_proxy_too_short_overlap_is_nan():
 @pytest.mark.skipif(os.environ.get("RUN_NETWORK") != "1", reason="test sieciowy: RUN_NETWORK=1")
 @pytest.mark.parametrize("etf,proxy", sorted(PROXY_MAP.items()))
 def test_proxy_quality_network(etf, proxy):
-    e = lr.to_monthly(lr._yf_max(etf))
-    p = lr.to_monthly(lr._yf_max(proxy))
+    e_d, p_d = lr._yf_max(etf), lr._yf_max(proxy)
+    if e_d is None or p_d is None:
+        pytest.skip(f"brak danych yfinance dla {etf} lub {proxy} (rate limit / siec)")
+    e = lr.to_monthly(e_d)
+    p = lr.to_monthly(p_d)
     corr = correlation_with_proxy(e, p)
     print(f"CORR {etf} vs {proxy}: {corr:.4f}")
     assert corr > 0.95, f"{etf} vs {proxy}: korelacja {corr:.3f}"

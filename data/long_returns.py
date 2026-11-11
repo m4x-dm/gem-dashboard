@@ -13,7 +13,10 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from data.downloader import download_single
+from data.downloader import _yfinance_single
+
+# Tylko yfinance (auto_adjust): stooq daje ceny bez dywidend i zmieszalby total return z price return.
+_fetch_daily = _yfinance_single
 
 PERIOD_YEARS: tuple[int, ...] = (1, 3, 5, 10, 15, 20, 25, 30)
 SINCE_START = "Od startu"
@@ -218,7 +221,10 @@ def common_window(series: dict[str, pd.Series]) -> dict[str, pd.Series]:
 
 def annual_volatility(series_m: pd.Series) -> float:
     """Zmiennosc roczna: odchylenie standardowe miesiecznych stop (ddof=0) x sqrt(12)."""
-    r = _clean(series_m).asfreq("ME").pct_change(fill_method=None).dropna()
+    s = _clean(series_m)
+    if s.empty:
+        return float("nan")
+    r = s.resample("ME").last().pct_change(fill_method=None).dropna()
     return float(r.std(ddof=0) * np.sqrt(12)) if len(r) > 1 else float("nan")
 
 
@@ -237,10 +243,14 @@ def data_since_label(series_m: pd.Series, proxy_ticker: str | None,
 # --- Warstwa pobierania (cache 24 h) ---------------------------------------------
 
 
+class _NoData(Exception):
+    """Blad pobierania — wyjatek nie jest cache'owany przez st.cache_data."""
+
+
 def _load_monthly_impl(ticker: str, use_proxy: bool
                        ) -> tuple[pd.Series | None, str | None, pd.Timestamp | None]:
     """(szereg miesieczny, ticker proxy albo None, koniec odcinka proxy albo None)."""
-    daily = download_single(ticker, period="max")
+    daily = _fetch_daily(ticker, "max")
     if daily is None or daily.dropna().empty:
         return None, None, None
     m = to_monthly(daily)
@@ -248,7 +258,7 @@ def _load_monthly_impl(ticker: str, use_proxy: bool
     if not use_proxy or ticker not in PROXY_MAP:
         return m, None, None
     proxy_ticker = PROXY_MAP[ticker]
-    proxy_daily = download_single(proxy_ticker, period="max")
+    proxy_daily = _fetch_daily(proxy_ticker, "max")
     if proxy_daily is None or proxy_daily.dropna().empty:
         return m, None, None
     spliced, end = splice_proxy(m, to_monthly(proxy_daily))
@@ -258,46 +268,78 @@ def _load_monthly_impl(ticker: str, use_proxy: bool
 
 
 @st.cache_data(ttl=86400, show_spinner="Pobieram dlugie historie cen...")
+def _load_monthly_cached(ticker: str, use_proxy: bool):
+    m, proxy_t, end = _load_monthly_impl(ticker, use_proxy)
+    if m is None:
+        raise _NoData(ticker)
+    if use_proxy and ticker in PROXY_MAP and proxy_t is None:
+        raise _NoData(PROXY_MAP[ticker])  # proxy niepobrane — nie cache'uj wyniku bez proxy
+    return m, proxy_t, end
+
+
 def load_monthly(ticker: str, use_proxy: bool):
-    return _load_monthly_impl(ticker, use_proxy)
+    """(szereg, ticker proxy, koniec proxy); porazki nie sa cache'owane."""
+    try:
+        return _load_monthly_cached(ticker, use_proxy)
+    except _NoData:
+        if not use_proxy:
+            return None, None, None
+    try:
+        return _load_monthly_cached(ticker, False)
+    except _NoData:
+        return None, None, None
 
 
 @st.cache_data(ttl=86400, show_spinner="Pobieram kurs USD/PLN...")
-def fetch_usdpln_monthly() -> tuple[pd.Series | None, str]:
-    """Kurs USD/PLN miesiecznie. Zrodlo: 'fred' (od 1957, dalej doklejony yfinance),
-    'yfinance' (od 12.2003, gdy FRED niedostepny) albo 'none'."""
-    fred = None
+def _fetch_usdpln_cached() -> tuple[pd.Series, str]:
     try:
         resp = requests.get(FRED_USDPLN_URL, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
-        parsed = parse_fred_csv(resp.text)
-        fred = parsed if len(parsed) > 12 else None
-    except Exception:
-        fred = None
-    yf_daily = download_single("USDPLN=X", period="max")
+        fred = parse_fred_csv(resp.text)
+    except Exception as exc:
+        raise _NoData("fred") from exc
+    if len(fred) <= 12:
+        raise _NoData("fred")
+    yf_daily = _fetch_daily("USDPLN=X", "max")
     yf_m = to_monthly(yf_daily) if yf_daily is not None else None
     fx = combine_fx(fred, yf_m)
     if fx is None or fx.empty:
+        raise _NoData("fx")
+    return fx, "fred"
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_usdpln_yf_cached() -> tuple[pd.Series, str]:
+    yf_daily = _fetch_daily("USDPLN=X", "max")
+    if yf_daily is None or yf_daily.dropna().empty:
+        raise _NoData("USDPLN=X")
+    return to_monthly(yf_daily), "yfinance"
+
+
+def fetch_usdpln_monthly() -> tuple[pd.Series | None, str]:
+    """Kurs USD/PLN miesiecznie: 'fred' (od 1957, dalej yfinance), 'yfinance' (od 12.2003,
+    gdy FRED niedostepny) albo 'none'. Porazki nie sa cache'owane dlugo."""
+    try:
+        return _fetch_usdpln_cached()
+    except _NoData:
+        pass
+    try:
+        return _fetch_usdpln_yf_cached()
+    except _NoData:
         return None, "none"
-    return fx, ("fred" if fred is not None else "yfinance")
 
 
 def correlation_with_proxy(etf_m: pd.Series, proxy_m: pd.Series, min_months: int = 24) -> float:
     """Korelacja miesiecznych stop zwrotu we wspolnym okresie (NaN, gdy < min_months)."""
-    r = pd.concat([_clean(etf_m).pct_change(fill_method=None),
-                   _clean(proxy_m).pct_change(fill_method=None)], axis=1).dropna()
+    def _rets(x: pd.Series) -> pd.Series:
+        return _clean(x).resample("ME").last().pct_change(fill_method=None)
+
+    r = pd.concat([_rets(etf_m), _rets(proxy_m)], axis=1).dropna()
     if len(r) < min_months:
         return float("nan")
     return float(r.iloc[:, 0].corr(r.iloc[:, 1]))
 
 
-def _yf_max(ticker: str) -> pd.Series:
-    """Pelna historia z yfinance bez cache Streamlita (do testow sieciowych)."""
-    import yfinance as yf
-    d = yf.download(ticker, period="max", auto_adjust=True, progress=False)["Close"]
-    if isinstance(d, pd.DataFrame):
-        d = d.iloc[:, 0]
-    d = d.dropna()
-    if getattr(d.index, "tz", None) is not None:
-        d.index = d.index.tz_localize(None)
-    return d
+def _yf_max(ticker: str) -> pd.Series | None:
+    """Pelna historia z yfinance (do testow sieciowych); None, gdy brak danych."""
+    return _yfinance_single(ticker, "max")
