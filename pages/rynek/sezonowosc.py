@@ -4,17 +4,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monthly_returns_matrix
 from components.charts import seasonality_heatmap, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL
-from components.auth import require_premium
 
-st.set_page_config(page_title="Sezonowosc", page_icon="📅", layout="wide")
-setup_sidebar()
-if not require_premium(14): st.stop()
 
 st.markdown("# 📅 Sezonowosc")
 st.caption("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May")

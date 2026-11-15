@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.etf_universe import ALL_TICKERS as ETF_TICKERS, ETF_NAMES
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
@@ -19,11 +19,7 @@ from components.charts import (
     category_pie, COLORS,
 )
 from components.cards import stats_table
-from components.auth import require_premium
 
-st.set_page_config(page_title="Portfolio Builder", page_icon="🏗️", layout="wide")
-setup_sidebar()
-if not require_premium(11): st.stop()
 
 st.markdown("# 🏗️ Portfolio Builder")
 st.caption("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki")

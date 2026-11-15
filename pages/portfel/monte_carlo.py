@@ -3,18 +3,14 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monte_carlo_simulation, backtest_gem
 from components.charts import fan_chart, _base_layout, GOLD
 from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED
-from components.auth import require_premium
 
-st.set_page_config(page_title="Monte Carlo", page_icon="🎲", layout="wide")
-setup_sidebar()
-if not require_premium(18): st.stop()
 
 st.markdown("# 🎲 Monte Carlo")
 st.caption("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?")

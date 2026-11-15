@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_prices, download_single
 from data.momentum import correlation_matrix, strategy_correlations
 from components.charts import (
@@ -13,11 +13,7 @@ from components.charts import (
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
 from components.sidebar import get_risk_free
-from components.auth import require_premium
 
-st.set_page_config(page_title="Intermarket", page_icon="🔗", layout="wide")
-setup_sidebar()
-if not require_premium(20): st.stop()
 
 st.markdown("# 🔗 Analiza Intermarket")
 st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa")

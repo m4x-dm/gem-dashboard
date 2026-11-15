@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.crypto_universe import (
     ALL_CRYPTO_TICKERS, CRYPTO_NAMES, CRYPTO_CATEGORY_MAP, CRYPTO_CATEGORIES,
     CRYPTO_BY_MCAP,
@@ -25,11 +25,7 @@ from components.charts import (
     _base_layout, ta_overview_chart, macd_chart, rsi_chart, rs_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
-from components.auth import require_premium
 
-st.set_page_config(page_title="Kryptowaluty", page_icon="₿", layout="wide")
-setup_sidebar()
-if not require_premium(10): st.stop()
 
 st.markdown("# ₿ Kryptowaluty — Top 200")
 

@@ -5,18 +5,14 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import latest_returns
 from components.charts import _base_layout, GOLD
 from components.formatting import fmt_pct, color_for_value, BORDER
 from components.constants import PERIOD_MAP_FULL
-from components.auth import require_premium
 
-st.set_page_config(page_title="Waluta PLN/USD", page_icon="💱", layout="wide")
-setup_sidebar()
-if not require_premium(15): st.stop()
 
 st.markdown("# 💱 Waluta PLN/USD")
 st.caption("Wplyw kursu USD/PLN na zwroty ETF-ow — realne zwroty polskiego inwestora")

@@ -12,9 +12,9 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_local_storage import LocalStorage
 
-from components.auth import require_premium
 from components.formatting import GREEN, RED
-from components.sidebar import setup_sidebar, render_footer
+from components import nav
+from components.sidebar import render_footer
 from components.watchlist import get_watchlist, toggle_ticker
 from data.financials import (
     bulk_fetch_insider_screener,
@@ -27,14 +27,6 @@ from data.sp500_universe import ALL_SP500_TICKERS
 # Page config + auth + sidebar
 # ---------------------------------------------------------------------------
 
-st.set_page_config(
-    page_title="Insider Screener",
-    page_icon="👥",
-    layout="wide",
-)
-setup_sidebar()
-if not require_premium(24):
-    st.stop()
 
 st.markdown("# 👥 Bulk Insider Screener")
 st.caption(
@@ -357,7 +349,7 @@ if go_btn and selected_ticker:
     # Pattern session_state z F14 hotfix (b1f8502): pending flag NIE widget key
     st.session_state["sp500_deep_dive_ticker"] = selected_ticker
     st.session_state["sp500_pending_view"] = "deep_dive"
-    st.switch_page("pages/7_sp500.py")
+    nav.go("sp500")
 
 st.markdown("---")
 

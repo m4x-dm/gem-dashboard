@@ -11,11 +11,10 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from components.auth import require_premium
 from components.cards import kpi_card, section_band, top_pick_cards
 from components.charts import category_pie, equity_chart, picks_return_bar
 from components.formatting import GREEN, MUTED, RED, fmt_number, fmt_pct
-from components.sidebar import render_footer, setup_sidebar
+from components.sidebar import render_footer
 from data.downloader import benchmark_status, download_prices, download_stooq
 from data.financials import bulk_fetch_universe
 from data.top_picks import (
@@ -27,10 +26,6 @@ from data.top_picks import (
     portfolio_equity,
 )
 
-st.set_page_config(page_title="Top Picks", page_icon="🎯", layout="wide")
-setup_sidebar()
-if not require_premium(9):
-    st.stop()
 
 MARKET_LABELS = {"sp500": "🇺🇸 S&P 500", "gpw": "🇵🇱 GPW"}
 # GPW leci przez stooq — yfinance nie ma historii indeksow WIG (zwraca 1 wiersz).

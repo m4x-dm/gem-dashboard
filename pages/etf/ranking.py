@@ -2,15 +2,13 @@
 
 import streamlit as st
 import pandas as pd
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP, ETF_CATEGORIES
 from data.downloader import download_prices
 from data.momentum import build_ranking
 from components.formatting import fmt_pct
 from components.charts import ranking_bar_chart, category_pie
 
-st.set_page_config(page_title="Ranking Momentum", page_icon="📊", layout="wide")
-setup_sidebar()
 
 st.markdown("# 📊 Ranking Momentum")
 

@@ -8,17 +8,12 @@ Rozszerzenie klasycznego GEM Antonacciego (5 ETF, top 1) o:
 
 import streamlit as st
 import pandas as pd
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.downloader import download_prices
 from data.momentum import backtest_gem_extended
 from components.cards import stats_table
 from components.charts import equity_chart
-from components.auth import require_premium
 
-st.set_page_config(page_title="GEM Extended", page_icon="🚀", layout="wide")
-setup_sidebar()
-if not require_premium(22):
-    st.stop()
 
 st.markdown("# 🚀 GEM Extended — backtest rozszerzonego universe")
 st.caption(

@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS as ETF_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES, SP500_SECTOR_MAP
@@ -15,11 +15,7 @@ from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
 from components.charts import _base_layout
-from components.auth import require_premium
 
-st.set_page_config(page_title="Cross-Asset Screener", page_icon="🔎", layout="wide")
-setup_sidebar()
-if not require_premium(12): st.stop()
 
 st.markdown("# 🔎 Cross-Asset Screener")
 st.caption("Jednolity ranking momentum ze wszystkich klas aktywow")

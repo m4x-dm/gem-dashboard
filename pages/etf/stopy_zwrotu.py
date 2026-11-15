@@ -5,12 +5,11 @@ import math
 import pandas as pd
 import streamlit as st
 
-from components.auth import require_premium
 from components.charts import (
     growth_chart, picks_return_bar, rolling_returns_chart, yearly_returns_heatmap,
 )
 from components.formatting import fmt_pct
-from components.sidebar import get_risk_free, render_footer, setup_sidebar
+from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.long_returns import (
     PERIOD_YEARS, PROXY_MAP, SINCE_START,
@@ -20,10 +19,6 @@ from data.long_returns import (
 )
 from data.momentum import calc_stats
 
-st.set_page_config(page_title="Stopy zwrotu", page_icon="📏", layout="wide")
-setup_sidebar()
-if not require_premium(26):
-    st.stop()
 
 
 def _fmt_ratio(value) -> str:

@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_prices
 from data.momentum import latest_returns
 from components.charts import (
@@ -12,11 +12,7 @@ from components.charts import (
 )
 from components.formatting import fmt_pct
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
-from components.auth import require_premium
 
-st.set_page_config(page_title="Rotacja Sektorowa", page_icon="🔄", layout="wide")
-setup_sidebar()
-if not require_premium(19): st.stop()
 
 st.markdown("# 🔄 Rotacja Sektorowa")
 st.caption("Momentum 11 sektorow GICS — ktory sektor prowadzi?")

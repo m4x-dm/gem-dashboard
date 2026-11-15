@@ -57,3 +57,20 @@ def test_get_and_by_path():
 def test_descriptions_present():
     for p in nav.PAGES:
         assert p.description.strip(), p.key
+
+
+MIGRATED = [p for p in nav.PAGES if p.key not in {"pulpit", "sygnal", "porownaj"}]
+
+
+@pytest.mark.parametrize("page", MIGRATED, ids=lambda p: p.key)
+def test_migrated_page_exists(page):
+    assert (ROOT / page.path).is_file()
+
+
+@pytest.mark.parametrize("page", MIGRATED, ids=lambda p: p.key)
+def test_no_legacy_boilerplate(page):
+    src = (ROOT / page.path).read_text(encoding="utf-8")
+    assert "require_premium" not in src
+    assert "setup_sidebar" not in src
+    assert "set_page_config" not in src
+    assert 'st.switch_page("pages/' not in src

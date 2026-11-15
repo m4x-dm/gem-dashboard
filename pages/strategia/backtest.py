@@ -2,18 +2,14 @@
 
 import streamlit as st
 import pandas as pd
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS
 from data.downloader import download_prices
 from data.momentum import backtest_gem, backtest_sma200, backtest_tqqq_mom, walk_forward_gem
 from components.cards import stats_table
 from components.charts import equity_chart
 from components.formatting import fmt_number, GOLD, BG_CARD, BORDER, MUTED, GREEN, RED
-from components.auth import require_premium
 
-st.set_page_config(page_title="Backtest strategii", page_icon="🧪", layout="wide")
-setup_sidebar()
-if not require_premium(5): st.stop()
 
 st.markdown("# 🧪 Backtest strategii")
 

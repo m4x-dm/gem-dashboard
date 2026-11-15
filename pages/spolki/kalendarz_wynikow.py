@@ -12,8 +12,8 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_local_storage import LocalStorage
 
-from components.auth import require_premium
-from components.sidebar import setup_sidebar, render_footer
+from components import nav
+from components.sidebar import render_footer
 from components.watchlist import get_watchlist, toggle_ticker
 from data.financials import (
     _detect_market,
@@ -38,11 +38,11 @@ def _navigate_to_deep_dive(ticker: str) -> None:
     if market == "SP500":
         st.session_state["sp500_deep_dive_ticker"] = ticker
         st.session_state["sp500_pending_view"] = "deep_dive"
-        st.switch_page("pages/7_sp500.py")
+        nav.go("sp500")
     elif market == "GPW":
         st.session_state["gpw_deep_dive_ticker"] = ticker
         st.session_state["gpw_pending_view"] = "deep_dive"
-        st.switch_page("pages/8_gpw.py")
+        nav.go("gpw")
     else:
         st.warning(f"Deep dive niedostepny dla ETF/UNKNOWN ({ticker}).")
 
@@ -237,14 +237,6 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
 # Page config + auth + sidebar
 # ---------------------------------------------------------------------------
 
-st.set_page_config(
-    page_title="Earnings Calendar",
-    page_icon="📅",
-    layout="wide",
-)
-setup_sidebar()
-if not require_premium(23):
-    st.stop()
 
 # Header
 st.markdown("# 📅 Earnings Calendar")

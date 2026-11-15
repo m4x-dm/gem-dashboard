@@ -1,10 +1,8 @@
 """Strona 6: O strategii GEM — opis po polsku."""
 
 import streamlit as st
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 
-st.set_page_config(page_title="O strategii GEM", page_icon="📚", layout="wide")
-setup_sidebar()
 
 st.markdown("# 📚 O strategii GEM")
 

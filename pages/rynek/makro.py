@@ -4,18 +4,14 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_single
 from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
 from components.charts import sparkline_chart
 from components.cards import macro_card
-from components.auth import require_premium
 
-st.set_page_config(page_title="Makro Dashboard", page_icon="🌍", layout="wide")
-setup_sidebar()
-if not require_premium(13): st.stop()
 
 st.markdown("# 🌍 Makro Dashboard")
 st.caption("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM")

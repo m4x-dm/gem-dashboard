@@ -3,17 +3,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, render_footer
+from components.sidebar import render_footer
 from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import top_drawdowns, drawdown_series
 from components.charts import drawdown_chart, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL, RED
-from components.auth import require_premium
 
-st.set_page_config(page_title="Analiza Drawdownow", page_icon="📉", layout="wide")
-setup_sidebar()
-if not require_premium(16): st.stop()
 
 st.markdown("# 📉 Analiza Drawdownow")
 st.caption("Top spadki od szczytu, czas trwania, czas odbudowy")

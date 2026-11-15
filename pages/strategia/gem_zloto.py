@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from components.sidebar import setup_sidebar, get_risk_free, render_footer
+from components.sidebar import get_risk_free, render_footer
 from data.downloader import download_prices
 from data.momentum import (
     backtest_gem,
@@ -19,12 +19,7 @@ from components.cards import stats_table, kpi_card
 from components.charts import equity_chart, drawdown_chart, _base_layout
 from components.formatting import fmt_pct, fmt_number, color_for_value
 from components.constants import GOLD, GREEN, RED, CHART_COLORS
-from components.auth import require_premium
 
-st.set_page_config(page_title="GEM Gold Momentum", page_icon="🥇", layout="wide")
-setup_sidebar()
-if not require_premium(25):
-    st.stop()
 
 st.markdown("# 🥇 GEM Gold Momentum")
 st.caption(
