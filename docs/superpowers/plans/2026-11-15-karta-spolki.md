@@ -503,6 +503,8 @@ def _offline(monkeypatch):
     monkeypatch.setattr(dl, "download_single", lambda t, period="15y": _series())
     monkeypatch.setattr(dl, "download_prices",
                         lambda ts, period="15y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(ts[:30])}))
+    monkeypatch.setattr(co, "universe_prices",
+                        lambda u, period="2y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(("AAPL", "CDR.WA", *u[:30]))}))
     monkeypatch.setattr(fin, "get_ratios_snapshot", lambda t: {"pe": 20.0, "fwd_pe": 18.0, "market_cap": 1e12,
                                                                "dividend_yield": 0.5, "name": "Apple Inc.",
                                                                "current_price": 100.0, "currency": "USD"})
@@ -685,7 +687,7 @@ Zawartość (spec „Przegląd”, makieta A `.superpowers/brainstorm/10355-1794
   3. Panel kluczowych danych (`card_html`): z `get_ratios_snapshot(ticker)` i `co.company_profile(ticker)`: Kapitalizacja (`format_large_number` z `components.financials_ui` lub lokalny formatter), `P/E · Forward P/E`, `EV/EBITDA` — **gdy `market=="GPW"` i `ticker in GPW_BANKS` → wiersz `P/B` z `price_to_book`**, Stopa dywidendy (`co._norm_yield`), Beta, zakres 52 tyg. z markerem (div `position:relative` + marker `left:{(price-low)/(high-low)*100:.0f}%`).
   4. Trzy karty w `st.columns(3)`: **Analitycy** (`get_analyst_recos`; brak → „Brak pokrycia analityków”; pasek min–cena–cel–max jak w makiecie), **Kalendarz** (`fetch_earnings_dates(ticker)` → najbliższa przyszła data; ostatni ex-dividend z `co.dividend_history` (ostatnia data); ostatni beat/miss z `get_earnings_history(ticker, n_quarters=1)` `surprise_pct`), **Momentum GEM** — miejsce z `mov_slot = st.container()` (pusty kontener w 3. kolumnie).
   5. „O spółce”: `summary` przycięte do 300 znaków + `st.expander("Rozwiń opis")` z pełnym tekstem; `None` → pomiń sekcję.
-  6. Na końcu `with mov_slot: _momentum_fragment(ticker, market)` — moduł-level `@st.fragment def _momentum_fragment(ticker, market)`: universe `ALL_SP500_TICKERS` / `ALL_GPW_TICKERS`, `prices = download_prices(list(universe), period="2y")` (TEN SAM wywołanie co ranking stron rynków → wspólny cache), `rf = get_risk_free()`, `prof = co.momentum_profile(ticker, prices, rf)`; `None` → „Za krótka historia notowań”; inaczej „#{rank} z {of} w {S&P 500|GPW}” + 4 kafle 1M/3M/6M/12M (kolor GREEN/RED).
+  6. Na końcu `with mov_slot: _momentum_fragment(ticker, market)` — moduł-level `@st.fragment def _momentum_fragment(ticker, market)`: universe `ALL_SP500_TICKERS` / `ALL_GPW_TICKERS`, `prices = co.universe_prices(tuple(universe), "2y")` (zbiorczy `yf.download` bez fallbacku per ticker, cache 1 h; `download_prices` przy zimnym cache trwał ~3 min), `rf = get_risk_free()`, `prof = co.momentum_profile(ticker, prices, rf)`; `None` → „Za krótka historia notowań”; inaczej „#{rank} z {of} w {S&P 500|GPW}” + 4 kafle 1M/3M/6M/12M (kolor GREEN/RED).
   Każdy blok w `try/except` → `st.caption("…: dane chwilowo niedostępne")`.
 - [ ] **Step 2:** Testy offline zielone; zrzut free `http://localhost:8596/karta?t=AAPL` (1440x1800, wait 90) i `?t=PKO.WA` (bank → P/B) — obejrzeć, poprawić.
 - [ ] **Step 3: Commit** „Company card: overview tab”.
@@ -728,7 +730,7 @@ Kafle (4 × `card_html`): Stopa dywidendy (`fmt_pct`), Wskaźnik wypłaty, Lata 
   - `sector = co.sector_of(ticker, market)`; brak → „Brak przypisanego sektora”.
   - `with st.spinner("Pobieram kapitalizacje sektora…"): caps = co.sector_caps(market, sector)`.
   - `default = co.sector_peers(ticker, caps, n=5)`; `options = [t for t in co._sector_members(market, sector) if t != ticker]`; `chosen = st.multiselect("Porównaj z", options, default=default, max_selections=8, key=f"kpe_sel_{ticker}", format_func=lambda t: f"{t} — {name(t)}")`.
-  - `rows = {t: {**get_ratios_snapshot(t), "mom12": mom12.get(t)} for t in [ticker, *chosen]}`, gdzie `mom12` = kolumna `12M` z `latest_returns(download_prices(universe, "2y"), skip_month=True)` (wspólny cache z rankingiem); `co._norm_yield` dla `dividend_yield`.
+  - `rows = {t: {**get_ratios_snapshot(t), "mom12": mom12.get(t)} for t in [ticker, *chosen]}`, gdzie `mom12` = kolumna `12M` z `latest_returns(co.universe_prices(tuple(universe), "2y"), skip_month=True)` (wspólny cache z fragmentem momentum; NIE `download_prices`); `co._norm_yield` dla `dividend_yield`.
   - `df = co.peer_table(rows)`; render jako `st.html` tabela (nie `st.dataframe`, żeby kolorować komórki): wiersz `ticker` pogrubiony z tłem `BG_HOVER`; wiersz „Mediana grupy” MUTED; komórka zielona gdy lepsza od mediany (dla `LOWER_IS_BETTER` niższa), czerwona gdy gorsza, „—” dla NaN; formaty: Kapitalizacja → `format_large_number`, procenty (ROE, Marża netto, Wzrost przychodów, Stopa dywidendy, Momentum 12M) → `fmt_pct`, mnożniki → `"{:.1f}"`. Owinąć w `<div style="overflow-x:auto">` (telefon).
 - [ ] **Step 2:** testy offline premium zielone; zrzut premium `?t=AAPL` i `?t=CDR.WA`.
 - [ ] **Step 3: Commit** „Company card: peers tab”.

@@ -32,6 +32,8 @@ def _offline(monkeypatch):
     monkeypatch.setattr(dl, "download_single", lambda t, period="15y": _series())
     monkeypatch.setattr(dl, "download_prices",
                         lambda ts, period="15y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(ts[:30])}))
+    monkeypatch.setattr(co, "universe_prices",
+                        lambda u, period="2y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(("AAPL", "CDR.WA", *u[:30]))}))
     monkeypatch.setattr(fin, "get_ratios_snapshot", lambda t: {"pe": 20.0, "fwd_pe": 18.0, "market_cap": 1e12,
                                                                "dividend_yield": 0.5, "name": "Apple Inc.",
                                                                "current_price": 100.0, "currency": "USD"})

@@ -177,7 +177,7 @@ def _momentum_fragment(ticker, market):
     try:
         universe = ALL_SP500_TICKERS if market == "SP500" else ALL_GPW_TICKERS
         label = "S&P 500" if market == "SP500" else "GPW"
-        prices = dl.download_prices(list(universe), period="2y")
+        prices = co.universe_prices(tuple(universe), "2y")
         prof = co.momentum_profile(ticker, prices, get_risk_free())
         if not prof:
             html = _lbl("Momentum GEM") + f'<span style="color:{MUTED}">Za krótka historia notowań</span>'

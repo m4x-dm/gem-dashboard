@@ -198,3 +198,17 @@ def dividend_history(ticker: str) -> pd.Series:
         return pd.Series(dtype=float)
     d.index = pd.to_datetime(d.index).tz_localize(None) if d.index.tz is not None else pd.to_datetime(d.index)
     return d.astype(float)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def universe_prices(universe: tuple[str, ...], period: str = "2y") -> pd.DataFrame:
+    """Ceny zamkniecia calego universe jednym zapytaniem (bez fallbacku per ticker) — do rankingu momentum na karcie."""
+    import yfinance as yf
+    data = yf.download(" ".join(universe), period=period, auto_adjust=True, progress=False, threads=True, timeout=30)
+    if data is None or data.empty:
+        return pd.DataFrame()
+    prices = data["Close"] if isinstance(data.columns, pd.MultiIndex) else data[["Close"]]
+    prices = prices.dropna(how="all")
+    if getattr(prices.index, "tz", None) is not None:
+        prices.index = prices.index.tz_localize(None)
+    return prices
