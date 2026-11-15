@@ -24,10 +24,10 @@ class PageDef:
     default: bool = False
 
 
-# Kolejnosc sekcji w gornym menu. "" pojawia sie dwa razy w intencji
-# (Pulpit na poczatku, Krypto po Spolkach) — st.navigation laczy strony
-# bez sekcji w jedna grupe, wiec kolejnosc stron w "" wynika z PAGES.
-SECTION_ORDER = ["", "Strategia GEM", "ETF", "Spółki", "Portfel", "Rynek"]
+# Kolejnosc sekcji w gornym menu. "" = linki bezposrednie (tylko Pulpit) —
+# st.navigation zawsze stawia je na poczatku. Krypto ma wlasna sekcje,
+# zeby byc na koncu menu (decyzja uzytkownika 2026-11-15).
+SECTION_ORDER = ["", "Strategia GEM", "ETF", "Spółki", "Portfel", "Rynek", "Krypto"]
 
 PAGES: list[PageDef] = [
     # --- Start ---
@@ -66,9 +66,6 @@ PAGES: list[PageDef] = [
             "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlista"),
     PageDef("insiderzy", "pages/spolki/insiderzy.py", "Insiderzy", "👥", "Spółki", False,
             "Bulk insider activity SP500 — top kupujacy/sprzedajacy, sektory"),
-    # --- Krypto (link bezposredni) ---
-    PageDef("krypto", "pages/krypto/kryptowaluty.py", "Krypto", "🪙", "", False,
-            "Top 200 kryptowalut — ranking, alt/BTC ratio, backtest"),
     # --- Portfel ---
     PageDef("portfolio-builder", "pages/portfel/portfolio_builder.py", "Portfolio Builder", "🏗️", "Portfel", False,
             "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
@@ -85,6 +82,9 @@ PAGES: list[PageDef] = [
             "Heatmapa miesiecznych zwrotow i wzorce sezonowe"),
     PageDef("waluta", "pages/rynek/waluta.py", "Waluta PLN/USD", "💱", "Rynek", False,
             "Wplyw kursu USD/PLN na zwroty ETF-ow w zlotowkach"),
+    # --- Krypto (ostatnia sekcja w menu) ---
+    PageDef("krypto", "pages/krypto/kryptowaluty.py", "Kryptowaluty", "🪙", "Krypto", False,
+            "Top 200 kryptowalut — ranking, alt/BTC ratio, backtest"),
 ]
 
 _BY_KEY = {p.key: p for p in PAGES}

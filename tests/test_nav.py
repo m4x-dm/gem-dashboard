@@ -41,7 +41,7 @@ def test_page_count():
 def test_sections_known_and_non_empty():
     used = {p.section for p in nav.PAGES}
     assert used <= set(nav.SECTION_ORDER)
-    for section in ("Strategia GEM", "ETF", "Spółki", "Portfel", "Rynek"):
+    for section in ("Strategia GEM", "ETF", "Spółki", "Portfel", "Rynek", "Krypto"):
         assert any(p.section == section for p in nav.PAGES), section
 
 
@@ -83,3 +83,9 @@ def test_no_top_level_numbered_pages_left():
 def test_every_page_file_is_registered():
     on_disk = {p.relative_to(ROOT).as_posix() for p in (ROOT / "pages").glob("*/*.py")}
     assert on_disk == {p.path for p in nav.PAGES}
+
+
+def test_krypto_is_last_section():
+    nav_sections = list(nav.build_navigation().keys())
+    assert nav_sections[-1] == "Krypto"
+    assert nav.PAGES[-1].key == "krypto"
