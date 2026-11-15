@@ -299,8 +299,9 @@ def render_week_earnings(ls) -> None:
     if df.empty:
         st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
         return
-    order = {t: i for i, t in enumerate(tickers)}
-    df = df.assign(_o=df["ticker"].map(order)).sort_values(["_o", "date"]).head(10)
+    # Najpierw spolki z watchlisty, w obu grupach chronologicznie
+    df = (df.assign(_wl=~df["ticker"].isin(wl))
+            .sort_values(["_wl", "date", "ticker"]).head(10))
     rows = []
     for _, r in df.iterrows():
         n = (r["date"].normalize() - today).days
