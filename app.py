@@ -16,9 +16,12 @@ st.set_page_config(
     initial_sidebar_state="auto",
 )
 
-setup_sidebar()
-
+# st.navigation MUSI byc przed setup_sidebar(): komponent localStorage w init_auth()
+# wywoluje rerun, ktory przed zbudowaniem nawigacji gubi strone z adresu URL
+# (bezposredni link, np. /ranking, otwieral Pulpit). Zweryfikowane 2026-11-15.
 pg = st.navigation(nav.build_navigation(), position="top")
+
+setup_sidebar()
 
 free, icon, title, description = nav.access_info(pg.title)
 

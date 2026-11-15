@@ -1,6 +1,6 @@
 """Rejestr stron GEM Dashboard — jedyne zrodlo prawdy o nawigacji.
 
-Nowa strona = plik w pages/<sekcja>/ + jeden wpis w PAGES.
+Nowa strona = plik w views/<sekcja>/ + jeden wpis w PAGES.
 Adres URL = nazwa pliku (bez url_path) — wymagane przez AppTest.switch_page,
 ktory liczy hash strony z nazwy pliku. Dlatego nazwy plikow musza byc unikalne.
 Router (app.py) buduje z tego st.navigation i bramke Premium.
@@ -31,59 +31,59 @@ SECTION_ORDER = ["", "Strategia GEM", "ETF", "Spółki", "Portfel", "Rynek", "Kr
 
 PAGES: list[PageDef] = [
     # --- Start ---
-    PageDef("pulpit", "pages/start/pulpit.py", "Pulpit", "🏠", "", True,
+    PageDef("pulpit", "views/start/pulpit.py", "Pulpit", "🏠", "", True,
             "Centrum dowodzenia: sygnal GEM, regime, rynek, watchlista, wyniki tygodnia", default=True),
     # --- Strategia GEM ---
-    PageDef("sygnal", "pages/strategia/sygnal.py", "Sygnał GEM", "🎯", "Strategia GEM", True,
+    PageDef("sygnal", "views/strategia/sygnal.py", "Sygnał GEM", "🎯", "Strategia GEM", True,
             "Aktualny sygnal GEM, top 5 ETF oraz pelna historia zmian sygnalu"),
-    PageDef("backtest", "pages/strategia/backtest.py", "Backtest", "🔬", "Strategia GEM", False,
+    PageDef("backtest", "views/strategia/backtest.py", "Backtest", "🔬", "Strategia GEM", False,
             "GEM vs Buy&Hold — krzywa kapitalu, Sharpe, MDD i wiecej"),
-    PageDef("gem-extended", "pages/strategia/gem_extended.py", "GEM Extended", "🚀", "Strategia GEM", False,
+    PageDef("gem-extended", "views/strategia/gem_extended.py", "GEM Extended", "🚀", "Strategia GEM", False,
             "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
-    PageDef("gem-zloto", "pages/strategia/gem_zloto.py", "GEM Gold Momentum", "🥇", "Strategia GEM", False,
+    PageDef("gem-zloto", "views/strategia/gem_zloto.py", "GEM Gold Momentum", "🥇", "Strategia GEM", False,
             "Momentum ze zlotem w wersji GEM: Nasdaq-100 / zloto / obligacje, backtest od 2005 vs GEM klasyczny"),
-    PageDef("o-strategii", "pages/strategia/o_strategii.py", "O strategii", "📖", "Strategia GEM", True,
+    PageDef("o-strategii", "views/strategia/o_strategii.py", "O strategii", "📖", "Strategia GEM", True,
             "Opis strategii GEM Gary'ego Antonacciego"),
     # --- ETF ---
-    PageDef("ranking-etf", "pages/etf/ranking.py", "Ranking momentum", "📊", "ETF", True,
+    PageDef("ranking-etf", "views/etf/ranking.py", "Ranking momentum", "📊", "ETF", True,
             "Tabela rankingowa 30+ ETF-ow z wynikiem momentum"),
-    PageDef("porownaj", "pages/etf/porownaj.py", "Porównaj", "⚖️", "ETF", False,
+    PageDef("porownaj", "views/etf/porownaj.py", "Porównaj", "⚖️", "ETF", False,
             "Wykresy, head-to-head 2–4 ETF-ow z korelacjami oraz side-by-side dwoch aktywow"),
-    PageDef("stopy-zwrotu", "pages/etf/stopy_zwrotu.py", "Stopy zwrotu", "📏", "ETF", False,
+    PageDef("stopy-zwrotu", "views/etf/stopy_zwrotu.py", "Stopy zwrotu", "📏", "ETF", False,
             "Stopy zwrotu ETF-ow do 30 lat: okresy, lata, okna kroczace, PLN i proxy"),
-    PageDef("drawdowny", "pages/etf/drawdowny.py", "Drawdowny", "📉", "ETF", False,
+    PageDef("drawdowny", "views/etf/drawdowny.py", "Drawdowny", "📉", "ETF", False,
             "Analiza spadkow od szczytu — glebokosc, czas trwania, odbudowa"),
     # --- Spolki ---
-    PageDef("sp500", "pages/spolki/sp500.py", "S&P 500", "🇺🇸", "Spółki", False,
+    PageDef("sp500", "views/spolki/sp500.py", "S&P 500", "🇺🇸", "Spółki", False,
             "Ranking, wykresy, finanse i backtest ~500 spolek z indeksu S&P 500"),
-    PageDef("gpw", "pages/spolki/gpw.py", "GPW", "🇵🇱", "Spółki", False,
+    PageDef("gpw", "views/spolki/gpw.py", "GPW", "🇵🇱", "Spółki", False,
             "140 spolek z WIG20, mWIG40 i sWIG80 — momentum, finanse i backtest"),
-    PageDef("top-picks", "pages/spolki/top_picks.py", "Top Picks", "🎯", "Spółki", False,
+    PageDef("top-picks", "views/spolki/top_picks.py", "Top Picks", "🎯", "Spółki", False,
             "Trzy miesieczne piatki spolek: momentum cenowe, jakosc wynikow kwartalnych i jakosc biznesu"),
-    PageDef("screener", "pages/spolki/screener.py", "Screener", "🔎", "Spółki", False,
+    PageDef("screener", "views/spolki/screener.py", "Screener", "🔎", "Spółki", False,
             "Cross-asset ranking momentum ze wszystkich klas aktywow"),
-    PageDef("kalendarz-wynikow", "pages/spolki/kalendarz_wynikow.py", "Kalendarz wyników", "📅", "Spółki", False,
+    PageDef("kalendarz-wynikow", "views/spolki/kalendarz_wynikow.py", "Kalendarz wyników", "📅", "Spółki", False,
             "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlista"),
-    PageDef("insiderzy", "pages/spolki/insiderzy.py", "Insiderzy", "👥", "Spółki", False,
+    PageDef("insiderzy", "views/spolki/insiderzy.py", "Insiderzy", "👥", "Spółki", False,
             "Bulk insider activity SP500 — top kupujacy/sprzedajacy, sektory"),
     # --- Portfel ---
-    PageDef("portfolio-builder", "pages/portfel/portfolio_builder.py", "Portfolio Builder", "🏗️", "Portfel", False,
+    PageDef("portfolio-builder", "views/portfel/portfolio_builder.py", "Portfolio Builder", "🏗️", "Portfel", False,
             "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
-    PageDef("monte-carlo", "pages/portfel/monte_carlo.py", "Monte Carlo", "🎲", "Portfel", False,
+    PageDef("monte-carlo", "views/portfel/monte_carlo.py", "Monte Carlo", "🎲", "Portfel", False,
             "Symulacja przyszlych zwrotow — ile mozesz miec za N lat?"),
     # --- Rynek ---
-    PageDef("makro", "pages/rynek/makro.py", "Makro", "🌍", "Rynek", False,
+    PageDef("makro", "views/rynek/makro.py", "Makro", "🌍", "Rynek", False,
             "VIX, yield curve, DXY, S&P+200MA, zloto, ropa"),
-    PageDef("sektory", "pages/rynek/sektory.py", "Rotacja sektorowa", "🔄", "Rynek", False,
+    PageDef("sektory", "views/rynek/sektory.py", "Rotacja sektorowa", "🔄", "Rynek", False,
             "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow"),
-    PageDef("intermarket", "pages/rynek/intermarket.py", "Intermarket", "🔗", "Rynek", False,
+    PageDef("intermarket", "views/rynek/intermarket.py", "Intermarket", "🔗", "Rynek", False,
             "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar"),
-    PageDef("sezonowosc", "pages/rynek/sezonowosc.py", "Sezonowość", "📅", "Rynek", False,
+    PageDef("sezonowosc", "views/rynek/sezonowosc.py", "Sezonowość", "📅", "Rynek", False,
             "Heatmapa miesiecznych zwrotow i wzorce sezonowe"),
-    PageDef("waluta", "pages/rynek/waluta.py", "Waluta PLN/USD", "💱", "Rynek", False,
+    PageDef("waluta", "views/rynek/waluta.py", "Waluta PLN/USD", "💱", "Rynek", False,
             "Wplyw kursu USD/PLN na zwroty ETF-ow w zlotowkach"),
     # --- Krypto (ostatnia sekcja w menu) ---
-    PageDef("krypto", "pages/krypto/kryptowaluty.py", "Kryptowaluty", "🪙", "Krypto", False,
+    PageDef("krypto", "views/krypto/kryptowaluty.py", "Kryptowaluty", "🪙", "Krypto", False,
             "Top 200 kryptowalut — ranking, alt/BTC ratio, backtest"),
 ]
 

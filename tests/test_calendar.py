@@ -1,4 +1,4 @@
-"""Testy dla pages/spolki/kalendarz_wynikow.py + watchlist + earnings calendar helpers."""
+"""Testy dla views/spolki/kalendarz_wynikow.py + watchlist + earnings calendar helpers."""
 import pandas as pd
 from unittest.mock import patch, MagicMock
 

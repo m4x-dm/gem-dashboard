@@ -29,7 +29,7 @@ def test_streamlit_theme_matches_tokens():
 @pytest.mark.xfail(strict=True, reason="Task 3")
 def test_no_hardcoded_old_gold_in_ui_code():
     offenders = []
-    for p in list((ROOT / "pages").rglob("*.py")) + list((ROOT / "components").glob("*.py")):
+    for p in list((ROOT / "views").rglob("*.py")) + list((ROOT / "components").glob("*.py")):
         src = p.read_text(encoding="utf-8")
         if "#C9A84C" in src or "201,168,76" in src or "#141929" in src:
             offenders.append(p.relative_to(ROOT).as_posix())

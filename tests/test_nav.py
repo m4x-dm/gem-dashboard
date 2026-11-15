@@ -47,8 +47,8 @@ def test_sections_known_and_non_empty():
 
 def test_get_and_by_path():
     p = nav.get("sp500")
-    assert p.path == "pages/spolki/sp500.py"
-    assert nav.by_path("pages/spolki/sp500.py") is p
+    assert p.path == "views/spolki/sp500.py"
+    assert nav.by_path("views/spolki/sp500.py") is p
     assert nav.by_title("S&P 500") is p
     with pytest.raises(KeyError):
         nav.get("nie-ma-takiej")
@@ -77,11 +77,11 @@ def test_no_legacy_boilerplate(page):
 
 
 def test_no_top_level_numbered_pages_left():
-    assert not list((ROOT / "pages").glob("*.py"))
+    assert not list((ROOT / "views").glob("*.py"))
 
 
 def test_every_page_file_is_registered():
-    on_disk = {p.relative_to(ROOT).as_posix() for p in (ROOT / "pages").glob("*/*.py")}
+    on_disk = {p.relative_to(ROOT).as_posix() for p in (ROOT / "views").glob("*/*.py")}
     assert on_disk == {p.path for p in nav.PAGES}
 
 
@@ -101,3 +101,15 @@ def test_access_info_unknown_page_fails_closed():
 def test_access_info_matches_registry():
     for p in nav.PAGES:
         assert nav.access_info(p.title) == (p.free, p.icon, p.title, p.description)
+
+
+def test_no_pages_directory():
+    # Katalog "pages/" obok st.navigation wlacza stary tryb MPA Streamlita:
+    # bezposrednie linki (np. /ranking) pokazuja wtedy "Page not found".
+    assert not (ROOT / "pages").exists()
+
+
+def test_navigation_built_before_sidebar():
+    # Kolejnosc w routerze: st.navigation przed setup_sidebar (deep linki).
+    src = (ROOT / "app.py").read_text(encoding="utf-8")
+    assert src.index("st.navigation(") < src.index("\nsetup_sidebar()")

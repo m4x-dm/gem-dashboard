@@ -3,7 +3,7 @@
 Cache 24h (financials zmieniaja sie rzadko, oszczedza Yahoo rate-limit).
 Wszystkie funkcje wrapped w try/except — fail = None / empty (graceful).
 
-Uzywane przez tab "Finanse spolki" w pages/spolki/sp500.py + pages/spolki/gpw.py.
+Uzywane przez tab "Finanse spolki" w views/spolki/sp500.py + views/spolki/gpw.py.
 """
 
 import re

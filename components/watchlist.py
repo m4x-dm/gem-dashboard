@@ -1,8 +1,8 @@
 """Watchlist user-defined (localStorage przez streamlit-local-storage).
 
 Cross-feature module — uzywany przez:
-- pages/spolki/kalendarz_wynikow.py (filter "tylko watchlist")
-- (v2) pages/spolki/screener.py screener F13 (filter)
+- views/spolki/kalendarz_wynikow.py (filter "tylko watchlist")
+- (v2) views/spolki/screener.py screener F13 (filter)
 
 Format storage: JSON array tickerow (sorted, deduplicated).
 Klucz wersjonowany ("_v1") na wypadek przyszlej migracji.

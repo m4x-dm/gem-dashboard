@@ -1,4 +1,4 @@
-"""Render helpery dla tab 'Sprawozdania Q' w pages/spolki/sp500.py + gpw.py.
+"""Render helpery dla tab 'Sprawozdania Q' w views/spolki/sp500.py + gpw.py.
 
 Modul jest importowany przez pages — helpery musza byc na poziomie modulu
 przed `with tab:` blokiem (regula z F12 screener, commit d7c3407).

@@ -8,7 +8,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
-PULPIT = "pages/start/pulpit.py"
+PULPIT = "views/start/pulpit.py"
 
 
 class _FakeLocalStorage:

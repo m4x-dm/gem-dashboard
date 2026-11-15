@@ -501,7 +501,7 @@ ALL_SP500_TICKERS = list(SP500_NAMES.keys())
 
 # Top-100 spółek S&P 500 wg market cap (snapshot 2026-05).
 # Lista statyczna — refresh raz na 6 miesięcy (Q1 + Q3 quarterly results).
-# Używana przez tab "📊 Screening" w pages/spolki/sp500.py (subset universe dla
+# Używana przez tab "📊 Screening" w views/spolki/sp500.py (subset universe dla
 # szybkiego bulk fetch — 100 zamiast 456 tickerów).
 # Last verified: 2026-05-18
 SP500_TOP100: list[str] = [

@@ -1,4 +1,4 @@
-"""Strona Stopy zwrotu (pages/etf/stopy_zwrotu.py): smoke test renderowania."""
+"""Strona Stopy zwrotu (views/etf/stopy_zwrotu.py): smoke test renderowania."""
 
 import os
 from pathlib import Path
@@ -15,7 +15,7 @@ def test_page_renders(proxy, ccy):
     at = AppTest.from_file(str(APP), default_timeout=300)
     at.session_state["premium"] = True
     at.session_state["_auth_retries"] = 3
-    at.switch_page("pages/etf/stopy_zwrotu.py").run()
+    at.switch_page("views/etf/stopy_zwrotu.py").run()
     assert not at.exception
     at.toggle(key="lr_proxy").set_value(proxy)
     at.radio(key="lr_ccy").set_value(ccy)
