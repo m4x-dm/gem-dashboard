@@ -4,22 +4,24 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
-from components.constants import GOLD, BG, BG2, GRID, CHART_COLORS as COLORS  # noqa: F401
+from components.constants import GOLD, BG, BG2, GRID, TEXT, MUTED, BG_CARD, BORDER, CHART_COLORS as COLORS  # noqa: F401
 
 
 def _base_layout(title: str = "", height: int = 450) -> dict:
     """Bazowy layout dla wykresow."""
     return dict(
         template="plotly_dark",
-        paper_bgcolor=BG2,
-        plot_bgcolor=BG2,
-        title=dict(text=title, font=dict(size=16, color="#E5E7EB")),
-        font=dict(color="#9CA3AF", size=12),
-        xaxis=dict(gridcolor=GRID, showgrid=True),
-        yaxis=dict(gridcolor=GRID, showgrid=True),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        colorway=COLORS,
+        title=dict(text=title, font=dict(size=15, color=TEXT)),
+        font=dict(family="Inter, system-ui, sans-serif", color=MUTED, size=12),
+        xaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
+        yaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
         height=height,
         margin=dict(l=40, r=20, t=40, b=30),
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+        hoverlabel=dict(bgcolor=BG_CARD, bordercolor=BORDER, font_color=TEXT),
     )
 
 

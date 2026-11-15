@@ -1,6 +1,7 @@
 """Wspolna konfiguracja sidebar i CSS dla wszystkich stron."""
 
 import streamlit as st
+from components.constants import BG2, BG_CARD, BG_HOVER, BORDER, TEXT, MUTED, SHADOW
 from components.auth import init_auth, is_premium, activate_code, deactivate, NAFFY_URL
 
 PORTAL_URL = "https://inwestowanie.edu.pl/"
@@ -8,7 +9,7 @@ PORTAL_URL = "https://inwestowanie.edu.pl/"
 
 def inject_css():
     """Globalny CSS — ukrycie menu, stylowanie sidebar i kart."""
-    st.markdown("""
+    css = """
     <style>
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -16,102 +17,124 @@ def inject_css():
         /* Ukryj deploy button ale zachowaj sidebar toggle */
         [data-testid="stToolbar"] button[kind="header"] {display: none;}
 
+        html, body, [class*="st-"] { font-variant-numeric: tabular-nums; }
+
         /* --- Sidebar --- */
-        [data-testid="stSidebar"] {
-            background-color: #111827;
-        }
-
-        /* Ukryj scrollbar w sidebar zachowujac scroll */
+        [data-testid="stSidebar"] { background-color: __BG2__; }
         [data-testid="stSidebar"] > div:first-child {
-            scrollbar-width: none;           /* Firefox */
-            -ms-overflow-style: none;        /* IE/Edge */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
-        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar {
-            display: none;                   /* Chrome/Safari */
-        }
+        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar { display: none; }
 
-        /* Nav links */
+        /* Nav links (sidebar, mobile) */
         a[data-testid="stSidebarNavLink"] {
             border-radius: 8px;
             padding: 6px 12px;
             margin: 2px 0;
-            transition: background-color 0.2s, border-left 0.2s;
-            border-left: 3px solid transparent;
+            color: __MUTED__;
+            transition: background-color 0.2s;
         }
-        a[data-testid="stSidebarNavLink"]:hover {
-            background-color: rgba(201,168,76,0.08);
-            border-left: 3px solid #C9A84C;
-        }
+        a[data-testid="stSidebarNavLink"]:hover { background-color: __BG_HOVER__; }
         a[data-testid="stSidebarNavLink"][aria-current="page"] {
-            background-color: rgba(201,168,76,0.12);
-            border-left: 3px solid #C9A84C;
+            background-color: __BG_HOVER__;
+            color: #fff;
             font-weight: 600;
         }
 
+        /* --- Gorne menu nawigacji --- */
+        a[data-testid="stTopNavLink"] {
+            color: __MUTED__;
+            font-size: 13px;
+            border-radius: 8px;
+            padding: 7px 12px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        a[data-testid="stTopNavLink"]:hover { background-color: __BG_HOVER__; color: __TEXT__; }
+        a[data-testid="stTopNavLink"][aria-current="page"],
+        a[data-testid="stTopNavLink"][aria-selected="true"] {
+            background-color: __BG_HOVER__;
+            color: #fff;
+        }
+        [data-testid="stTopNavDropdownLink"] { border-radius: 8px; }
+
         /* --- Metrics --- */
         .stMetric {
-            background-color: #141929;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(201,168,76,0.2);
-            transition: border-color 0.2s;
+            background-color: __BG_CARD__;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: none;
+            box-shadow: __SHADOW__;
         }
-        .stMetric:hover {
-            border-color: rgba(201,168,76,0.45);
+        .stMetric [data-testid="stMetricLabel"] {
+            color: __MUTED__;
+            font-size: 12px;
+            text-transform: none;
         }
+        .stMetric [data-testid="stMetricValue"] { font-weight: 650; }
 
-        /* --- Tabs --- */
+        /* --- Tabs (segmentowane pigulki) --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 4px;
-            background-color: rgba(20,25,41,0.5);
-            border-radius: 10px;
-            padding: 4px;
+            background: transparent;
+            padding: 0;
         }
         .stTabs [data-baseweb="tab"] {
             border-radius: 8px;
-            padding: 8px 16px;
+            padding: 7px 12px;
+            color: __MUTED__;
             transition: background-color 0.2s;
         }
-        .stTabs [data-baseweb="tab"]:hover {
-            background-color: rgba(201,168,76,0.08);
-        }
+        .stTabs [data-baseweb="tab"]:hover { background-color: __BG_HOVER__; }
         .stTabs [aria-selected="true"] {
-            background-color: rgba(201,168,76,0.15) !important;
+            background-color: __BG_HOVER__ !important;
+            color: __TEXT__ !important;
+        }
+        .stTabs [data-baseweb="tab-highlight"],
+        .stTabs [data-baseweb="tab-border"] { display: none; }
+
+        /* --- Naglowki --- */
+        h1 {
+            font-weight: 650;
+            font-size: clamp(1.5rem, 3vw, 1.9rem);
+            letter-spacing: -0.01em;
+        }
+        h3 { font-weight: 600; font-size: 1.1rem; }
+
+        /* --- Expandery i kontenery z ramka --- */
+        [data-testid="stExpander"] details,
+        [data-testid="stExpander"],
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: __BORDER__;
+            border-radius: 14px;
         }
 
         /* --- DataFrames --- */
-        .stDataFrame {
-            border-radius: 8px;
-        }
+        .stDataFrame { border-radius: 8px; }
         .stDataFrame [data-testid="stDataFrameResizable"] th {
-            text-transform: uppercase;
             font-size: 11px;
-            letter-spacing: 0.05em;
-            color: #C9A84C;
+            color: __MUTED__;
+            text-transform: none;
         }
 
         /* --- Plotly charts container --- */
-        .stPlotlyChart {
-            border-radius: 8px;
-            overflow: hidden;
-        }
+        .stPlotlyChart { border-radius: 8px; overflow: hidden; }
 
         /* --- Responsive mobile --- */
         @media (max-width: 768px) {
-            .stTabs [data-baseweb="tab-list"] {
-                flex-wrap: wrap;
-                gap: 2px;
-            }
-            .stTabs [data-baseweb="tab"] {
-                padding: 6px 10px;
-                font-size: 0.8rem;
-            }
-            .stMetric { padding: 8px; }
+            .stTabs [data-baseweb="tab-list"] { flex-wrap: wrap; gap: 2px; }
+            .stTabs [data-baseweb="tab"] { padding: 6px 10px; font-size: 0.8rem; }
+            .stMetric { padding: 10px 12px; }
             .stDataFrame [data-testid="stDataFrameResizable"] th { font-size: 9px; }
         }
-
     </style>
-    """, unsafe_allow_html=True)
+    """
+    for key, val in {
+        "__BG2__": BG2, "__BG_CARD__": BG_CARD, "__BG_HOVER__": BG_HOVER,
+        "__BORDER__": BORDER, "__TEXT__": TEXT, "__MUTED__": MUTED, "__SHADOW__": SHADOW,
+    }.items():
+        css = css.replace(key, val)
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def setup_sidebar():
