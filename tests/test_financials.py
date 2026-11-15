@@ -658,3 +658,41 @@ def test_limit_to_recent_months_bez_dat_zwraca_wejscie():
     df = pd.DataFrame({"Type": ["Buy"], "Value": [100.0]})
     out = _limit_to_recent_months(df, months=6)
     assert len(out) == 1
+
+
+def _eh_frame(**cols):
+    return pd.DataFrame(cols, index=pd.to_datetime(["2026-03-31", "2026-06-30", "2026-09-30"]))
+
+
+def _eh_run(df, name):
+    from unittest.mock import MagicMock, patch
+    from data.financials import get_earnings_history
+    mock_ticker = MagicMock()
+    mock_ticker.earnings_history = df
+    with patch("data.financials.yf.Ticker", return_value=mock_ticker):
+        return get_earnings_history.__wrapped__(name)
+
+
+def test_get_earnings_history_yahoo_ulamek_na_procenty():
+    """Yahoo surprisePercent=0.058 (ulamek) -> 5.8 (procent)."""
+    out = _eh_run(_eh_frame(epsEstimate=[1.98483, 1.50, 1.00], epsActual=[2.10, 1.45, 1.00],
+                            surprisePercent=[0.0580, -0.0333, 0.0]), "AAPL_FRAC")
+    assert out["surprise_pct"].iloc[0] == pytest.approx(5.8, abs=0.01)
+    assert out["surprise_pct"].iloc[1] == pytest.approx(-3.33, abs=0.01)
+    assert out["surprise_pct"].iloc[2] == pytest.approx(0.0)
+
+
+def test_get_earnings_history_bez_eps_zaklada_ulamek():
+    out = _eh_run(_eh_frame(surprisePercent=[0.05, 0.10, -0.02]), "X_NOEPS")
+    assert out["surprise_pct"].iloc[0] == pytest.approx(5.0)
+
+
+def test_get_earnings_history_juz_procenty_nie_mnozy_ponownie():
+    out = _eh_run(_eh_frame(epsEstimate=[2.0, 2.0, 2.0], epsActual=[2.2, 2.2, 2.2],
+                            surprisePercent=[10.0, 10.0, 10.0]), "X_PCT")
+    assert out["surprise_pct"].iloc[0] == pytest.approx(10.0)
+
+
+def test_get_earnings_history_fallback_lokalny_bez_zmian():
+    out = _eh_run(_eh_frame(epsEstimate=[2.0, 2.0, 2.0], epsActual=[2.2, 1.8, 2.0]), "X_FALLBACK")
+    assert out["surprise_pct"].tolist() == pytest.approx([10.0, -10.0, 0.0])

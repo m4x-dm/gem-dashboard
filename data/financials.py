@@ -166,6 +166,24 @@ def get_forward_consensus(ticker: str) -> pd.DataFrame | None:
     return out
 
 
+def _normalize_surprise_pct(df: pd.DataFrame) -> pd.Series:
+    """surprise_pct z Yahoo (ulamek) -> procenty, decyzja per wiersz.
+
+    Gdy sa eps_actual/eps_estimate: porownanie z przeliczona wartoscia (jesli
+    yahoo*100 lezy blizej - to ulamek). Bez danych EPS zakladamy ulamek.
+    """
+    raw = pd.to_numeric(df["surprise_pct"], errors="coerce")
+    if "eps_estimate" in df.columns and "eps_actual" in df.columns:
+        est_raw = pd.to_numeric(df["eps_estimate"], errors="coerce")
+        act = pd.to_numeric(df["eps_actual"], errors="coerce")
+        recomputed = (act - est_raw) / est_raw.replace(0, np.nan).abs() * 100
+    else:
+        recomputed = pd.Series(np.nan, index=df.index)
+    is_fraction = (raw * 100 - recomputed).abs() < (raw - recomputed).abs()
+    is_fraction = is_fraction.where(recomputed.notna(), True)
+    return raw.where(~is_fraction, raw * 100)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_earnings_history(ticker: str, n_quarters: int = 8) -> pd.DataFrame | None:
     """Historia earnings: actual vs estimate dla ostatnich N kwartalow.
@@ -192,6 +210,11 @@ def get_earnings_history(ticker: str, n_quarters: int = 8) -> pd.DataFrame | Non
         "surprisePercent": "surprise_pct",
     }
     out = out.rename(columns={c: rename[c] for c in out.columns if c in rename})
+
+    # Yahoo oddaje surprisePercent jako ULAMEK (0.058 = 5.8%); reszta kodu
+    # (karty, screener, top_picks) uzywa PROCENTOW - normalizujemy tutaj.
+    if "surprise_pct" in out.columns:
+        out["surprise_pct"] = _normalize_surprise_pct(out)
 
     # Jesli brak surprise_pct - liczymy lokalnie
     if "surprise_pct" not in out.columns and \
