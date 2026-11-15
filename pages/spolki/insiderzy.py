@@ -23,10 +23,6 @@ from data.financials import (
 from data.sp500_universe import ALL_SP500_TICKERS
 
 
-# ---------------------------------------------------------------------------
-# Page config + auth + sidebar
-# ---------------------------------------------------------------------------
-
 
 st.markdown("# 👥 Bulk Insider Screener")
 st.caption(

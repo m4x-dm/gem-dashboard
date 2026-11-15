@@ -233,10 +233,6 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
     )
 
 
-# ---------------------------------------------------------------------------
-# Page config + auth + sidebar
-# ---------------------------------------------------------------------------
-
 
 # Header
 st.markdown("# 📅 Earnings Calendar")
