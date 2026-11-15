@@ -172,7 +172,7 @@ Mechanizm „pending flag” + baner podpowiedzi (Streamlit nie preselekcjonuje 
 
 1. **Rejestr** (`tests/test_nav.py`, nowy):
    - każdy `path` istnieje
-   - `key` i `url_path` unikalne
+   - `key`, tytuły i nazwy plików unikalne (URL = nazwa pliku; router rozpoznaje stronę po tytule)
    - dokładnie jedna strona `default=True` (`pulpit`)
    - zbiór stron `free=True` = {`pulpit`, `sygnal`, `ranking-etf`, `o-strategii`}
    - każda sekcja niepusta; kolejność sekcji: "", Strategia GEM, ETF, Spółki, Krypto (""), Portfel, Rynek
