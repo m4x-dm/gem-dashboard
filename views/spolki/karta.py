@@ -27,8 +27,9 @@ def _on_pick():
 
 def _search(current: str | None) -> None:
     options = [""] + sorted(NAMES, key=lambda t: NAMES[t])
+    if st.session_state.get("karta_search") != (current or ""):
+        st.session_state["karta_search"] = current if current in options else ""
     st.selectbox("Szukaj spółki (S&P 500 i GPW)", options,
-                 index=options.index(current) if current in options else 0,
                  key="karta_search", on_change=_on_pick,
                  format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {NAMES[t]}")
 

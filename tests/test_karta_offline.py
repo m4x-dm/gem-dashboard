@@ -80,3 +80,12 @@ def test_no_ticker_shows_search():
     at = _run(False, None)
     assert not at.exception
     assert at.selectbox(key="karta_search") is not None
+
+
+def test_search_follows_ticker_change():
+    at = _run(False, "AAPL")
+    assert at.selectbox(key="karta_search").value == "AAPL"
+    at.query_params["t"] = "MSFT"
+    at.run()
+    assert not at.exception
+    assert at.selectbox(key="karta_search").value == "MSFT"
