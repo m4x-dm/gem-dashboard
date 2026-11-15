@@ -3,38 +3,8 @@
 import hashlib
 import streamlit as st
 
-# Strony dostepne za darmo (indeksy stron)
-FREE_PAGES = {0, 1, 2, 6}
-
 # Klucz localStorage
 STORAGE_KEY = "gem_premium_hash"
-
-# Opisy stron premium (do lock screena)
-PAGE_INFO = {
-    3: ("\U0001f4c8", "Wykresy", "Interaktywne wykresy cen, momentum i drawdown dla wybranych ETF-ow"),
-    4: ("\u2696\ufe0f", "Porownanie", "Head-to-head 2\u20134 ETF-ow z macierza korelacji i statystykami"),
-    5: ("\U0001f52c", "Backtest", "GEM vs Buy&Hold \u2014 krzywa kapitalu, Sharpe, MDD i wiecej"),
-    26: ("\U0001f4cf", "Stopy zwrotu", "Stopy zwrotu ETF-ow do 30 lat: okresy, lata, okna kroczace, PLN i proxy"),
-    7: ("\U0001f1fa\U0001f1f8", "S&P 500", "Ranking, wykresy i backtest ~456 spolek z indeksu S&P 500"),
-    8: ("\U0001f1f5\U0001f1f1", "Polskie Akcje GPW", "120 spolek z WIG20, mWIG40 i sWIG80 \u2014 momentum i backtest"),
-    9: ("🎯", "Top Picks", "Trzy miesieczne piatki spolek: momentum cenowe, jakosc wynikow kwartalnych i jakosc biznesu"),
-    10: ("\U0001fa99", "Kryptowaluty", "Top 200 kryptowalut \u2014 ranking, alt/BTC ratio, analiza techniczna"),
-    11: ("\U0001f3d7\ufe0f", "Portfolio Builder", "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
-    12: ("\U0001f50e", "Screener", "Cross-asset ranking momentum ze wszystkich klas aktywow"),
-    13: ("\U0001f30d", "Makro Dashboard", "VIX, yield curve, DXY, S&P+200MA, zloto, ropa"),
-    14: ("\U0001f4c5", "Sezonowosc", "Heatmapa miesiecznych zwrotow i wzorce sezonowe"),
-    15: ("\U0001f4b1", "Waluta PLN/USD", "Wplyw kursu USD/PLN na zwroty ETF-ow w zlotowkach"),
-    16: ("\U0001f4c9", "Drawdowny", "Analiza spadkow od szczytu \u2014 glebokosc, czas trwania, odbudowa"),
-    17: ("\U0001f6a6", "Historia Sygnalow", "Pelna historia zmian sygnalu GEM w czasie"),
-    18: ("\U0001f3b2", "Monte Carlo", "Symulacja przyszlych zwrotow \u2014 ile mozesz miec za N lat?"),
-    19: ("\U0001f504", "Rotacja Sektorowa", "Ktory sektor GICS prowadzi? Heatmapa momentum sektorow"),
-    20: ("\U0001f517", "Intermarket", "Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar"),
-    21: ("\U0001f500", "Side-by-Side", "Porownaj dwa aktywa obok siebie — cena, drawdown, RS"),
-    22: ("\U0001f680", "GEM Extended", "Backtest GEM z dowolnym universe (do 10 ETF + krypto), top N equal-weight"),
-    23: ("📅", "Earnings Calendar", "Kalendarz nadchodzacych i niedawnych raportow SP500 + GPW (±28 dni) z watchlist"),
-    24: ("👥", "Insider Screener", "Bulk insider activity SP500 — top buyers/sellers, sektory, beat streak"),
-    25: ("🥇", "GEM Gold Momentum", "Momentum ze zlotem w wersji GEM: Nasdaq-100 / zloto / obligacje, backtest od 2005 vs GEM klasyczny"),
-}
 
 # Link do zakupu na Naffy (do uzupelnienia po stworzeniu produktu)
 NAFFY_URL = "https://naffy.io/damian-majewski/gem-etf-dashboard-premium"
@@ -116,27 +86,8 @@ def deactivate():
         pass
 
 
-def require_premium(page_num: int) -> bool:
-    """Gate premium — renderuje lock screen jesli brak dostepu.
-
-    Uzycie na stronie premium:
-        from components.auth import require_premium
-        if not require_premium(7): st.stop()
-
-    Zwraca True jesli dostep OK, False jesli zablokowany.
-    """
-    if page_num in FREE_PAGES or is_premium():
-        return True
-
-    _render_lock_screen(page_num)
-    return False
-
-
-def _render_lock_screen(page_num: int):
+def render_lock_screen(icon: str, title: str, desc: str) -> None:
     """Renderuje ekran blokady z CTA zakupu."""
-    info = PAGE_INFO.get(page_num, ("🔒", "Premium", "Ta strona wymaga dostepu Premium."))
-    icon, title, desc = info
-
     st.html(f'''
     <div style="
         max-width:520px;
@@ -163,7 +114,7 @@ def _render_lock_screen(page_num: int):
             margin-bottom:24px;
         ">
             <div style="color:#C9A84C;font-weight:700;font-size:16px;margin-bottom:6px;">
-                Odblokuj wszystkie 21 stron
+                Odblokuj wszystkie strony Premium
             </div>
             <div style="color:#9CA3AF;font-size:13px;">
                 Jednorazowy dostep &middot; 49 zl &middot; Lifetime
@@ -189,3 +140,16 @@ def _render_lock_screen(page_num: int):
         </div>
     </div>
     ''')
+
+
+def premium_teaser(title: str, desc: str) -> None:
+    """Zaslepka karty/zakladki Premium (Pulpit, Sygnal GEM, pozniej Karta spolki)."""
+    st.html(f'''
+    <div style="background:#141929;border:1px dashed rgba(201,168,76,0.35);
+                border-radius:14px;padding:20px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:6px;">🔒</div>
+        <div style="color:#E5E7EB;font-weight:700;font-size:15px;margin-bottom:4px;">{title}</div>
+        <div style="color:#9CA3AF;font-size:13px;line-height:1.5;margin-bottom:12px;">{desc}</div>
+    </div>
+    ''')
+    st.link_button("Odblokuj Premium", NAFFY_URL, width="stretch")
