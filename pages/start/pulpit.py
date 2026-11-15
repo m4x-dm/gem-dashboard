@@ -5,6 +5,7 @@ Premium: watchlista, wyniki tygodnia, wygrani/przegrani, wyniki strategii 5 lat,
 Kazda karta renderuje sie niezaleznie — blad w jednej nie psuje reszty.
 """
 import math
+import unicodedata
 
 import pandas as pd
 import streamlit as st
@@ -33,6 +34,12 @@ PREMIUM = is_premium()
 
 def unavailable(title: str) -> None:
     st.caption(f"{title}: dane chwilowo niedostępne")
+
+
+def _ascii(text) -> str:
+    """Bez polskich znakow diakrytycznych — PDF na Linuksie uzywa Helvetica."""
+    t = str(text).translate(str.maketrans({"ł": "l", "Ł": "L"}))
+    return unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
 
 
 def _finite(x) -> bool:
@@ -281,12 +288,12 @@ def render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats) -> N
         if pdf_gem and gem_data is not None:
             sections["gem_signal"] = gem_data
         if pdf_regime and regime is not None:
-            sections["regime"] = {"label": regime["label"], "score": regime["score"]}
+            sections["regime"] = {"label": _ascii(regime["label"]), "score": regime["score"]}
         if pdf_top5 and not ranking.empty:
             sections["top_etfs"] = [(t, names.get(t, t), row.get("Wynik", 0))
                                     for t, row in ranking.head(5).iterrows()]
         if pdf_sparks and sparks:
-            sections["sparklines"] = sparks
+            sections["sparklines"] = [(_ascii(t), _ascii(lbl), p, c) for t, lbl, p, c in sparks]
         if pdf_bt and show_stats:
             sections["backtest_stats"] = show_stats
         if pdf_rank and not ranking.empty:
