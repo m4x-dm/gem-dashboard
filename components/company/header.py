@@ -45,10 +45,10 @@ def render(ticker: str, market: str) -> None:
     price_txt = f"{price:,.2f} {ccy}".replace(",", " ").replace(".", ",") if price is not None else "—"
     meta = " · ".join(x for x in (company_name(ticker, market), sector, EXCHANGE[market]) if x)
     st.html(
-        f'<div style="display:flex;align-items:flex-end;gap:16px;margin:4px 0 10px">'
+        f'<div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 16px;margin:4px 0 10px">'
         f'<div><div style="font-size:26px;font-weight:700;color:{TEXT}">{ticker}</div>'
         f'<div style="color:{MUTED};font-size:14px">{meta}</div></div>'
-        f'<div style="margin-left:auto;text-align:right"><div style="font-size:26px;font-weight:650;'
+        f'<div style="margin-left:auto;text-align:right;white-space:nowrap"><div style="font-size:26px;font-weight:650;white-space:nowrap;'
         f'color:{TEXT};font-variant-numeric:tabular-nums">{price_txt}</div>{pill}</div></div>'
     )
     _watchlist_button(ticker)
