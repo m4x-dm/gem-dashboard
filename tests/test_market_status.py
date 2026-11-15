@@ -90,3 +90,8 @@ def test_earnings_tickers_watchlist_first_and_dedup():
     assert out[:2] == sorted(["CDR.WA", "AAPL"])
     assert len(out) == len(set(out))
     assert "MSFT" in out
+
+
+def test_next_rebalance_skips_new_years_day():
+    # 1 stycznia 2027 to piatek (swieto) -> poniedzialek 4 stycznia
+    assert ms.next_rebalance_date(pd.Timestamp("2026-12-15")) == pd.Timestamp("2027-01-04")

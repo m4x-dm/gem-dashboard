@@ -60,9 +60,9 @@ def signal_since(signals: list[tuple[pd.Timestamp, str]]) -> tuple[pd.Timestamp,
 
 
 def next_rebalance_date(today: pd.Timestamp) -> pd.Timestamp:
-    """Pierwszy dzien roboczy (pon–pt) nastepnego miesiaca."""
+    """Pierwszy dzien roboczy (pon–pt, bez 1 stycznia) nastepnego miesiaca."""
     first = (pd.Timestamp(today).normalize() + pd.offsets.MonthBegin(1))
-    while first.weekday() >= 5:
+    while first.weekday() >= 5 or (first.month == 1 and first.day == 1):
         first += pd.Timedelta(days=1)
     return first
 
