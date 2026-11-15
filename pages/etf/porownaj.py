@@ -88,7 +88,7 @@ def render_charts_tab() -> None:
             normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="wyk_norm")
             title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (USD)"
             fig = price_chart(prices, title=title, normalize=normalize)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, width="stretch", key="wyk_price")
 
         with tab2:
             # Momentum uzywa pelnych danych (nie przycinanych), zeby rolling mial wystarczajaco historii
@@ -97,11 +97,11 @@ def render_charts_tab() -> None:
             default_window = min(252, max_window)
             window = st.slider("Okno momentum (dni)", 21, max_window, default_window, step=21, key="wyk_window")
             fig = momentum_chart(mom_data, window=window, title=f"Momentum {window}D (rolling)")
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, width="stretch", key="wyk_mom")
 
         with tab3:
             fig = drawdown_chart(prices)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, width="stretch", key="wyk_dd")
 
 
 def render_h2h_tab() -> None:
@@ -204,7 +204,7 @@ def render_h2h_tab() -> None:
     # Overlay cenowy
     st.markdown("### Cena znormalizowana (baza = 100)")
     fig = price_chart(prices, title=f"Porownanie cenowe — {period_label}")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="h2h_price")
 
     st.divider()
 
@@ -225,7 +225,7 @@ def render_h2h_tab() -> None:
     st.markdown("### Macierz korelacji (252 dni)")
     corr = correlation_matrix(prices, period=252)
     fig = correlation_heatmap(corr)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="h2h_corr")
 
     # Interpretacja
     with st.expander("Jak czytac korelacje?"):
@@ -255,7 +255,7 @@ def render_h2h_tab() -> None:
                 rs_data = relative_strength(prices[asset_t].dropna(), prices[rs_benchmark].dropna())
                 if not rs_data.empty:
                     fig = rs_chart(rs_data, asset_t, rs_benchmark)
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, width="stretch", key=f"h2h_rs_{asset_t}")
     else:
         st.info("Wybierz co najmniej 2 instrumenty.")
 
@@ -341,9 +341,9 @@ def render_side_by_side_tab() -> None:
     with col_left:
         st.markdown(f"#### {ticker_a}")
         fig = price_chart(prices[[ticker_a]], title=f"Cena — {ticker_a}", normalize=True)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key="sbs_price_a")
         fig = drawdown_chart(prices[[ticker_a]], title=f"Drawdown — {ticker_a}")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key="sbs_dd_a")
 
         s_a = calc_stats(prices[ticker_a].dropna(), 252, rf_decimal)
         stats_table({ticker_a: s_a})
@@ -351,9 +351,9 @@ def render_side_by_side_tab() -> None:
     with col_right:
         st.markdown(f"#### {ticker_b}")
         fig = price_chart(prices[[ticker_b]], title=f"Cena — {ticker_b}", normalize=True)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key="sbs_price_b")
         fig = drawdown_chart(prices[[ticker_b]], title=f"Drawdown — {ticker_b}")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key="sbs_dd_b")
 
         s_b = calc_stats(prices[ticker_b].dropna(), 252, rf_decimal)
         stats_table({ticker_b: s_b})
@@ -369,14 +369,14 @@ def render_side_by_side_tab() -> None:
         st.markdown("#### Korelacja")
         corr = correlation_matrix(prices, period=252)
         fig = correlation_heatmap(corr, title="Macierz korelacji")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key="sbs_corr")
 
     with col2:
         st.markdown("#### Relative Strength")
         rs_data = relative_strength(prices[ticker_a].dropna(), prices[ticker_b].dropna())
         if not rs_data.empty:
             fig = rs_chart(rs_data, ticker_a, ticker_b)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, width="stretch", key="sbs_rs")
         else:
             st.info("Za malo wspolnych danych do RS.")
 
