@@ -16,7 +16,7 @@ from components.auth import is_premium, premium_teaser
 from components.cards import (card_html, metric_row, top_etf_cards, stats_table,
                               data_status_card, alert_banner, _sparkline_svg)
 from components.charts import sparkline_chart
-from components.constants import GREEN, RED, AMBER, GOLD, GOLD_SOFT, TEXT
+from components.constants import GREEN, RED, AMBER, GOLD, GOLD_SOFT, TEXT, BORDER, BG_HOVER
 from components.formatting import color_for_value, MUTED, BG_CARD
 from components.sidebar import get_risk_free, render_footer
 from components.watchlist import get_watchlist
@@ -218,34 +218,77 @@ def render_market_tiles() -> list:
 
 
 # --- 4. Trzy kolumny (Premium) ------------------------------------------------
+_MONTHS_SHORT_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
+
+
+def short_month_pl(ts) -> str:
+    """Polski skrot miesiaca: 'lis', 'paź'."""
+    return _MONTHS_SHORT_PL[pd.Timestamp(ts).month - 1]
+
+
+def days_label(n: int) -> str:
+    """Etykieta odleglosci: 'dziś', 'jutro', 'za 3 dni'."""
+    if n <= 0:
+        return "dziś"
+    if n == 1:
+        return "jutro"
+    return f"za {n} dni"
+
+
+def _ticker_name(t: str) -> str:
+    return SP500_NAMES.get(t) or GPW_NAMES.get(t) or ETF_NAMES.get(t) or ""
+
+
+def _pill(chg: float) -> str:
+    up = chg >= 0
+    bg, fg = ("rgba(52,211,153,.12)", GREEN) if up else ("rgba(248,113,113,.12)", RED)
+    return (f'<span style="background:{bg};color:{fg};font-size:12px;padding:2px 8px;border-radius:999px;'
+            f'font-variant-numeric:tabular-nums;white-space:nowrap">{chg*100:+.2f}%</span>')
+
+
+def _ticker_block(t: str, dot: str = "") -> str:
+    name = _ticker_name(t)
+    sub = (f'<div style="font-size:12px;color:{MUTED};white-space:nowrap;overflow:hidden;'
+           f'text-overflow:ellipsis">{name}</div>') if name else ""
+    return (f'<div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600;color:{TEXT}">{t}{dot}</div>'
+            f'{sub}</div>')
+
+
+_ROW = f"display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid {BORDER};"
+
+
 def render_watchlist(tickers, heading: str, empty_msg: str) -> None:
-    """Karta z cena, zmiana dnia i sparkline dla listy tickerow (Premium i Free)."""
+    """Karta z cena, zmiana dnia i sparkline 3M dla listy tickerow (Premium i Free)."""
     st.markdown(f"#### {heading}")
     tickers = sorted(tickers)
     if not tickers:
         st.caption(empty_msg)
         return
+    rows = []
     for t in tickers[:10]:
         try:
             s = download_single(t, period="3mo")
             chg = ms.daily_change(s.to_frame(t)) if s is not None else pd.Series(dtype=float)
             if s is None or chg.empty:
-                st.caption(f"{t}: brak danych")
-                continue
-            c1, c2 = st.columns([1, 1])
-            c1.markdown(f"**{t}** {s.iloc[-1]:,.2f}  \n"
-                        f"<span style='color:{color_for_value(chg.iloc[0])}'>{chg.iloc[0]*100:+.2f}%</span>",
-                        unsafe_allow_html=True)
-            c2.plotly_chart(sparkline_chart(s, height=50, fill=False,
-                                            color=GREEN if s.iloc[-1] >= s.iloc[0] else RED),
-                            width="stretch", key=f"wl_spark_{t}")
+                raise ValueError("no data")
+            color = GREEN if s.iloc[-1] >= s.iloc[0] else RED
+            spark = _sparkline_svg(s, color, height=24, fill=False)
+            rows.append(
+                f'<div style="{_ROW}">{_ticker_block(t)}'
+                f'<div style="width:80px;flex:none">{spark}</div>'
+                f'<div style="text-align:right;flex:none"><div style="font-size:14px;font-weight:600;color:{TEXT};'
+                f'font-variant-numeric:tabular-nums">{s.iloc[-1]:,.2f}</div>'
+                f'<div style="margin-top:2px">{_pill(float(chg.iloc[0]))}</div></div></div>')
         except Exception:
-            st.caption(f"{t}: brak danych")
+            rows.append(f'<div style="{_ROW}"><div style="font-size:14px;font-weight:600;color:{TEXT}">{t}</div>'
+                        f'<div style="font-size:12px;color:{MUTED}">brak danych</div></div>')
+    st.html(card_html("".join(rows), pad="4px 16px"))
 
 
 def render_week_earnings(ls) -> None:
     st.markdown("#### Wyniki w tym tygodniu")
-    tickers = tuple(ms.pulpit_earnings_tickers(get_watchlist(ls)))
+    wl = get_watchlist(ls)
+    tickers = tuple(ms.pulpit_earnings_tickers(wl))
     df = bulk_fetch_earnings_calendar(tickers, window_days=7)
     if df is None or df.empty:
         st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
@@ -258,28 +301,58 @@ def render_week_earnings(ls) -> None:
         return
     order = {t: i for i, t in enumerate(tickers)}
     df = df.assign(_o=df["ticker"].map(order)).sort_values(["_o", "date"]).head(10)
+    rows = []
     for _, r in df.iterrows():
-        st.markdown(f"**{r['ticker']}** · {r['date']:%d.%m} · "
-                    f"{_status_badge(r['date'], r.get('eps_actual'), r.get('eps_estimate'))}")
+        n = (r["date"].normalize() - today).days
+        if n <= 0:
+            status = (f'<span style="background:{GOLD_SOFT};color:{GOLD};font-size:12px;padding:2px 8px;'
+                      f'border-radius:999px">dziś</span>')
+        else:
+            status = f'<span style="color:{MUTED};font-size:12px;white-space:nowrap">{days_label(n)}</span>'
+        dot = (f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{GOLD};'
+               f'margin-left:6px;vertical-align:middle"></span>') if r["ticker"] in wl else ""
+        rows.append(
+            f'<div style="{_ROW}">'
+            f'<div style="width:40px;flex:none;text-align:center;background:{BG_HOVER};border-radius:8px;padding:4px 0">'
+            f'<div style="font-size:16px;font-weight:600;color:{TEXT};line-height:1.2">{r["date"].day}</div>'
+            f'<div style="font-size:11px;color:{MUTED}">{short_month_pl(r["date"])}</div></div>'
+            f'{_ticker_block(r["ticker"], dot)}'
+            f'<div style="flex:none">{status}</div></div>')
+    st.html(card_html("".join(rows), pad="4px 16px"))
+
+
+def _movers_col(title: str, color: str, series: pd.Series) -> str:
+    rows = "".join(
+        f'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid {BORDER}">'
+        f'{_ticker_block(t)}{_pill(float(v))}</div>'
+        for t, v in series.items())
+    return (f'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:{color};'
+            f'padding:6px 0 2px">{title}</div>{rows}</div>')
 
 
 @st.fragment
 def render_movers() -> None:
     st.markdown("#### Wygrani / przegrani dnia")
-    for label, universe in (("S&P 500", ALL_SP500_TICKERS), ("GPW", ALL_GPW_TICKERS)):
-        with st.spinner(f"Liczę zmiany {label}…"):
-            try:
-                gainers, losers = ms.top_movers(ms.market_movers(tuple(universe)), n=5)
-            except Exception:
-                unavailable(label)
-                continue
-        if gainers.empty:
-            unavailable(label)
-            continue
-        st.caption(label)
-        g, l = st.columns(2)
-        g.dataframe((gainers * 100).round(2).rename("% d/d"), width="stretch")
-        l.dataframe((losers * 100).round(2).rename("% d/d"), width="stretch")
+    try:
+        market = st.segmented_control("Rynek", ["S&P 500", "GPW"], default="S&P 500",
+                                      key="mov_market", label_visibility="collapsed")
+    except Exception:
+        market = st.radio("Rynek", ["S&P 500", "GPW"], horizontal=True, key="mov_market_r",
+                          label_visibility="collapsed")
+    market = market or "S&P 500"
+    universe = ALL_SP500_TICKERS if market == "S&P 500" else ALL_GPW_TICKERS
+    with st.spinner(f"Liczę zmiany {market}…"):
+        try:
+            gainers, losers = ms.top_movers(ms.market_movers(tuple(universe)), n=5)
+        except Exception:
+            unavailable(market)
+            return
+    if gainers.empty:
+        unavailable(market)
+        return
+    st.html(card_html(
+        f'<div style="display:flex;gap:16px">{_movers_col("Wzrosty", GREEN, gainers)}'
+        f'{_movers_col("Spadki", RED, losers)}</div>', pad="4px 16px"))
 
 
 # --- 5. Top 5 ETF + wyniki 5 lat ------------------------------------------------

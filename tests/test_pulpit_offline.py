@@ -82,3 +82,21 @@ def test_premium_pulpit_no_teasers():
     assert _html(at).count("🔒") == 0
     assert "Wyniki strategii" in _md(at)
     assert "Moja watchlista" in _md(at)
+
+
+def test_pulpit_label_helpers():
+    import re
+    src = (Path(APP).parent / PULPIT).read_text(encoding="utf-8")
+    ns = {"pd": pd}
+    m = re.search(r"^_MONTHS_SHORT_PL = .*?\n", src, re.M)
+    assert m
+    exec(m.group(0), ns)
+    for name in ("short_month_pl", "days_label"):
+        m = re.search(rf"^def {name}\(.*?\n\n\n", src, re.S | re.M)
+        assert m, name
+        exec(m.group(0), ns)
+    assert ns["short_month_pl"]("2026-11-17") == "lis"
+    assert ns["short_month_pl"]("2026-10-01") == "paź"
+    assert ns["days_label"](0) == "dziś"
+    assert ns["days_label"](1) == "jutro"
+    assert ns["days_label"](4) == "za 4 dni"
