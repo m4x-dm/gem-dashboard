@@ -24,7 +24,7 @@ from data.sp500_universe import ALL_SP500_TICKERS
 
 
 
-st.markdown("# 👥 Bulk Insider Screener")
+st.markdown("# Bulk Insider Screener")
 st.caption(
     "Bulk insider activity dla SP500 (456 spolek). "
     "Window: ostatnie 6 mc. ETF wykluczone (no insider data). "

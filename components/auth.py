@@ -89,7 +89,11 @@ def deactivate():
 
 
 def render_lock_screen(icon: str, title: str, desc: str) -> None:
-    """Renderuje ekran blokady z CTA zakupu."""
+    """Renderuje ekran blokady z CTA zakupu.
+
+    `icon` (np. ":material/dashboard:") jest ignorowany — w HTML nie da sie wyrenderowac
+    ikony Material; zawsze pokazujemy neutralna klodke.
+    """
     st.html(f"""
     <div style="max-width:520px;margin:60px auto;text-align:center;padding:44px 32px;
                 background:{BG_CARD};border-radius:14px;box-shadow:{SHADOW};">

@@ -15,7 +15,7 @@ from components.constants import GREEN, RED, PERIOD_MAP_FULL, SHADOW
 from components.sidebar import get_risk_free
 
 
-st.markdown("# 🔗 Analiza Intermarket")
+st.markdown("# Analiza Intermarket")
 st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa")
 
 # Assets

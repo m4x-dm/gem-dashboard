@@ -27,7 +27,7 @@ from components.charts import (
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
 
 
-st.markdown("# ₿ Kryptowaluty — Top 200")
+st.markdown("# Kryptowaluty — Top 200")
 
 # ---------------------------------------------------------------------------
 # Wspolne: wybor kategorii

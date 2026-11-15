@@ -42,7 +42,7 @@ def _cagr_monthly(s: pd.Series) -> float:
     return float((s.iloc[-1] / s.iloc[0]) ** (1 / yrs) - 1)
 
 
-st.markdown("# 📏 Stopy zwrotu dlugoterminowe")
+st.markdown("# Stopy zwrotu dlugoterminowe")
 st.caption(
     "Porownanie ETF-ow na horyzoncie do 30 lat: stopy skumulowane i srednioroczne (CAGR), "
     "lata kalendarzowe, okna kroczace oraz wzrost kapitalu z miarami ryzyka. Dane miesieczne."

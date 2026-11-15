@@ -46,7 +46,7 @@ if st.session_state.get("sp500_pending_view") == "deep_dive" and _pending_dd_tic
         f"Kliknij ostatni tab **'📈 Sprawozdania Q'** (8-my) zeby wejsc w deep dive."
     )
 
-st.markdown("# 🇺🇸 Amerykanskie Akcje S&P 500")
+st.markdown("# Amerykanskie Akcje S&P 500")
 
 # ---------------------------------------------------------------------------
 # Wspolne: wybor sektora

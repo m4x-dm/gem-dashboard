@@ -21,7 +21,7 @@ from components.charts import (
 from components.cards import stats_table
 
 
-st.markdown("# 🏗️ Portfolio Builder")
+st.markdown("# Portfolio Builder")
 st.caption("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki")
 
 # ---------------------------------------------------------------------------

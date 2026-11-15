@@ -381,7 +381,7 @@ def render_side_by_side_tab() -> None:
             st.info("Za malo wspolnych danych do RS.")
 
 
-st.markdown("# ⚖️ Porównaj")
+st.markdown("# Porównaj")
 tab_charts, tab_h2h, tab_sbs = st.tabs(["📈 Wykresy", "⚖️ Head-to-head", "🔀 Side-by-side"])
 with tab_charts:
     render_charts_tab()

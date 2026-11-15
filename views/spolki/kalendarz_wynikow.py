@@ -235,7 +235,7 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
 
 
 # Header
-st.markdown("# 📅 Earnings Calendar")
+st.markdown("# Earnings Calendar")
 st.caption(
     "Nadchodzace i niedawne raporty (±28 dni) dla SP500 + GPW. "
     "Kliknij ⭐ aby dodac spolke do watchlistu. "

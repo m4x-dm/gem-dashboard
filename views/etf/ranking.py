@@ -10,7 +10,7 @@ from components.formatting import fmt_pct
 from components.charts import ranking_bar_chart, category_pie
 
 
-st.markdown("# 📊 Ranking Momentum")
+st.markdown("# Ranking Momentum")
 
 # Pobierz dane
 tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", [])))

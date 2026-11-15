@@ -46,7 +46,7 @@ if st.session_state.get("gpw_pending_view") == "deep_dive" and _pending_dd_ticke
         f"Kliknij ostatni tab **'📈 Sprawozdania Q'** (8-my) zeby wejsc w deep dive."
     )
 
-st.markdown("# 🇵🇱 Polskie Akcje GPW")
+st.markdown("# Polskie Akcje GPW")
 
 # ---------------------------------------------------------------------------
 # Wspolne: wybor indeksu

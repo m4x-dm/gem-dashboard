@@ -21,7 +21,7 @@ from components.formatting import fmt_pct, fmt_number, color_for_value
 from components.constants import GOLD, GREEN, RED, CHART_COLORS
 
 
-st.markdown("# 🥇 GEM Gold Momentum")
+st.markdown("# GEM Gold Momentum")
 st.caption(
     "Momentum ze zlotem wg inwestomat.eu, w wersji GEM: momentum 12M wybiera miedzy Nasdaq-100 (QQQ), "
     "zlotem i bonami 3M, a w galezi akcji najsilniejszy z QQQ, rynkow rozwinietych ex-US (EFA) "

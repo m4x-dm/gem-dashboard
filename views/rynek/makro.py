@@ -13,7 +13,7 @@ from components.charts import sparkline_chart
 from components.cards import macro_card
 
 
-st.markdown("# 🌍 Makro Dashboard")
+st.markdown("# Makro Dashboard")
 st.caption("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM")
 
 # ---------------------------------------------------------------------------

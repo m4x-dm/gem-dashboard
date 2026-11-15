@@ -309,7 +309,7 @@ def render_calendar_tab(prices, signal_periods) -> None:
     st.html(legend_html)
 
 
-st.markdown("# 🎯 Sygnał GEM")
+st.markdown("# Sygnał GEM")
 rf = get_risk_free()
 
 tab_now, tab_hist, tab_stats, tab_cal = st.tabs(["🎯 Teraz", "📜 Historia", "📊 Statystyki", "📅 Kalendarz"])

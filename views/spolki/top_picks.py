@@ -396,7 +396,7 @@ def render_strategia(strategy: str) -> None:
 
 # ====== Render strony ======
 
-st.markdown("# 🎯 Top Picks — piatka miesiaca")
+st.markdown("# Top Picks — piatka miesiaca")
 st.caption(
     "Trzy niezalezne reguly wybieraja po piatce spolek pierwszego dnia miesiaca. "
     "Kazda patrzy na co innego: cenowe momentum, jakosc wynikow kwartalnych albo "

@@ -11,7 +11,7 @@ from components.charts import drawdown_chart, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL, RED
 
 
-st.markdown("# 📉 Analiza Drawdownow")
+st.markdown("# Analiza Drawdownow")
 st.caption("Top spadki od szczytu, czas trwania, czas odbudowy")
 
 # --- Config ---

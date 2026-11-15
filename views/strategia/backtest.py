@@ -12,7 +12,7 @@ from components.charts import equity_chart
 from components.formatting import fmt_number, GOLD, BG_CARD, BORDER, MUTED, GREEN, RED
 
 
-st.markdown("# 🧪 Backtest strategii")
+st.markdown("# Backtest strategii")
 
 # Parametry
 col1, col2, col3, col4 = st.columns(4)

@@ -4,7 +4,7 @@ import streamlit as st
 from components.sidebar import render_footer
 
 
-st.markdown("# 📚 O strategii GEM")
+st.markdown("# O strategii GEM")
 
 st.markdown("""
 ## Czym jest GEM?

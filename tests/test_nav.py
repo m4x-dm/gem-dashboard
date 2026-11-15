@@ -94,7 +94,7 @@ def test_krypto_is_last_section():
 def test_access_info_unknown_page_fails_closed():
     free, icon, title, desc = nav.access_info("Nieistniejaca strona")
     assert free is False
-    assert icon == "🔒" and title == "Nieistniejaca strona"
+    assert icon == ":material/lock:" and title == "Nieistniejaca strona"
     assert "Premium" in desc
 
 
@@ -113,3 +113,16 @@ def test_navigation_built_before_sidebar():
     # Kolejnosc w routerze: st.navigation przed setup_sidebar (deep linki).
     src = (ROOT / "app.py").read_text(encoding="utf-8")
     assert src.index("st.navigation(") < src.index("\nsetup_sidebar()")
+
+
+def test_icons_are_material():
+    for p in nav.PAGES:
+        assert p.icon.startswith(":material/"), p.key
+
+
+def test_page_titles_have_no_emoji():
+    import re
+    for f in (ROOT / "views").rglob("*.py"):
+        m = re.search(r'st\.markdown\("# ([^"]*)"', f.read_text(encoding="utf-8"))
+        assert m, f
+        assert not any(ord(ch) > 0x2FFF for ch in m.group(1)), f

@@ -14,7 +14,7 @@ from components.formatting import fmt_pct
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
 
 
-st.markdown("# 🔄 Rotacja Sektorowa")
+st.markdown("# Rotacja Sektorowa")
 st.caption("Momentum 11 sektorow GICS — ktory sektor prowadzi?")
 
 # Sector ETFs (SPDR Select Sector)

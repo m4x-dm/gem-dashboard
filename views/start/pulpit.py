@@ -318,7 +318,7 @@ def render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats) -> N
 
 
 # =============================================================================
-st.markdown("# 📈 Pulpit")
+st.markdown("# Pulpit")
 try:
     render_alerts()
 except Exception:

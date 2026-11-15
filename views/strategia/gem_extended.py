@@ -15,7 +15,7 @@ from components.cards import stats_table
 from components.charts import equity_chart
 
 
-st.markdown("# 🚀 GEM Extended — backtest rozszerzonego universe")
+st.markdown("# GEM Extended — backtest rozszerzonego universe")
 st.caption(
     "Klasyczny GEM (Antonacci 2014) trzyma 100% w jednym aktywie z 5 ETF (QQQ/VEA/EEM/ACWI/AGG). "
     "GEM Extended pozwala dodac wiecej kandydatow (GLD, TLT, VNQ, IWM, BTC) i trzymac top N "

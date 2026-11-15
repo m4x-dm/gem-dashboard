@@ -18,7 +18,7 @@ from components.charts import _base_layout
 from components.constants import GOLD, SHADOW
 
 
-st.markdown("# 🔎 Cross-Asset Screener")
+st.markdown("# Cross-Asset Screener")
 st.caption("Jednolity ranking momentum ze wszystkich klas aktywow")
 
 # ---------------------------------------------------------------------------

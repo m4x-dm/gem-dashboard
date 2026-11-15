@@ -14,7 +14,7 @@ from components.formatting import fmt_pct, color_for_value, BORDER
 from components.constants import PERIOD_MAP_FULL
 
 
-st.markdown("# 💱 Waluta PLN/USD")
+st.markdown("# Waluta PLN/USD")
 st.caption("Wplyw kursu USD/PLN na zwroty ETF-ow — realne zwroty polskiego inwestora")
 
 USDPLN_TICKER = "USDPLN=X"

@@ -12,7 +12,7 @@ from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, SHADOW
 
 
-st.markdown("# 🎲 Monte Carlo")
+st.markdown("# Monte Carlo")
 st.caption("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?")
 
 # --- Config ---

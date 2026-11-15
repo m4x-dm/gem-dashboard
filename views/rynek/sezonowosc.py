@@ -12,7 +12,7 @@ from components.charts import seasonality_heatmap, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL
 
 
-st.markdown("# 📅 Sezonowosc")
+st.markdown("# Sezonowosc")
 st.caption("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May")
 
 # --- Ticker select ---

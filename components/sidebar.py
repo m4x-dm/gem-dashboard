@@ -142,12 +142,12 @@ def setup_sidebar():
     inject_css()
 
     with st.sidebar:
-        st.markdown("## 📈 GEM Dashboard")
+        st.markdown("## GEM Dashboard")
         st.caption("Global Equity Momentum — analiza ETF-ow")
         st.markdown(
             f'<a href="{PORTAL_URL}?utm_source=gem-dashboard&utm_medium=app&utm_campaign=sidebar" '
             f'target="_blank" rel="noopener" style="color:{GOLD};font-size:13px;text-decoration:none;">'
-            '📚 Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
+            'Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
             unsafe_allow_html=True,
         )
         st.divider()
@@ -159,14 +159,14 @@ def setup_sidebar():
                 f'<div style="background:{GOLD_SOFT};'
                 'border-radius:10px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
                 f'<span style="color:{GOLD};font-weight:650;font-size:13px;">'
-                '⭐ Premium aktywny</span></div>',
+                'Premium aktywny</span></div>',
                 unsafe_allow_html=True,
             )
             if st.button("Wyloguj Premium", width="stretch"):
                 deactivate()
                 st.rerun()
         else:
-            with st.expander("🔑 Aktywuj Premium"):
+            with st.expander("Aktywuj Premium", icon=":material/key:"):
                 code_input = st.text_input(
                     "Kod aktywacyjny",
                     placeholder="GEM4-XXXX-XXXX-XXXX",
@@ -189,7 +189,7 @@ def setup_sidebar():
         st.divider()
 
         # === ULUBIONE TICKERY ===
-        st.markdown("### ⭐ Ulubione")
+        st.markdown("### Ulubione")
         if "favorites" not in st.session_state:
             st.session_state["favorites"] = set()
 
@@ -212,7 +212,7 @@ def setup_sidebar():
         st.divider()
 
         # === ALERTY CENOWE ===
-        st.markdown("### 🔔 Alerty")
+        st.markdown("### Alerty")
         if "alerts" not in st.session_state:
             st.session_state["alerts"] = []
 
@@ -249,7 +249,7 @@ def setup_sidebar():
         st.divider()
 
         # Ustawienia
-        st.markdown("### ⚙️ Ustawienia")
+        st.markdown("### Ustawienia")
 
         manual_rf = st.checkbox("Reczna stopa wolna od ryzyka",
                                 value="risk_free_manual" in st.session_state)
@@ -264,7 +264,7 @@ def setup_sidebar():
         st.divider()
 
         # Dodaj wlasny ticker
-        st.markdown("### ➕ Dodaj ticker")
+        st.markdown("### Dodaj ticker")
         custom_ticker = st.text_input("Ticker (np. ARKK)", max_chars=10)
         if st.button("Dodaj") and custom_ticker:
             import re
@@ -293,7 +293,7 @@ def setup_sidebar():
         st.divider()
 
         # Odswiezenie danych
-        if st.button("🔄 Odswiez dane", width="stretch"):
+        if st.button("Odswiez dane", icon=":material/refresh:", width="stretch"):
             st.cache_data.clear()
             st.toast("Cache wyczyszczony — dane zostana pobrane od nowa.")
             st.rerun()
