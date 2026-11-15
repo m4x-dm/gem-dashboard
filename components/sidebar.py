@@ -1,6 +1,7 @@
 """Wspolna konfiguracja sidebar i CSS dla wszystkich stron."""
 
 import streamlit as st
+from components.constants import BG2, BG_CARD, BG_HOVER, BORDER, TEXT, MUTED, SHADOW, GOLD, GOLD_SOFT
 from components.auth import init_auth, is_premium, activate_code, deactivate, NAFFY_URL
 
 PORTAL_URL = "https://inwestowanie.edu.pl/"
@@ -8,7 +9,7 @@ PORTAL_URL = "https://inwestowanie.edu.pl/"
 
 def inject_css():
     """Globalny CSS — ukrycie menu, stylowanie sidebar i kart."""
-    st.markdown("""
+    css = """
     <style>
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -16,125 +17,127 @@ def inject_css():
         /* Ukryj deploy button ale zachowaj sidebar toggle */
         [data-testid="stToolbar"] button[kind="header"] {display: none;}
 
+        html, body, [class*="st-"] { font-variant-numeric: tabular-nums; }
+
         /* --- Sidebar --- */
-        [data-testid="stSidebar"] {
-            background-color: #111827;
-        }
-
-        /* Ukryj scrollbar w sidebar zachowujac scroll */
+        [data-testid="stSidebar"] { background-color: __BG2__; }
         [data-testid="stSidebar"] > div:first-child {
-            scrollbar-width: none;           /* Firefox */
-            -ms-overflow-style: none;        /* IE/Edge */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
-        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar {
-            display: none;                   /* Chrome/Safari */
-        }
+        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar { display: none; }
 
-        /* Nav links */
+        /* Nav links (sidebar, mobile) */
         a[data-testid="stSidebarNavLink"] {
             border-radius: 8px;
             padding: 6px 12px;
             margin: 2px 0;
-            transition: background-color 0.2s, border-left 0.2s;
-            border-left: 3px solid transparent;
+            color: __MUTED__;
+            transition: background-color 0.2s;
         }
-        a[data-testid="stSidebarNavLink"]:hover {
-            background-color: rgba(201,168,76,0.08);
-            border-left: 3px solid #C9A84C;
-        }
+        a[data-testid="stSidebarNavLink"]:hover { background-color: __BG_HOVER__; }
         a[data-testid="stSidebarNavLink"][aria-current="page"] {
-            background-color: rgba(201,168,76,0.12);
-            border-left: 3px solid #C9A84C;
+            background-color: __BG_HOVER__;
+            color: #fff;
             font-weight: 600;
         }
 
-        /* Separator between ETF section (pages 0-6, incl. 6_stopy_zwrotu) and market sections (7-10)
-           UWAGA: nth-child(9) = 9. link w sidebar (strona 7_sp500).
-           Jesli dodasz/usuniesz strone, zaktualizuj te indeksy! */
-        a[data-testid="stSidebarNavLink"]:nth-child(9) {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(201,168,76,0.15);
+        /* --- Gorne menu nawigacji --- */
+        a[data-testid="stTopNavLink"] {
+            color: __MUTED__;
+            font-size: 13px;
+            border-radius: 8px;
+            padding: 7px 12px;
+            transition: background-color 0.2s, color 0.2s;
         }
-
-        /* Separator between market sections (7-10) and tools (11-13) */
-        a[data-testid="stSidebarNavLink"]:nth-child(13) {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(201,168,76,0.15);
+        a[data-testid="stTopNavLink"]:hover { background-color: __BG_HOVER__; color: __TEXT__; }
+        a[data-testid="stTopNavLink"][aria-current="page"],
+        a[data-testid="stTopNavLink"][aria-selected="true"] {
+            background-color: __BG_HOVER__;
+            color: #fff;
         }
-
-        /* Separator between tools (11-13) and analytics (14-25) */
-        a[data-testid="stSidebarNavLink"]:nth-child(16) {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(201,168,76,0.15);
-        }
+        [data-testid="stTopNavDropdownLink"] { border-radius: 8px; }
 
         /* --- Metrics --- */
         .stMetric {
-            background-color: #141929;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(201,168,76,0.2);
-            transition: border-color 0.2s;
+            background-color: __BG_CARD__;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: none;
+            box-shadow: __SHADOW__;
         }
-        .stMetric:hover {
-            border-color: rgba(201,168,76,0.45);
+        .stMetric [data-testid="stMetricLabel"] {
+            color: __MUTED__;
+            font-size: 12px;
+            text-transform: none;
         }
+        .stMetric [data-testid="stMetricValue"] { font-weight: 650; }
 
-        /* --- Tabs --- */
+        /* --- Tabs (segmentowane pigulki) --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 4px;
-            background-color: rgba(20,25,41,0.5);
-            border-radius: 10px;
-            padding: 4px;
+            background: transparent;
+            padding: 0;
         }
         .stTabs [data-baseweb="tab"] {
             border-radius: 8px;
-            padding: 8px 16px;
+            padding: 7px 12px;
+            color: __MUTED__;
             transition: background-color 0.2s;
         }
-        .stTabs [data-baseweb="tab"]:hover {
-            background-color: rgba(201,168,76,0.08);
-        }
+        .stTabs [data-baseweb="tab"]:hover { background-color: __BG_HOVER__; }
         .stTabs [aria-selected="true"] {
-            background-color: rgba(201,168,76,0.15) !important;
+            background-color: __BG_HOVER__ !important;
+            color: __TEXT__ !important;
+        }
+        .stTabs [data-baseweb="tab-highlight"],
+        .stTabs [data-baseweb="tab-border"] { display: none; }
+
+        /* --- Naglowki --- */
+        h1 {
+            font-weight: 650;
+            font-size: clamp(1.5rem, 3vw, 1.9rem);
+            letter-spacing: -0.01em;
+        }
+        h3 { font-weight: 600; font-size: 1.1rem; }
+
+        /* --- Expandery i kontenery z ramka --- */
+        [data-testid="stExpander"] details,
+        [data-testid="stExpander"],
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: __BORDER__;
+            border-radius: 14px;
         }
 
         /* --- DataFrames --- */
-        .stDataFrame {
-            border-radius: 8px;
-        }
+        .stDataFrame { border-radius: 8px; }
         .stDataFrame [data-testid="stDataFrameResizable"] th {
-            text-transform: uppercase;
             font-size: 11px;
-            letter-spacing: 0.05em;
-            color: #C9A84C;
+            color: __MUTED__;
+            text-transform: none;
         }
 
         /* --- Plotly charts container --- */
-        .stPlotlyChart {
-            border-radius: 8px;
-            overflow: hidden;
-        }
+        .stPlotlyChart { border-radius: 8px; overflow: hidden; }
 
         /* --- Responsive mobile --- */
         @media (max-width: 768px) {
-            .stTabs [data-baseweb="tab-list"] {
-                flex-wrap: wrap;
-                gap: 2px;
-            }
-            .stTabs [data-baseweb="tab"] {
-                padding: 6px 10px;
-                font-size: 0.8rem;
-            }
-            .stMetric { padding: 8px; }
+            .stTabs [data-baseweb="tab-list"] { flex-wrap: wrap; gap: 2px; }
+            .stTabs [data-baseweb="tab"] { padding: 6px 10px; font-size: 0.8rem; }
+            .stMetric { padding: 10px 12px; }
             .stDataFrame [data-testid="stDataFrameResizable"] th { font-size: 9px; }
         }
-
+        /* --- Pulpit: kafelki rynku --- */
+        .gem-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        @media (max-width: 760px) { .gem-tiles { grid-template-columns:repeat(2,1fr); } }
     </style>
-    """, unsafe_allow_html=True)
+    """
+    for key, val in {
+        "__BG2__": BG2, "__BG_CARD__": BG_CARD, "__BG_HOVER__": BG_HOVER,
+        "__BORDER__": BORDER, "__TEXT__": TEXT, "__MUTED__": MUTED, "__SHADOW__": SHADOW,
+    }.items():
+        css = css.replace(key, val)
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def setup_sidebar():
@@ -142,12 +145,12 @@ def setup_sidebar():
     inject_css()
 
     with st.sidebar:
-        st.markdown("## 📈 GEM Dashboard")
+        st.markdown("## GEM Dashboard")
         st.caption("Global Equity Momentum — analiza ETF-ow")
         st.markdown(
             f'<a href="{PORTAL_URL}?utm_source=gem-dashboard&utm_medium=app&utm_campaign=sidebar" '
-            'target="_blank" rel="noopener" style="color:#C9A84C;font-size:13px;text-decoration:none;">'
-            '📚 Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
+            f'target="_blank" rel="noopener" style="color:{GOLD};font-size:13px;text-decoration:none;">'
+            'Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
             unsafe_allow_html=True,
         )
         st.divider()
@@ -156,17 +159,17 @@ def setup_sidebar():
         init_auth()
         if is_premium():
             st.markdown(
-                '<div style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);'
-                'border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
-                '<span style="color:#C9A84C;font-weight:700;font-size:13px;">'
-                '⭐ Premium aktywny</span></div>',
+                f'<div style="background:{GOLD_SOFT};'
+                'border-radius:10px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
+                f'<span style="color:{GOLD};font-weight:650;font-size:13px;">'
+                'Premium aktywny</span></div>',
                 unsafe_allow_html=True,
             )
             if st.button("Wyloguj Premium", width="stretch"):
                 deactivate()
                 st.rerun()
         else:
-            with st.expander("🔑 Aktywuj Premium"):
+            with st.expander("Aktywuj Premium", icon=":material/key:"):
                 code_input = st.text_input(
                     "Kod aktywacyjny",
                     placeholder="GEM4-XXXX-XXXX-XXXX",
@@ -182,14 +185,14 @@ def setup_sidebar():
                     else:
                         st.warning("Wpisz kod aktywacyjny.")
                 st.markdown(
-                    f'<a href="{NAFFY_URL}" target="_blank" style="color:#C9A84C;font-size:12px;">'
+                    f'<a href="{NAFFY_URL}" target="_blank" style="color:{GOLD};font-size:12px;">'
                     'Kup dostep Premium (49 zl)</a>',
                     unsafe_allow_html=True,
                 )
         st.divider()
 
         # === ULUBIONE TICKERY ===
-        st.markdown("### ⭐ Ulubione")
+        st.markdown("### Ulubione")
         if "favorites" not in st.session_state:
             st.session_state["favorites"] = set()
 
@@ -212,7 +215,7 @@ def setup_sidebar():
         st.divider()
 
         # === ALERTY CENOWE ===
-        st.markdown("### 🔔 Alerty")
+        st.markdown("### Alerty")
         if "alerts" not in st.session_state:
             st.session_state["alerts"] = []
 
@@ -249,7 +252,7 @@ def setup_sidebar():
         st.divider()
 
         # Ustawienia
-        st.markdown("### ⚙️ Ustawienia")
+        st.markdown("### Ustawienia")
 
         manual_rf = st.checkbox("Reczna stopa wolna od ryzyka",
                                 value="risk_free_manual" in st.session_state)
@@ -264,7 +267,7 @@ def setup_sidebar():
         st.divider()
 
         # Dodaj wlasny ticker
-        st.markdown("### ➕ Dodaj ticker")
+        st.markdown("### Dodaj ticker")
         custom_ticker = st.text_input("Ticker (np. ARKK)", max_chars=10)
         if st.button("Dodaj") and custom_ticker:
             import re
@@ -293,7 +296,7 @@ def setup_sidebar():
         st.divider()
 
         # Odswiezenie danych
-        if st.button("🔄 Odswiez dane", width="stretch"):
+        if st.button("Odswiez dane", icon=":material/refresh:", width="stretch"):
             st.cache_data.clear()
             st.toast("Cache wyczyszczony — dane zostana pobrane od nowa.")
             st.rerun()
@@ -316,7 +319,7 @@ def render_footer():
 
     st.html(
         '<div style="text-align:center;color:#4B5563;font-size:11px;'
-        'padding:32px 16px 16px;border-top:1px solid rgba(201,168,76,0.1);'
+        f'padding:32px 16px 16px;border-top:1px solid {BORDER};'
         'margin-top:48px;letter-spacing:0.02em;line-height:1.6;max-width:700px;margin-left:auto;margin-right:auto">'
         '<p style="margin:0 0 8px;color:#6B7280;font-style:italic">'
         'Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej, '
@@ -330,7 +333,7 @@ def render_footer():
     st.markdown(
         f'<p style="text-align:center;font-size:12px;margin:0 0 16px;">'
         f'<a href="{PORTAL_URL}strategia-gem/?utm_source=gem-dashboard&utm_medium=app&utm_campaign=footer" '
-        'target="_blank" rel="noopener" style="color:#C9A84C;text-decoration:none;">'
+        f'target="_blank" rel="noopener" style="color:{GOLD};text-decoration:none;">'
         'Jak działa strategia GEM i jak inwestować w ETF-y: inwestowanie.edu.pl ↗</a></p>',
         unsafe_allow_html=True,
     )

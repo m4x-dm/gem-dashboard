@@ -17,58 +17,49 @@ streamlit run app.py
 
 ## Project Structure
 ```
-app.py                  # Entrypoint, sidebar, settings
-.streamlit/config.toml  # Dark theme (gold #C9A84C, bg #0B0E1A)
+app.py                  # ROUTER: st.navigation(position="top") z rejestru -> setup_sidebar() -> bramka Premium -> pg.run()
+.streamlit/config.toml  # Motyw B "fintech" (grafit #0E1117, karty #151922, zloto #D4B062, Inter, radius 0.75rem)
 data/
   etf_universe.py       # 37 ETFs with Polish names + categories (incl. ACWI + 6 sector SPDRs)
   gpw_universe.py       # 140 Polish stocks (WIG20:20 + mWIG40:40 + sWIG80:80) with .WA suffix
   crypto_universe.py    # ~200 cryptocurrencies with -USD suffix, 11 categories
   sp500_universe.py     # ~456 US stocks (S&P 500) with 11 GICS sectors
   downloader.py         # yfinance + stooq.com + CoinGecko fallback + CSV cache, st.cache_data, source tracking
-  cache/                # Local CSV cache for GPW indices (wig20.csv, mwig40.csv, swig80.csv) — fallback when stooq blocked on cloud
-  momentum.py           # Momentum calculations, GEM signals, backtest, seasonality, drawdowns, Monte Carlo, TA indicators, relative strength
+  cache/                # Local CSV cache for GPW indices — fallback when stooq blocked on cloud
+  momentum.py           # Momentum, GEM signals, backtests, seasonality, drawdowns, Monte Carlo, TA, RS
+  market_status.py      # Pulpit: compute_regime, signal_since, next_rebalance_date, daily_change, top_movers, market_movers (cache 1h), MARKET_TILES
 components/
-  formatting.py         # Polish formatting (%, numbers, colors)
-  charts.py             # Plotly charts (price, momentum, drawdown, sparkline, seasonality heatmap, fan chart, TA overview/MACD/RSI, picks return bar)
-  cards.py              # Signal cards, metric cards, macro cards, stats table, TA signal card, data status, alert banner, top pick cards + inline SVG sparkline, section band, kpi card (st.html)
-  pdf_report.py         # PDF report generator (reportlab) — text+tables, no charts
-  sidebar.py            # Shared sidebar config + CSS injection + favorites + alerts
-pages/
-  1_sygnal_gem.py       # Classic GEM signal + top 5 ETFs
-  2_ranking.py          # Sortable ranking table 30+ ETFs
-  3_wykresy.py          # Price, momentum, drawdown charts
-  4_porownanie.py       # Compare 2-4 ETFs/indices + stats + correlation (incl. WIG20/mWIG40/sWIG80)
-  5_backtest.py         # Backtest strategii (GEM, QQQ+SMA200, TQQQ+Momentum, porownanie)
-  6_info.py             # GEM strategy explanation (Polish)
-  6_stopy_zwrotu.py     # Long-term ETF returns up to 30 years (premium id 26, see below)
-  7_sp500.py            # S&P 500 US stocks (8 tabs: ranking, wykresy, porownanie+stats, backtest, RS, screening, finanse, sprawozdania Q)
-  8_gpw.py              # Polish stocks GPW (8 tabs: ranking, wykresy, porownanie+stats incl. WIG20/mWIG40/sWIG80, backtest, RS, screening, finanse, sprawozdania Q)
-  9_top_picks.py        # Top Picks — 3 zakladki (momentum / earnings / jakosc), miesieczne piatki SP500+GPW
-  10_kryptowaluty.py    # Crypto (7 tabs: ranking, alt/BTC ratio, wykresy, porownanie+stats, backtest, sygnaly TA, RS)
-  11_portfolio.py       # Portfolio Builder (ticker selection, weights, backtest, correlation)
-  12_screener.py        # Cross-Asset Screener (unified ranking from all 4 universes)
-  13_makro.py           # Macro Dashboard (VIX, yield curve, DXY, S&P+200MA, gold, oil)
-  14_sezonowosc.py      # Seasonality (monthly returns heatmap, avg month, Sell in May)
-  15_waluta.py          # Currency PLN/USD impact on ETF returns
-  16_drawdown.py        # Drawdown analysis (top N, duration, recovery, histogram)
-  17_sygnaly.py         # GEM signal history (timeline, stats, calendar heatmap)
-  18_monte_carlo.py     # Monte Carlo simulation (fan chart, distribution, probabilities)
-  19_sektory.py         # Sector rotation (11 GICS sectors, heatmap, cycle)
-  20_intermarket.py     # Intermarket analysis (overlay, ratio, rolling corr, regime)
-  21_side_by_side.py    # Side-by-Side comparison of two assets (price, drawdown, RS)
-  22_gem_extended.py    # GEM Extended (configurable universe + top N + safe asset fallback)
-  23_earnings_calendar.py # Earnings Calendar (±28 dni), watchlist localStorage, cross-link do F13 Sprawozdania Q
-  24_insider_screener.py  # Bulk Insider Screener SP500 (456), top buyers/sellers, sektorowa heatmapa, cross-link do F13 Insiders
-  25_gem_gold_momentum.py # GEM Gold Momentum (regula inwestomat.eu, QQQ zamiast S&P 500): QQQ/zloto/bony 3M -> galaz, potem QQQ/EFA/EEM lub bony/IEF; vs GEM klasyczny, wrazliwosc 3-15M
+  nav.py                # REJESTR STRON (PageDef: key, path, title, icon :material/..:, section, free, description) + build_navigation/go/link/by_title/access_info
+  constants.py          # Tokeny motywu B (BG, BG2, BG_CARD, BG_HOVER, BORDER, TEXT, MUTED, GOLD, GOLD_SOFT, GREEN, RED, AMBER, SHADOW, GRID, CHART_COLORS)
+  formatting.py         # Polish formatting (%, numbers, colors); re-eksport tokenow (# noqa: F401 — NIE usuwac)
+  charts.py             # Plotly charts; _base_layout = przezroczyste tlo, Inter, colorway
+  cards.py              # Karty (card_html, signal_card(compact=), metric/top etf/stats/TA/finanse/top picks...), _sparkline_svg = div z clip-path (st.html wycina <svg>!)
+  auth.py               # Premium: init_auth/is_premium/activate_code/deactivate, render_lock_screen(icon,title,desc), premium_teaser(title,desc)
+  pdf_report.py         # PDF report generator (reportlab) — Helvetica na Linuxie: przekazuj etykiety ASCII
+  sidebar.py            # setup_sidebar(): globalny CSS (inject_css) + Premium + Ulubione + Alerty + ustawienia
+views/                  # STRONY (NIE "pages/" — katalog pages/ obok st.navigation psuje deep linki)
+  start/pulpit.py       # Pulpit (domyslna): wyszukiwarka, status (sygnal + regime, rowne karty), kafelki rynku, Ulubione/watchlista, wyniki tygodnia, wygrani/przegrani, Top 5, wyniki 5 lat, PDF
+  strategia/            # sygnal.py (Teraz | Historia | Statystyki | Kalendarz), backtest.py, gem_extended.py, gem_zloto.py, o_strategii.py
+  etf/                  # ranking.py, porownaj.py (Wykresy | Head-to-head | Side-by-side), stopy_zwrotu.py, drawdowny.py
+  spolki/               # sp500.py, gpw.py (po 8 zakladek), top_picks.py, screener.py, kalendarz_wynikow.py, insiderzy.py
+  portfel/              # portfolio_builder.py, monte_carlo.py
+  rynek/                # makro.py, sektory.py, intermarket.py, sezonowosc.py, waluta.py
+  krypto/               # kryptowaluty.py (ostatnia sekcja menu)
 ```
 
-**Numeracja stron = kolejnosc w sidebarze.** Top Picks siedzi pod GPW (2026-08-07), wiec
-strony 9–23 przesunely sie o +1. Numer w nazwie pliku, `require_premium(N)` i klucz w
-`PAGE_INFO` musza sie zgadzac; URL strony bierze sie z nazwy BEZ numeru, wiec przenumerowanie
-nie psuje linkow. **Wyjatek:** `6_stopy_zwrotu.py` ma id gatingu 26 (`require_premium(26)`, `PAGE_INFO[26]`) — prefiks `6_` tylko dla kolejnosci w menu.
+**Nawigacja (od 2026-11-15, spec `docs/superpowers/specs/2026-11-15-gem-nav-restructure-design.md`):**
+- Nowa strona = plik w `views/<sekcja>/` + jeden wpis `PageDef` w `components/nav.py`. Strona NIE wola `st.set_page_config`, `setup_sidebar()` ani zadnego gatingu — robi to router. Zaczyna sie od importow i `st.markdown("# Tytul")` (bez emoji), konczy `render_footer()`.
+- URL strony = nazwa pliku (bez `url_path`; `AppTest.switch_page` hashuje nazwe pliku) -> nazwy plikow unikalne. Router rozpoznaje strone po tytule (`nav.access_info(pg.title)`, nieznana = zablokowana) -> tytuly unikalne.
+- W `app.py` `st.navigation` MUSI byc przed `setup_sidebar()` (rerun komponentu localStorage gubil strone z URL). Testy pilnuja obu regul (`tests/test_nav.py`).
+- Darmowe: Pulpit (czesciowo — `is_premium()` + `premium_teaser()` wewnatrz), Sygnal GEM (zakladka Teraz), Ranking ETF, O strategii. Reszta przez router -> `render_lock_screen`.
+- Linki miedzy stronami tylko `nav.go(key)` / `nav.link(key)` — nigdy `st.switch_page("views/...")` na sztywno. Deep dive spolki: session_state `{sp500|gpw}_deep_dive_ticker` + `{sp500|gpw}_pending_view="deep_dive"`, potem `nav.go("sp500"|"gpw")`.
+- Na stronach scalonych z zakladkami: `st.stop()` w zakladce zabija caly skrypt -> `return` z funkcji `render_*`; kazdy `st.plotly_chart`/widget dostaje unikalny `key=` z prefiksem zakladki.
+- Testy: offline `test_nav.py`, `test_auth_gate.py`, `test_pulpit_offline.py`, `test_porownaj_offline.py`, `test_market_status.py`, `test_theme.py`; sieciowy `RUN_NETWORK=1 pytest tests/test_pages_smoke.py` (24 strony, ~11 min zimny cache). W AppTest `streamlit_local_storage.LocalStorage` wisi — stubowac (patrz fixture w smoke).
+
+**Mapa stary -> nowy plik:** 0_podsumowanie -> start/pulpit; 1_sygnal_gem + 17_sygnaly -> strategia/sygnal; 5_backtest -> strategia/backtest; 22_gem_extended -> strategia/gem_extended; 25_gem_gold_momentum -> strategia/gem_zloto; 6_info -> strategia/o_strategii; 2_ranking -> etf/ranking; 3_wykresy + 4_porownanie + 21_side_by_side -> etf/porownaj; 6_stopy_zwrotu -> etf/stopy_zwrotu; 16_drawdown -> etf/drawdowny; 7_sp500 -> spolki/sp500; 8_gpw -> spolki/gpw; 9_top_picks -> spolki/top_picks; 12_screener -> spolki/screener; 23_earnings_calendar -> spolki/kalendarz_wynikow; 24_insider_screener -> spolki/insiderzy; 10_kryptowaluty -> krypto/kryptowaluty; 11_portfolio -> portfel/portfolio_builder; 18_monte_carlo -> portfel/monte_carlo; 13_makro -> rynek/makro; 19_sektory -> rynek/sektory; 20_intermarket -> rynek/intermarket; 14_sezonowosc -> rynek/sezonowosc; 15_waluta -> rynek/waluta. Opisy funkcji ponizej moga uzywac starych nazw plikow/numerow stron — mapuj wg tej listy.
 
 ## Key Design Decisions
-- **Theme:** Gold `#C9A84C` accent, dark bg `#0B0E1A` — matches inwestowanie.edu.pl
+- **Theme (B "fintech", od 2026-11-15):** tokeny w `components/constants.py`, motyw w `.streamlit/config.toml`, globalny CSS w `sidebar.inject_css`. Karty bez ramek (cien `SHADOW`, radius 14), zloto `#D4B062` tylko jako akcent, etykiety bez wersalikow, liczby tabular-nums, ikony `:material/..:` zamiast emoji. Twarde stare kolory (`#C9A84C`, `#141929`) zakazane — pilnuje `tests/test_theme.py`. Plan: `docs/superpowers/plans/2026-11-15-gem-theme-fintech.md`.
 - **Risk-free rate:** ^IRX (13-week T-bill) auto-fetched, with manual override in sidebar
 - **GEM logic:** Classic (QQQ/VEA/EEM/ACWI/AGG) + Extended (31 ETFs, composite score)
 - **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Re-test nie potwierdza, że to lepszy wybór.**
@@ -142,8 +133,7 @@ nie psuje linkow. **Wyjatek:** `6_stopy_zwrotu.py` ma id gatingu 26 (`require_pr
   - **Aggregate:** sum of 5 signals (-5 to +5). Threshold: >=3 = KUP, <=-3 = SPRZEDAJ, else NEUTRALNY. With 4 indicators (no EMA200): >=2 / <=-2.
   - Functions: `calc_ema()`, `calc_macd()`, `calc_rsi()`, `calc_bollinger()` in `momentum.py`. Charts: `ta_overview_chart()`, `macd_chart()`, `rsi_chart()` in `charts.py`. Card: `ta_signal_card()` in `cards.py`.
   - Daily signal markers on chart (BUY triangles up green, SELL triangles down red). Signal history table (last 20).
-- **Sidebar separators:** nth-child(9) = ETF→markets, nth-child(13) = markets→tools, nth-child(16) = tools→analytics
-- `pages/6_stopy_zwrotu.py` — **Stopy zwrotu dlugoterminowe** (premium, id gatingu 26; plik `6_` dla kolejnosci w menu przed S&P 500). 4 zakladki: tabela okresow 1–30 lat (CAGR/skumulowana), heatmapa lat kalendarzowych, kroczacy CAGR z rozkladem, wzrost 10 000 (log) + ryzyko. Dane miesieczne. Logika: `data/long_returns.py` (PROXY_MAP ETF→fundusz Vanguard, splice ze stop zwrotu, USD/PLN z FRED `CCUSMA02PLM618N` + yfinance). Separatory sidebar: nth-child(9/13/16).
+- `views/etf/stopy_zwrotu.py` — **Stopy zwrotu dlugoterminowe** (premium). 4 zakladki: tabela okresow 1–30 lat (CAGR/skumulowana), heatmapa lat kalendarzowych, kroczacy CAGR z rozkladem, wzrost 10 000 (log) + ryzyko. Dane miesieczne. Logika: `data/long_returns.py` (PROXY_MAP ETF→fundusz Vanguard, splice ze stop zwrotu, USD/PLN z FRED `CCUSMA02PLM618N` + yfinance).
 - **Multi-source Fallback (F2):** `download_single()` tries yfinance → stooq.com → CoinGecko. `download_prices()` (bulk) also retries failed tickers individually via `_yfinance_single()` before stooq/CoinGecko fallback. Tracks sources in `st.session_state["_data_sources"]` and failures in `["_data_failures"]`. `COINGECKO_IDS` dict in `crypto_universe.py` (~50 top coins).
 - **Small-selection download pattern:** Pages with 2-5 ticker selection (comparison, charts, RS tabs on pages 7, 8) use `download_single()` per ticker instead of bulk `download_prices()`. Each ticker gets its own cache entry and full fallback chain. More reliable than bulk download which can silently fail for individual tickers. Ranking/backtest tabs with 100+ tickers still use bulk `download_prices()`.
 - **`latest_returns()` thresholds:** yfinance returns fewer rows than ideal trading days (6mo=123 not 126, 1y=250 not 252). Minimum thresholds: 1M≥19, 3M≥58, 6M≥115, 12M≥230. Uses ideal lookback (21/63/126) capped at `n-1`. 12M fallback: simple return from `iloc[0]` to `iloc[-1]` when skip-month (273 rows) unavailable but 230+ rows available.

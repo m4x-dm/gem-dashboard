@@ -4,22 +4,24 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
-from components.constants import GOLD, BG, BG2, GRID, CHART_COLORS as COLORS  # noqa: F401
+from components.constants import GOLD, BG, BG2, GRID, TEXT, MUTED, BG_CARD, BORDER, CHART_COLORS as COLORS  # noqa: F401
 
 
 def _base_layout(title: str = "", height: int = 450) -> dict:
     """Bazowy layout dla wykresow."""
     return dict(
         template="plotly_dark",
-        paper_bgcolor=BG2,
-        plot_bgcolor=BG2,
-        title=dict(text=title, font=dict(size=16, color="#E5E7EB")),
-        font=dict(color="#9CA3AF", size=12),
-        xaxis=dict(gridcolor=GRID, showgrid=True),
-        yaxis=dict(gridcolor=GRID, showgrid=True),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        colorway=COLORS,
+        title=dict(text=title, font=dict(size=15, color=TEXT)),
+        font=dict(family="Inter, system-ui, sans-serif", color=MUTED, size=12),
+        xaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
+        yaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
         height=height,
         margin=dict(l=40, r=20, t=40, b=30),
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+        hoverlabel=dict(bgcolor=BG_CARD, bordercolor=BORDER, font_color=TEXT),
     )
 
 
@@ -231,7 +233,7 @@ def fan_chart(simulations: pd.DataFrame,
     fig = go.Figure()
 
     # Fill bands (outer to inner)
-    band_pairs = [(5, 95, "rgba(201,168,76,0.08)"), (25, 75, "rgba(201,168,76,0.18)")]
+    band_pairs = [(5, 95, "rgba(212,176,98,0.08)"), (25, 75, "rgba(212,176,98,0.18)")]
     for lo, hi, fill_color in band_pairs:
         if lo in pcts and hi in pcts:
             fig.add_trace(go.Scatter(
@@ -284,22 +286,22 @@ def ta_overview_chart(prices: pd.Series, ema_df: pd.DataFrame,
         fig.add_trace(go.Scatter(
             x=bb_clean.index, y=bb_clean["Lower"], mode="lines",
             line=dict(width=0), fill="tonexty",
-            fillcolor="rgba(201,168,76,0.08)", showlegend=False, hoverinfo="skip",
+            fillcolor="rgba(212,176,98,0.08)", showlegend=False, hoverinfo="skip",
         ))
         fig.add_trace(go.Scatter(
             x=bb_clean.index, y=bb_clean["Upper"], mode="lines",
-            line=dict(color="rgba(201,168,76,0.3)", width=1, dash="dot"), name="BB Upper",
+            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name="BB Upper",
         ))
         fig.add_trace(go.Scatter(
             x=bb_clean.index, y=bb_clean["Lower"], mode="lines",
-            line=dict(color="rgba(201,168,76,0.3)", width=1, dash="dot"), name="BB Lower",
+            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name="BB Lower",
         ))
 
     # Cena
     p = prices.dropna()
     fig.add_trace(go.Scatter(
         x=p.index, y=p.values, name="Cena", mode="lines",
-        line=dict(color="#E5E7EB", width=2),
+        line=dict(color="#E6E8EC", width=2),
     ))
 
     # EMA lines

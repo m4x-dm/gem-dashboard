@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 
 # --- Kolory ---
-GOLD = HexColor("#C9A84C")
+GOLD = HexColor("#D4B062")
 BG_DARK = HexColor("#0B0E1A")
 GREEN = HexColor("#22C55E")
 RED = HexColor("#EF4444")
