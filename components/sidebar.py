@@ -127,6 +127,9 @@ def inject_css():
             .stMetric { padding: 10px 12px; }
             .stDataFrame [data-testid="stDataFrameResizable"] th { font-size: 9px; }
         }
+        /* --- Pulpit: kafelki rynku --- */
+        .gem-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        @media (max-width: 760px) { .gem-tiles { grid-template-columns:repeat(2,1fr); } }
     </style>
     """
     for key, val in {

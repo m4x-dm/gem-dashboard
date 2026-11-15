@@ -697,10 +697,12 @@ def analyst_recos_card(recos: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def _sparkline_svg(series: pd.Series | None, color: str,
-                   width: int = 120, height: int = 34) -> str:
-    """Inline SVG sparkline — wrysowany w karte, bez osobnego st.plotly_chart.
+                   width: int = 120, height: int = 34, fill: bool = True) -> str:
+    """Sparkline wrysowany w karte (div + clip-path), bez osobnego st.plotly_chart.
 
-    Zwraca "" gdy brak danych; karta renderuje sie wtedy bez wykresu.
+    Nazwa historyczna: st.html (DOMPurify) wycina inline <svg>, a <img> z data URI
+    sie nie laduje — dlatego linia to wypelniony div przyciety `clip-path: polygon`.
+    `width` jest zachowany dla zgodnosci (os X to procenty). Zwraca "" gdy brak danych.
     """
     if series is None:
         return ""
@@ -716,29 +718,27 @@ def _sparkline_svg(series: pd.Series | None, color: str,
     lo, hi = float(vals.min()), float(vals.max())
     span = hi - lo
     n = len(vals)
-    pad = 1.5
-    usable = height - 2 * pad
-
+    thick, pad = 1.8, 1.5
+    usable = height - 2 * pad - thick
     if span <= 0:
-        ys = [height / 2] * n
+        ys = [pad + usable / 2] * n
     else:
-        ys = [height - pad - (v - lo) / span * usable for v in vals]
-    xs = [i / (n - 1) * width for i in range(n)]
+        ys = [pad + usable - (v - lo) / span * usable for v in vals]
+    xs = [i / (n - 1) * 100 for i in range(n)]
 
-    line = " ".join(
-        f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(zip(xs, ys))
-    )
-    area = f"{line} L{width:.1f},{height:.1f} L0,{height:.1f} Z"
+    top = [f"{x:.2f}% {y:.1f}px" for x, y in zip(xs, ys)]
+    bottom = [f"{x:.2f}% {y + thick:.1f}px" for x, y in reversed(list(zip(xs, ys)))]
+    line_poly = ", ".join(top + bottom)
     r, g, b = _hex_to_rgb_tuple(color)
 
-    return (
-        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
-        f'preserveAspectRatio="none" style="display:block">'
-        f'<path d="{area}" fill="rgba({r},{g},{b},0.14)" />'
-        f'<path d="{line}" fill="none" stroke="{color}" stroke-width="1.6" '
-        f'stroke-linejoin="round" stroke-linecap="round" />'
-        f'</svg>'
-    )
+    layers = ""
+    if fill:
+        area_poly = ", ".join(top + [f"100% {height}px", f"0% {height}px"])
+        layers += (f'<div style="position:absolute;inset:0;background:rgba({r},{g},{b},0.14);'
+                   f'clip-path:polygon({area_poly})"></div>')
+    layers += (f'<div style="position:absolute;inset:0;background:{color};'
+               f'clip-path:polygon({line_poly})"></div>')
+    return f'<div style="position:relative;width:100%;height:{height}px">{layers}</div>'
 
 
 def _hex_to_rgb_tuple(hex_color: str) -> tuple[int, int, int]:

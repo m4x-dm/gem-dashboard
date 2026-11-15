@@ -123,6 +123,6 @@ def test_icons_are_material():
 def test_page_titles_have_no_emoji():
     import re
     for f in (ROOT / "views").rglob("*.py"):
-        m = re.search(r'st\.markdown\("# ([^"]*)"', f.read_text(encoding="utf-8"))
+        m = re.search(r'st\.markdown\(f?"# ([^"]*)"', f.read_text(encoding="utf-8"))
         assert m, f
         assert not any(ord(ch) > 0x2FFF for ch in m.group(1)), f

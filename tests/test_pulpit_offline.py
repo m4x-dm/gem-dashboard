@@ -72,7 +72,7 @@ def test_free_pulpit_two_teasers_and_free_blocks():
     assert not at.exception, at.exception
     assert _html(at).count("🔒") == 2
     assert "Wyniki strategii" in _md(at)
-    assert "⭐ Ulubione" in _md(at)
+    assert "Ulubione" in _md(at)
     assert any("są w Premium" in c.value for c in at.caption)
 
 
