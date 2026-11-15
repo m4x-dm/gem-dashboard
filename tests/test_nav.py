@@ -59,7 +59,7 @@ def test_descriptions_present():
         assert p.description.strip(), p.key
 
 
-MIGRATED = [p for p in nav.PAGES if p.key not in {"pulpit", "sygnal", "porownaj"}]
+MIGRATED = list(nav.PAGES)
 
 
 @pytest.mark.parametrize("page", MIGRATED, ids=lambda p: p.key)
@@ -74,3 +74,12 @@ def test_no_legacy_boilerplate(page):
     assert "setup_sidebar" not in src
     assert "set_page_config" not in src
     assert 'st.switch_page("pages/' not in src
+
+
+def test_no_top_level_numbered_pages_left():
+    assert not list((ROOT / "pages").glob("*.py"))
+
+
+def test_every_page_file_is_registered():
+    on_disk = {p.relative_to(ROOT).as_posix() for p in (ROOT / "pages").glob("*/*.py")}
+    assert on_disk == {p.path for p in nav.PAGES}
