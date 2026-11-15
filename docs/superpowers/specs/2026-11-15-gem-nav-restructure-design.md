@@ -52,7 +52,7 @@ class PageDef:
     title: str        # "S&P 500"
     icon: str         # "🇺🇸"
     section: str      # "Spółki" albo "" (link bezpośredni w menu)
-    url_path: str     # "spolki-sp500"
+    description: str  # opis do ekranu blokady (z dawnego PAGE_INFO)
     free: bool        # True = cała strona darmowa
     default: bool = False
 ```
@@ -85,7 +85,7 @@ Zostaje wyłącznie na: filtry/ustawienia danej strony, aktywację/dezaktywację
 
 ## Mapa stron (27 → 24)
 
-| Sekcja | Nowy plik | Klucz / URL | Źródło | Darmowa |
+| Sekcja | Nowy plik | Klucz (URL = nazwa pliku) | Źródło | Darmowa |
 |---|---|---|---|---|
 | — | `pages/start/pulpit.py` | `pulpit` (domyślna) | `0_podsumowanie.py` + kafelki z `app.py` | częściowo |
 | Strategia GEM | `pages/strategia/sygnal.py` | `sygnal` | `1_sygnal_gem.py` + `17_sygnaly.py` | częściowo |
