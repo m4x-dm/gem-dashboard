@@ -1,7 +1,7 @@
 """Pulpit — centrum dowodzenia (domyslna strona).
 
-Darmowe: wyszukiwarka, pasek stanu (sygnal GEM, regime, wskazniki rynku), Top 5 ETF.
-Premium: watchlista, wyniki tygodnia, wygrani/przegrani, wyniki strategii 5 lat, eksport PDF.
+Darmowe: wyszukiwarka, pasek stanu (sygnal GEM, regime, wskazniki rynku), Top 5 ETF, ulubione z sidebara, wyniki strategii 5 lat.
+Premium: watchlista (localStorage), wyniki tygodnia, wygrani/przegrani, eksport PDF.
 Kazda karta renderuje sie niezaleznie — blad w jednej nie psuje reszty.
 """
 import math
@@ -90,6 +90,8 @@ def render_search() -> None:
         "🔎 Szukaj spółki (S&P 500 i GPW)", options, key="pulpit_search", on_change=_on_search,
         format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {names[t]}",
     )
+    if not PREMIUM:
+        st.caption("Szczegóły spółki (finanse, wyniki, insiderzy) są w Premium.")
     target = st.session_state.pop("_pulpit_go", None)
     if target:
         nav.go(target)
@@ -181,11 +183,12 @@ def render_market_tiles() -> list:
 
 
 # --- 4. Trzy kolumny (Premium) ------------------------------------------------
-def render_watchlist(ls) -> None:
-    st.markdown("#### ⭐ Moja watchlista")
-    tickers = sorted(get_watchlist(ls) | set(st.session_state.get("favorites", set())))
+def render_watchlist(tickers, heading: str, empty_msg: str) -> None:
+    """Karta z cena, zmiana dnia i sparkline dla listy tickerow (Premium i Free)."""
+    st.markdown(f"#### {heading}")
+    tickers = sorted(tickers)
     if not tickers:
-        st.caption("Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione).")
+        st.caption(empty_msg)
         return
     for t in tickers[:10]:
         try:
@@ -334,7 +337,10 @@ if PREMIUM:
     ls = LocalStorage()
     with col_wl:
         try:
-            render_watchlist(ls)
+            render_watchlist(
+                get_watchlist(ls) | set(st.session_state.get("favorites", set())),
+                "⭐ Moja watchlista",
+                "Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione).")
         except Exception:
             unavailable("Watchlista")
     with col_earn:
@@ -345,7 +351,12 @@ if PREMIUM:
     mov_slot = col_mov.container()
 else:
     with col_wl:
-        premium_teaser("⭐ Moja watchlista", "Twoje spółki z ceną, zmianą dnia i mini-wykresem.")
+        try:
+            render_watchlist(set(st.session_state.get("favorites", set())), "⭐ Ulubione",
+                             "Dodaj tickery w panelu bocznym (⭐ Ulubione).")
+        except Exception:
+            unavailable("Ulubione")
+        st.caption("Watchlista ze spółek S&P 500 / GPW (gwiazdki ⭐) — w Premium.")
     with col_earn:
         premium_teaser("📅 Wyniki w tym tygodniu", "Kto raportuje w tym tygodniu — najpierw Twoje spółki.")
     with col_mov:
@@ -354,11 +365,9 @@ else:
 st.divider()
 ranking, names = render_top_etf(prices, rf)
 
+show_stats = render_strategy_5y(rf)
 if PREMIUM:
-    show_stats = render_strategy_5y(rf)
     render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats)
-else:
-    premium_teaser("Wyniki strategii (5 lat)", "GEM vs QQQ, ACWI i obligacje: CAGR, Sharpe, max drawdown.")
 
 if PREMIUM:
     # Ciezkie pobieranie ~600 spolek na koncu — nie blokuje reszty strony
