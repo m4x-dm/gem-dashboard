@@ -70,9 +70,9 @@ def test_streamlit_theme_matches_tokens():
 
 def test_no_hardcoded_old_gold_in_ui_code():
     offenders = []
-    for p in list((ROOT / "pages").rglob("*.py")) + list((ROOT / "components").glob("*.py")):
+    for p in list((ROOT / "views").rglob("*.py")) + list((ROOT / "components").glob("*.py")):
         src = p.read_text(encoding="utf-8")
-        if "#C9A84C" in src or "201,168,76" in src or "#141929" in src:
+        if "#C9A84C|201,168,76|#141929" views components" in src or "201,168,76" in src or "#141929" in src:
             offenders.append(p.relative_to(ROOT).as_posix())
     assert offenders == []
 ```
@@ -100,18 +100,18 @@ def test_no_hardcoded_old_gold_in_ui_code():
 
 ### Task 3: Karty i ekrany (bez złotych ramek)
 
-**Files:** Modify `components/cards.py`, `components/auth.py`, `components/financials_ui.py`, każdy plik w `pages/**` z twardym `#C9A84C` / `201,168,76` / `#141929`; Modify `tests/test_theme.py` (usuń xfail)
+**Files:** Modify `components/cards.py`, `components/auth.py`, `components/financials_ui.py`, każdy plik w `views/**` z twardym `#C9A84C` / `"#C9A84C|201,168,76|#141929" views components` / `#141929`; Modify `tests/test_theme.py` (usuń xfail)
 
 - [ ] W `components/cards.py` dodaj helper `card_html(inner: str, accent: str | None = None, pad: str = "16px 18px") -> str` zwracający `<div style="background:BG_CARD;border-radius:14px;padding:..;box-shadow:SHADOW;{'border-left:3px solid '+accent if accent else ''}">{inner}</div>` i użyj go we wszystkich kartach zamiast `border:2px solid`/`border:1px solid {BORDER}`.
 - [ ] `signal_card`: bez emoji-ikony 3rem; etykieta „Sygnał GEM” (MUTED, 12px), wartość `"{signal_label} · {signal}"` (28px, 650, kolor sygnału), cienki akcent po lewej w kolorze sygnału. Dodaj parametr `compact: bool = False` (compact → padding 16px, wartość 24px, `margin-bottom:0`) — używany na Pulpicie.
 - [ ] Pozostałe karty (`metric_row`/`_metric_card`, `top_etf_cards`, `macro_card`, `stats_table`, `comparison_card`, `ta_signal_card`, `data_status_card`, `alert_banner`, `final_value_card`, `ratios_card`, `forward_consensus_card`, `earnings_history_card`, `analyst_recos_card`, `top_pick_cards`, `section_band`, `kpi_card`): ten sam język — tło `BG_CARD`, cień, etykiety MUTED bez wersalików, kolory wartości GREEN/RED/GOLD, żadnych ramek 2 px, żadnych emoji dekoracyjnych w tytułach kart.
 - [ ] `auth.render_lock_screen` i `premium_teaser`: karta w nowym stylu, kłódka jako mały SVG lub znak „🔒” max 18px (teaser musi nadal zawierać „🔒” — testy liczą zaślepki), przycisk CTA w `GOLD` z ciemnym tekstem, `border-radius:10px`.
-- [ ] Zamień twarde kolory w `pages/**` i `components/**` na tokeny (import z `components.constants`). Sprawdzenie: `grep -rn "#C9A84C\|201,168,76\|#141929" pages components` → pusto.
+- [ ] Zamień twarde kolory w `views/**` i `components/**` na tokeny (import z `components.constants`). Sprawdzenie: `grep -rn "#C9A84C\|201,168,76\|#141929" views components` → pusto.
 - [ ] Usuń `xfail` z `test_no_hardcoded_old_gold_in_ui_code`; testy offline (w tym `test_pulpit_offline.py`, `test_porownaj_offline.py`) zielone. Commit „Theme B: restyle cards, lock screen and teasers”.
 
 ### Task 4: Menu bez emoji
 
-**Files:** Modify `components/nav.py`, wszystkie `pages/**` (pierwszy `st.markdown("# …")`), `tests/test_nav.py`
+**Files:** Modify `components/nav.py`, wszystkie `views/**` (pierwszy `st.markdown("# …")`), `tests/test_nav.py`
 
 - [ ] `PageDef.icon` → ikony Material (`st.Page(icon=":material/...:")`): pulpit `dashboard`, sygnal `track_changes`, backtest `science`, gem-extended `rocket_launch`, gem-zloto `workspace_premium`, o-strategii `menu_book`, ranking-etf `leaderboard`, porownaj `compare_arrows`, stopy-zwrotu `percent`, drawdowny `trending_down`, sp500 `flag`, gpw `flag`, top-picks `star`, screener `filter_alt`, kalendarz-wynikow `event`, insiderzy `groups`, krypto `currency_bitcoin`, portfolio-builder `pie_chart`, monte-carlo `casino`, makro `public`, sektory `donut_large`, intermarket `hub`, sezonowosc `calendar_month`, waluta `currency_exchange`. Format w rejestrze: `":material/dashboard:"`.
 - [ ] `render_lock_screen` dostaje ikonę Material — w HTML nie da się jej wyrenderować; w `app.py` przekaż do lock screena pusty/neutralny znak (lub mapuj na nic) — zmień `render_lock_screen(icon, ...)` tak, by ignorował wartości zaczynające się od `":material/"`.
@@ -121,7 +121,7 @@ def test_no_hardcoded_old_gold_in_ui_code():
 
 ### Task 5: Pulpit wg makiety (równe karty)
 
-**Files:** Modify `pages/start/pulpit.py`; testy `tests/test_pulpit_offline.py`
+**Files:** Modify `views/start/pulpit.py`; testy `tests/test_pulpit_offline.py`
 
 - [ ] Nagłówek: `# Dzień dobry` (lub „Dobry wieczór” po 18:00) + podpis z datą po polsku i „dane z zamknięcia ostatniej sesji”.
 - [ ] **Pasek stanu — uwaga użytkownika: karty sygnału i regime muszą mieć równą szerokość i wysokość.** `st.columns(2)` (równe), oba przez ten sam helper karty o stałej `min-height:132px`: lewa = `Sygnał GEM` + pill „od N dni” (GOLD_SOFT/GOLD) / wartość `"{signal_label} · {signal}"` / podpis „Następne przeliczenie: 1 grudnia”; prawa = `Regime rynku` / wartość `Risk-On` w kolorze / podpis `"{score}/100 · {desc}"`. Duża `signal_card` zostaje tylko na stronie Sygnał. Metryki 12M (`metric_row`) pod spodem bez zmian funkcjonalnych, w nowym stylu.
