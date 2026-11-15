@@ -11,8 +11,10 @@ from data.gpw_universe import GPW_CATEGORIES
 MARKET_TILES = [
     ("^VIX", "VIX"),
     ("^GSPC", "S&P 500"),
+    ("^IXIC", "Nasdaq Composite"),
     ("ETFBW20TR.WA", "WIG20 (ETF Beta)"),
     ("PLN=X", "USD/PLN"),
+    ("^TNX", "Obligacje USA (10Y yield)"),
     ("GC=F", "Złoto"),
     ("BTC-USD", "Bitcoin"),
 ]
