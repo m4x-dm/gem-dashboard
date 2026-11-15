@@ -330,8 +330,7 @@ if PREMIUM:
             render_week_earnings(ls)
         except Exception:
             unavailable("Wyniki w tym tygodniu")
-    with col_mov:
-        render_movers()
+    mov_slot = col_mov.container()
 else:
     with col_wl:
         premium_teaser("⭐ Moja watchlista", "Twoje spółki z ceną, zmianą dnia i mini-wykresem.")
@@ -348,6 +347,11 @@ if PREMIUM:
     render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats)
 else:
     premium_teaser("Wyniki strategii (5 lat)", "GEM vs QQQ, ACWI i obligacje: CAGR, Sharpe, max drawdown.")
+
+if PREMIUM:
+    # Ciezkie pobieranie ~600 spolek na koncu — nie blokuje reszty strony
+    with mov_slot:
+        render_movers()
 
 with st.expander("Status danych"):
     try:
