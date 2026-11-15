@@ -110,6 +110,39 @@ def build_signal_periods(rf: float):
     return prices, signal_periods
 
 
+def render_current_position(signal_periods) -> None:
+    """Dawny tab1 'Obecny sygnal' z 17_sygnaly.py: karta pozycji + poprzednie sygnaly."""
+    current = signal_periods[-1]
+    days_in = current["duration_days"]
+    sig = current["signal"]
+    color = SIGNAL_COLORS.get(sig, MUTED)
+    label = SIGNAL_LABELS.get(sig, sig)
+    start_str = current["start"].strftime("%Y-%m-%d")
+
+    st.html(
+        f'<div style="background:{BG_CARD};border:2px solid {color};border-radius:16px;padding:40px;text-align:center;margin-bottom:24px">'
+        f'<div style="font-size:3.5rem;font-weight:800;color:{color}">{sig}</div>'
+        f'<div style="font-size:1.2rem;color:{MUTED};margin:8px 0">{label}</div>'
+        f'<div style="font-size:2rem;font-weight:700;color:#E5E7EB;margin:16px 0">Od {days_in} dni</div>'
+        f'<div style="font-size:0.9rem;color:{MUTED}">Data ostatniej zmiany: {start_str}</div>'
+        f'</div>'
+    )
+
+    # Previous signals
+    if len(signal_periods) >= 2:
+        st.markdown("#### Poprzednie sygnaly")
+        prev = signal_periods[-5:][::-1] if len(signal_periods) >= 5 else signal_periods[::-1]
+        for sp in prev[1:]:  # skip current
+            sc = SIGNAL_COLORS.get(sp["signal"], MUTED)
+            sl = SIGNAL_LABELS.get(sp["signal"], sp["signal"])
+            st.html(
+                f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+                f'<span style="color:{sc};font-weight:700;font-size:1.1rem">{sp["signal"]} <span style="font-size:0.8rem;font-weight:400;color:{MUTED}">({sl})</span></span>'
+                f'<span style="color:{MUTED};font-size:0.85rem">{sp["start"].strftime("%Y-%m-%d")} → {sp["end"].strftime("%Y-%m-%d")} ({sp["duration_days"]} dni)</span>'
+                f'</div>'
+            )
+
+
 def render_history_tab(signal_periods) -> None:
     """Dawny tab2 'Timeline'."""
     st.subheader("Timeline sygnalow GEM")
@@ -293,6 +326,8 @@ if is_premium():
     else:
         prices_hist, periods = data
         with tab_hist:
+            render_current_position(periods)
+            st.divider()
             render_history_tab(periods)
         with tab_stats:
             render_stats_tab(periods)
