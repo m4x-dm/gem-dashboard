@@ -208,9 +208,14 @@ def render_week_earnings(ls) -> None:
     tickers = tuple(ms.pulpit_earnings_tickers(get_watchlist(ls)))
     df = bulk_fetch_earnings_calendar(tickers, window_days=7)
     if df is None or df.empty:
-        st.caption("Brak raportów w tym tygodniu dla watchlisty i największych spółek.")
+        st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
         return
     df = df.assign(date=pd.to_datetime(df["date"]))
+    today = pd.Timestamp.now().normalize()
+    df = df[(df["date"] >= today) & (df["date"] <= today + pd.Timedelta(days=7))]
+    if df.empty:
+        st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
+        return
     order = {t: i for i, t in enumerate(tickers)}
     df = df.assign(_o=df["ticker"].map(order)).sort_values(["_o", "date"]).head(10)
     for _, r in df.iterrows():
