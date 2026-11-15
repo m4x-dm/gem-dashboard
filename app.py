@@ -20,10 +20,10 @@ setup_sidebar()
 
 pg = st.navigation(nav.build_navigation(), position="top")
 
-page = nav.by_title(pg.title)
+free, icon, title, description = nav.access_info(pg.title)
 
-if page is not None and not page.free and not is_premium():
-    render_lock_screen(page.icon, page.title, page.description)
+if not free and not is_premium():
+    render_lock_screen(icon, title, description)
     render_footer()
 else:
     pg.run()

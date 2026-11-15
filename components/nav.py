@@ -105,6 +105,14 @@ def by_title(title: str) -> PageDef | None:
     return _BY_TITLE.get(title)
 
 
+def access_info(title: str) -> tuple[bool, str, str, str]:
+    """(free, icon, title, description). Nieznana strona = zamknieta (fail closed)."""
+    page = _BY_TITLE.get(title)
+    if page is None:
+        return False, "🔒", title, "Ta strona wymaga dostępu Premium."
+    return page.free, page.icon, page.title, page.description
+
+
 def build_navigation() -> dict[str, list]:
     """Sekcje dla st.navigation — kolejnosc wg SECTION_ORDER, strony wg PAGES."""
     sections: dict[str, list] = {name: [] for name in SECTION_ORDER}

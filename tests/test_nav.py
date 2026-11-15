@@ -89,3 +89,15 @@ def test_krypto_is_last_section():
     nav_sections = list(nav.build_navigation().keys())
     assert nav_sections[-1] == "Krypto"
     assert nav.PAGES[-1].key == "krypto"
+
+
+def test_access_info_unknown_page_fails_closed():
+    free, icon, title, desc = nav.access_info("Nieistniejaca strona")
+    assert free is False
+    assert icon == "🔒" and title == "Nieistniejaca strona"
+    assert "Premium" in desc
+
+
+def test_access_info_matches_registry():
+    for p in nav.PAGES:
+        assert nav.access_info(p.title) == (p.free, p.icon, p.title, p.description)
