@@ -98,7 +98,17 @@ def pulpit_earnings_tickers(watchlist: set[str]) -> list[str]:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def market_movers(universe: tuple[str, ...]) -> pd.Series:
-    """Zmiana dzienna dla calego universe — cache 1 h wspolny dla wszystkich uzytkownikow."""
-    from data.downloader import download_prices
-    prices = download_prices(list(universe), period="5d")
-    return daily_change(prices)
+    """Zmiana dzienna dla calego universe — cache 1 h wspolny dla wszystkich uzytkownikow.
+
+    Celowo NIE uzywa download_prices(): tam brakujace tickery ida pojedynczo przez
+    retry z backoffem + stooq + CoinGecko, co przy throttlingu Yahoo trwalo >5 min
+    (2026-11-15). Dla rankingu dnia brak kilku spolek nie ma znaczenia, wiec jeden
+    zbiorczy request z limitem czasu.
+    """
+    import yfinance as yf
+    data = yf.download(" ".join(universe), period="5d", auto_adjust=True,
+                       progress=False, threads=True, timeout=20)
+    if data is None or data.empty:
+        return pd.Series(dtype=float)
+    prices = data["Close"] if isinstance(data.columns, pd.MultiIndex) else data[["Close"]]
+    return daily_change(prices.dropna(how="all"))
