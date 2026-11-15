@@ -1,13 +1,17 @@
 """Karta spolki — logika danych (bez UI).
 
 Czyste funkcje przyjmuja dane jako argumenty (testy offline).
-Wrappery pobierajace (company_profile, dividend_history, sector_caps) — Task 2.
+Wrappery pobierajace (company_profile, dividend_history, sector_caps) na koncu pliku.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import pandas as pd
+import streamlit as st
 
+from data.financials import _fetch_info  # noqa: F401 — cache 24h, curl_cffi session; testy go podmieniaja
 from data.momentum import build_ranking
 
 LOWER_IS_BETTER = ("P/E", "Forward P/E", "EV/EBITDA")
@@ -128,3 +132,69 @@ def peer_table(rows: dict[str, dict]) -> pd.DataFrame:
     df = pd.DataFrame.from_dict(data, orient="index", columns=list(PEER_COLUMNS))
     df.loc["Mediana grupy"] = df.median(numeric_only=True, skipna=True)
     return df
+
+
+# --- wrappery pobierajace (cache 24h) ---------------------------------------
+
+def _sector_map(market: str) -> dict[str, str]:
+    if market == "GPW":
+        from data.gpw_universe import GPW_SECTOR_MAP as m
+    else:
+        from data.sp500_universe import SP500_SECTOR_MAP as m
+    return m
+
+
+def _sector_members(market: str, sector: str) -> list[str]:
+    return [t for t, s in _sector_map(market).items() if s == sector]
+
+
+def sector_of(ticker: str, market: str) -> str | None:
+    return _sector_map(market).get(ticker)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def sector_caps(market: str, sector: str) -> pd.Series:
+    members = _sector_members(market, sector)
+
+    def cap(t):
+        try:
+            return t, _f((_fetch_info(t) or {}).get("marketCap"))
+        except Exception:
+            return t, np.nan
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        pairs = list(ex.map(cap, members))
+    s = pd.Series(dict(pairs), dtype=float).dropna()
+    return s[s > 0]
+
+
+def _opt(x):
+    v = _f(x)
+    return None if np.isnan(v) else v
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def company_profile(ticker: str) -> dict:
+    info = _fetch_info(ticker) or {}
+    return {
+        "summary": info.get("longBusinessSummary"),
+        "beta": _opt(info.get("beta")),
+        "low52": _opt(info.get("fiftyTwoWeekLow")),
+        "high52": _opt(info.get("fiftyTwoWeekHigh")),
+        "exchange": info.get("exchange"),
+        "currency": info.get("currency"),
+    }
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def dividend_history(ticker: str) -> pd.Series:
+    import yfinance as yf
+    from data.financials import _get_yf_session
+    try:
+        d = yf.Ticker(ticker, session=_get_yf_session()).dividends
+    except Exception:
+        return pd.Series(dtype=float)
+    if d is None or len(d) == 0:
+        return pd.Series(dtype=float)
+    d.index = pd.to_datetime(d.index).tz_localize(None) if d.index.tz is not None else pd.to_datetime(d.index)
+    return d.astype(float)

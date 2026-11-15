@@ -118,3 +118,23 @@ def test_peer_table_median_row():
     assert df.loc["Mediana grupy", "Forward P/E"] == pytest.approx(18.0)
     assert np.isnan(df.loc["A", "Forward P/E"])
     assert set(co.LOWER_IS_BETTER) == {"P/E", "Forward P/E", "EV/EBITDA"}
+
+
+# --- wrappery (offline, monkeypatch) ---------------------------------------
+
+def test_sector_caps_uses_info(monkeypatch):
+    import data.company as c
+    fake = {"AAA": {"marketCap": 10}, "BBB": {"marketCap": None}, "CCC": {}}
+    monkeypatch.setattr(c, "_fetch_info", lambda t: fake.get(t, {}))
+    monkeypatch.setattr(c, "_sector_members", lambda market, sector: ["AAA", "BBB", "CCC"])
+    caps = c.sector_caps.__wrapped__("SP500", "Tech")
+    assert caps.to_dict() == {"AAA": 10.0}
+
+
+def test_company_profile_fields(monkeypatch):
+    import data.company as c
+    monkeypatch.setattr(c, "_fetch_info", lambda t: {"longBusinessSummary": "x", "beta": 1.2,
+                                                     "fiftyTwoWeekLow": 1, "fiftyTwoWeekHigh": 2,
+                                                     "exchange": "NMS", "currency": "USD"})
+    p = c.company_profile.__wrapped__("AAA")
+    assert p == {"summary": "x", "beta": 1.2, "low52": 1.0, "high52": 2.0, "exchange": "NMS", "currency": "USD"}
