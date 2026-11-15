@@ -1,7 +1,7 @@
 """Wspolna konfiguracja sidebar i CSS dla wszystkich stron."""
 
 import streamlit as st
-from components.constants import BG2, BG_CARD, BG_HOVER, BORDER, TEXT, MUTED, SHADOW
+from components.constants import BG2, BG_CARD, BG_HOVER, BORDER, TEXT, MUTED, SHADOW, GOLD, GOLD_SOFT
 from components.auth import init_auth, is_premium, activate_code, deactivate, NAFFY_URL
 
 PORTAL_URL = "https://inwestowanie.edu.pl/"
@@ -146,7 +146,7 @@ def setup_sidebar():
         st.caption("Global Equity Momentum — analiza ETF-ow")
         st.markdown(
             f'<a href="{PORTAL_URL}?utm_source=gem-dashboard&utm_medium=app&utm_campaign=sidebar" '
-            'target="_blank" rel="noopener" style="color:#C9A84C;font-size:13px;text-decoration:none;">'
+            f'target="_blank" rel="noopener" style="color:{GOLD};font-size:13px;text-decoration:none;">'
             '📚 Poradniki o inwestowaniu: inwestowanie.edu.pl ↗</a>',
             unsafe_allow_html=True,
         )
@@ -156,9 +156,9 @@ def setup_sidebar():
         init_auth()
         if is_premium():
             st.markdown(
-                '<div style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);'
-                'border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
-                '<span style="color:#C9A84C;font-weight:700;font-size:13px;">'
+                f'<div style="background:{GOLD_SOFT};'
+                'border-radius:10px;padding:8px 12px;text-align:center;margin-bottom:8px;">'
+                f'<span style="color:{GOLD};font-weight:650;font-size:13px;">'
                 '⭐ Premium aktywny</span></div>',
                 unsafe_allow_html=True,
             )
@@ -182,7 +182,7 @@ def setup_sidebar():
                     else:
                         st.warning("Wpisz kod aktywacyjny.")
                 st.markdown(
-                    f'<a href="{NAFFY_URL}" target="_blank" style="color:#C9A84C;font-size:12px;">'
+                    f'<a href="{NAFFY_URL}" target="_blank" style="color:{GOLD};font-size:12px;">'
                     'Kup dostep Premium (49 zl)</a>',
                     unsafe_allow_html=True,
                 )
@@ -316,7 +316,7 @@ def render_footer():
 
     st.html(
         '<div style="text-align:center;color:#4B5563;font-size:11px;'
-        'padding:32px 16px 16px;border-top:1px solid rgba(201,168,76,0.1);'
+        f'padding:32px 16px 16px;border-top:1px solid {BORDER};'
         'margin-top:48px;letter-spacing:0.02em;line-height:1.6;max-width:700px;margin-left:auto;margin-right:auto">'
         '<p style="margin:0 0 8px;color:#6B7280;font-style:italic">'
         'Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej, '
@@ -330,7 +330,7 @@ def render_footer():
     st.markdown(
         f'<p style="text-align:center;font-size:12px;margin:0 0 16px;">'
         f'<a href="{PORTAL_URL}strategia-gem/?utm_source=gem-dashboard&utm_medium=app&utm_campaign=footer" '
-        'target="_blank" rel="noopener" style="color:#C9A84C;text-decoration:none;">'
+        f'target="_blank" rel="noopener" style="color:{GOLD};text-decoration:none;">'
         'Jak działa strategia GEM i jak inwestować w ETF-y: inwestowanie.edu.pl ↗</a></p>',
         unsafe_allow_html=True,
     )

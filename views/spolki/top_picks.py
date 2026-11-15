@@ -13,6 +13,7 @@ import streamlit as st
 
 from components.cards import kpi_card, section_band, top_pick_cards
 from components.charts import category_pie, equity_chart, picks_return_bar
+from components.constants import BG_CARD, GOLD, SHADOW, TEXT
 from components.formatting import GREEN, MUTED, RED, fmt_number, fmt_pct
 from components.sidebar import render_footer
 from data.downloader import benchmark_status, download_prices, download_stooq
@@ -82,18 +83,17 @@ def render_naglowek(latest_key: str, latest: dict, markets: tuple) -> None:
     rynki = "rynki" if len(markets) > 1 else "rynek"
 
     st.html(
-        f'<div style="background:#141929;border:1px solid rgba(201,168,76,0.2);border-radius:14px;'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:14px;'
         f'padding:16px 20px;margin:8px 0 4px;display:flex;flex-wrap:wrap;gap:12px;'
         f'justify-content:space-between;align-items:center">'
         f'<div>'
-        f'<div style="font-size:0.68rem;color:{MUTED};text-transform:uppercase;'
-        f'letter-spacing:0.08em">Sklad na</div>'
-        f'<div style="font-size:1.5rem;font-weight:800;color:#C9A84C;line-height:1.2">{latest_key}</div>'
+        f'<div style="font-size:0.78rem;color:{MUTED}">Skład na</div>'
+        f'<div style="font-size:1.5rem;font-weight:650;color:{GOLD};line-height:1.2">{latest_key}</div>'
         f'</div>'
         f'<div style="font-size:0.75rem;color:{MUTED};line-height:1.7;text-align:right">'
         f'{n_picks} spolek &middot; {len(markets)} {rynki} &middot; '
         f'regula v{latest.get("rule_version", "?")}<br>'
-        f'nastepny rebalans <span style="color:#E5E7EB;font-weight:600">'
+        f'nastepny rebalans <span style="color:{TEXT};font-weight:600">'
         f'{nxt.strftime("%d.%m.%Y")}</span> (za {days_left} dni)'
         f'</div>'
         f'</div>'
@@ -261,7 +261,7 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
         total = float(equity.iloc[-1] / equity.iloc[0] - 1)
         cols = st.columns(4)
         kpi_card(cols[0], "Zwrot od startu", fmt_pct(total), f"kapital 10 000 {CURRENCY[market]}",
-                 GREEN if total > 0 else RED if total < 0 else "#E5E7EB")
+                 GREEN if total > 0 else RED if total < 0 else "#E6E8EC")
         if bench_total is None:
             kpi_card(cols[1], f"vs {bench}", "—", "brak danych benchmarku")
         else:
@@ -269,7 +269,7 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
             kpi_card(cols[1], f"vs {bench}",
                      f"{diff:+.1f} p.p.".replace(".", ","),
                      f"{bench}: {fmt_pct(bench_total)}",
-                     GREEN if diff > 0 else RED if diff < 0 else "#E5E7EB")
+                     GREEN if diff > 0 else RED if diff < 0 else "#E6E8EC")
         kpi_card(cols[2], "Rebalansow", str(len(history)), "snapshotow w logu")
         kpi_card(cols[3], "Wartosc portfela",
                  f"{fmt_number(float(equity.iloc[-1]), 0)} {CURRENCY[market]}",

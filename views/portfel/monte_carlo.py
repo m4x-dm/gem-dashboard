@@ -9,7 +9,7 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monte_carlo_simulation, backtest_gem
 from components.charts import fan_chart, _base_layout, GOLD
 from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
-from components.constants import GREEN, RED
+from components.constants import GREEN, RED, SHADOW
 
 
 st.markdown("# 🎲 Monte Carlo")
@@ -130,9 +130,9 @@ with tab3:
 
     def _prob_card(col, title, prob, color, icon):
         col.html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:20px;text-align:center">'
+            f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:20px;text-align:center">'
             f'<div style="font-size:2rem;margin-bottom:4px">{icon}</div>'
-            f'<div style="font-size:0.8rem;color:{MUTED};text-transform:uppercase;margin-bottom:8px">{title}</div>'
+            f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">{title}</div>'
             f'<div style="font-size:2rem;font-weight:800;color:{color}">{prob:.1f}%</div>'
             f'</div>'
         )
@@ -147,9 +147,9 @@ with tab3:
     _prob_card(cols2[1], "Jakakolwiek strata", p_loss_any, RED, "📉")
 
     cols2[2].html(
-        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:20px;text-align:center">'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:20px;text-align:center">'
         f'<div style="font-size:2rem;margin-bottom:4px">📊</div>'
-        f'<div style="font-size:0.8rem;color:{MUTED};text-transform:uppercase;margin-bottom:8px">Medianowy CAGR</div>'
+        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">Medianowy CAGR</div>'
         f'<div style="font-size:2rem;font-weight:800;color:{GOLD}">{median_cagr:.1f}%</div>'
         f'</div>'
     )

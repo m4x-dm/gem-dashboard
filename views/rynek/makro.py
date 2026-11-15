@@ -155,7 +155,7 @@ with row1_col2:
             x=spread.index, y=spread.values, mode="lines",
             line=dict(color=GOLD, width=1.5),
             fill="tozeroy",
-            fillcolor="rgba(201,168,76,0.12)",
+            fillcolor="rgba(212,176,98,0.12)",
             hovertemplate="%{x|%Y-%m-%d}<br>Spread: %{y:.2f} pp<extra></extra>",
         ))
         # Red fill below zero

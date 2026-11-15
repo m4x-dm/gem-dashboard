@@ -178,7 +178,7 @@ if page_ok:
         for col, (name, s) in zip(cols, eq.items()):
             kpi_card(col, name, f"${fmt_number(s.iloc[-1], 0)}",
                      f"{fmt_pct(s.iloc[-1] / start_capital - 1)} lacznie",
-                     color=GOLD if name == "GEM Gold Momentum" else "#E5E7EB")
+                     color=GOLD if name == "GEM Gold Momentum" else "#E6E8EC")
 
         with st.expander("📌 Skad w artykule ~20% rocznie, a tu mniej?"):
             st.markdown(f"""

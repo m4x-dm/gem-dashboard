@@ -2,8 +2,6 @@
 import tomllib
 from pathlib import Path
 
-import pytest
-
 from components import constants as c
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +24,6 @@ def test_streamlit_theme_matches_tokens():
     assert th["textColor"] == c.TEXT
 
 
-@pytest.mark.xfail(strict=True, reason="Task 3")
 def test_no_hardcoded_old_gold_in_ui_code():
     offenders = []
     for p in list((ROOT / "views").rglob("*.py")) + list((ROOT / "components").glob("*.py")):

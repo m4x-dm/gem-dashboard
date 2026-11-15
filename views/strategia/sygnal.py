@@ -14,9 +14,9 @@ from data.momentum import gem_classic_signal, build_ranking, backtest_gem
 from components.cards import signal_card, metric_row, top_etf_cards
 from components.charts import ranking_bar_chart, _base_layout
 from components.formatting import MUTED, BG_CARD, BORDER
-from components.constants import GREEN
+from components.constants import GREEN, SHADOW
 
-SIGNAL_COLORS = {"QQQ": GREEN, "VEA": "#3B82F6", "EEM": "#A855F7", "ACWI": "#06B6D4", "AGG": "#F59E0B"}
+SIGNAL_COLORS = {"QQQ": GREEN, "VEA": "#3B82F6", "EEM": "#A855F7", "ACWI": "#06B6D4", "AGG": "#FBBF24"}
 SIGNAL_LABELS = {"QQQ": "Akcje USA", "VEA": "Rynki rozwinięte", "EEM": "Rynki wschodzace",
                  "ACWI": "Globalne", "AGG": "Obligacje"}
 
@@ -120,10 +120,10 @@ def render_current_position(signal_periods) -> None:
     start_str = current["start"].strftime("%Y-%m-%d")
 
     st.html(
-        f'<div style="background:{BG_CARD};border:2px solid {color};border-radius:16px;padding:40px;text-align:center;margin-bottom:24px">'
+        f'<div style="background:{BG_CARD};border-left:3px solid {color};box-shadow:{SHADOW};border-radius:16px;padding:40px;text-align:center;margin-bottom:24px">'
         f'<div style="font-size:3.5rem;font-weight:800;color:{color}">{sig}</div>'
         f'<div style="font-size:1.2rem;color:{MUTED};margin:8px 0">{label}</div>'
-        f'<div style="font-size:2rem;font-weight:700;color:#E5E7EB;margin:16px 0">Od {days_in} dni</div>'
+        f'<div style="font-size:2rem;font-weight:700;color:#E6E8EC;margin:16px 0">Od {days_in} dni</div>'
         f'<div style="font-size:0.9rem;color:{MUTED}">Data ostatniej zmiany: {start_str}</div>'
         f'</div>'
     )
@@ -136,7 +136,7 @@ def render_current_position(signal_periods) -> None:
             sc = SIGNAL_COLORS.get(sp["signal"], MUTED)
             sl = SIGNAL_LABELS.get(sp["signal"], sp["signal"])
             st.html(
-                f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+                f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
                 f'<span style="color:{sc};font-weight:700;font-size:1.1rem">{sp["signal"]} <span style="font-size:0.8rem;font-weight:400;color:{MUTED}">({sl})</span></span>'
                 f'<span style="color:{MUTED};font-size:0.85rem">{sp["start"].strftime("%Y-%m-%d")} → {sp["end"].strftime("%Y-%m-%d")} ({sp["duration_days"]} dni)</span>'
                 f'</div>'
@@ -271,7 +271,7 @@ def render_calendar_tab(prices, signal_periods) -> None:
 
     # Custom colorscale: AGG=amber, EEM=purple, VEA=blue, ACWI=cyan, QQQ=green
     colorscale = [
-        [0, "#F59E0B"],    # AGG (0)
+        [0, "#FBBF24"],    # AGG (0)
         [0.25, "#A855F7"],  # EEM (1)
         [0.5, "#3B82F6"],   # VEA (2)
         [0.75, "#06B6D4"],  # ACWI (3)

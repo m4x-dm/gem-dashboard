@@ -2,6 +2,7 @@
 
 import streamlit as st
 import pandas as pd
+from components.constants import SHADOW
 from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS
 from data.downloader import download_prices
@@ -61,7 +62,7 @@ def _render_final_values(curves: list[tuple[str, pd.Series]], capital: float):
         gain_sign = "+" if gain >= 0 else ""
         gain_label = "zysku" if gain >= 0 else "straty"
         cols[i].html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:16px;text-align:center">'
+            f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:16px;text-align:center">'
             f'<div style="font-size:0.75rem;color:{MUTED};text-transform:uppercase">{name}</div>'
             f'<div style="font-size:1.4rem;font-weight:700;color:{GOLD}">${fmt_number(final, 0)}</div>'
             f'<div style="font-size:0.8rem;color:{gain_color}">{gain_sign}${fmt_number(abs(gain), 0)} {gain_label}</div>'

@@ -16,7 +16,7 @@ from components.auth import is_premium, premium_teaser
 from components.cards import (signal_card, metric_row, top_etf_cards, stats_table,
                               data_status_card, alert_banner)
 from components.charts import sparkline_chart
-from components.constants import GREEN, RED
+from components.constants import GREEN, RED, SHADOW, TEXT
 from components.formatting import color_for_value, MUTED, BG_CARD, BORDER
 from components.sidebar import get_risk_free, render_footer
 from components.watchlist import get_watchlist
@@ -28,7 +28,7 @@ from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.momentum import gem_classic_signal, build_ranking, backtest_gem
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
 
-REGIME_COLORS = {"Risk-On": GREEN, "Risk-Off": RED, "Neutralny": "#F59E0B"}
+REGIME_COLORS = {"Risk-On": GREEN, "Risk-Off": RED, "Neutralny": "#FBBF24"}
 PREMIUM = is_premium()
 
 
@@ -50,10 +50,11 @@ def _finite(x) -> bool:
 
 
 def card(title: str, value: str, sub: str, border: str = BORDER) -> None:
+    bar = f"border-left:3px solid {border};" if border != BORDER else ""
     st.html(
-        f'<div style="background:{BG_CARD};border:1px solid {border};border-radius:14px;padding:16px;height:100%">'
-        f'<div style="font-size:0.7rem;color:{MUTED};text-transform:uppercase;letter-spacing:0.08em">{title}</div>'
-        f'<div style="font-size:1.4rem;font-weight:800;color:#E5E7EB;margin:6px 0">{value}</div>'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:14px;padding:16px;height:100%;{bar}">'
+        f'<div style="font-size:0.78rem;color:{MUTED};">{title}</div>'
+        f'<div style="font-size:1.4rem;font-weight:650;color:{TEXT};margin:6px 0">{value}</div>'
         f'<div style="font-size:0.8rem;color:{MUTED}">{sub}</div></div>'
     )
 
@@ -170,10 +171,10 @@ def render_market_tiles() -> list:
                     sparks.append((ticker, label, last, chg_1m))
                 extra = f' · {_vix_label(last)}' if ticker == "^VIX" else ""
                 st.html(
-                    f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:10px;'
+                    f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:10px;'
                     f'padding:8px;text-align:center;margin-bottom:2px">'
                     f'<div style="font-size:0.65rem;color:{MUTED};text-transform:uppercase">{label}</div>'
-                    f'<div style="font-weight:700;color:#E5E7EB">{last:,.2f}</div>'
+                    f'<div style="font-weight:700;color:#E6E8EC">{last:,.2f}</div>'
                     f'<div style="font-size:0.75rem">{sub}<span style="color:{MUTED}">{extra}</span></div></div>'
                 )
                 st.plotly_chart(sparkline_chart(s, height=60), width="stretch", key=f"tile_spark_{ticker}")

@@ -107,7 +107,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
         z=matrix,
         x=["Pon", "Wt", "Sr", "Cz", "Pt"],
         y=week_labels,
-        colorscale=[[0, "#1F2937"], [0.5, "#C9A84C"], [1, "#FFD700"]],
+        colorscale=[[0, "#1F2937"], [0.5, "#D4B062"], [1, "#F1D58E"]],
         showscale=True,
         colorbar=dict(title="Raporty"),
         hovertext=hover_text,

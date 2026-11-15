@@ -11,7 +11,7 @@ from components.charts import (
     price_chart, correlation_heatmap, _base_layout, COLORS, GOLD, BG2,
 )
 from components.formatting import MUTED, BG_CARD, BORDER
-from components.constants import GREEN, RED, PERIOD_MAP_FULL
+from components.constants import GREEN, RED, PERIOD_MAP_FULL, SHADOW
 from components.sidebar import get_risk_free
 
 
@@ -219,12 +219,12 @@ with tab5:
         regime_color, regime_label = RED, "Risk-Off"
         regime_desc = "Srodowisko awersji do ryzyka. Rozwazyc obligacje lub zloto."
     else:
-        regime_color, regime_label = "#F59E0B", "Neutralny"
+        regime_color, regime_label = "#FBBF24", "Neutralny"
         regime_desc = "Mieszane sygnaly. Brak wyraznego kierunku miedzy klasami aktywow."
 
     st.html(
-        f'<div style="background:{BG_CARD};border:2px solid {regime_color};border-radius:16px;padding:32px;text-align:center;margin-bottom:24px">'
-        f'<div style="font-size:0.8rem;color:{MUTED};text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Biezacy regime</div>'
+        f'<div style="background:{BG_CARD};border-left:3px solid {regime_color};box-shadow:{SHADOW};border-radius:16px;padding:32px;text-align:center;margin-bottom:24px">'
+        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">Biezacy regime</div>'
         f'<div style="font-size:2rem;font-weight:800;color:{regime_color}">{regime_label}</div>'
         f'<div style="font-size:1rem;color:{MUTED};margin-top:8px">{regime_desc}</div>'
         f'<div style="font-size:0.85rem;color:{MUTED};margin-top:16px">Risk-On score: {risk_on_pct:.0f}%</div>'
@@ -240,8 +240,8 @@ with tab5:
             color = GREEN if mom > 0 else RED
             sign = "+" if mom > 0 else ""
             st.html(
-                f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
-                f'<span style="color:#E5E7EB;font-weight:600">{name} ({t})</span>'
+                f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+                f'<span style="color:#E6E8EC;font-weight:600">{name} ({t})</span>'
                 f'<span style="color:{color};font-weight:700">{sign}{mom*100:.1f}% (3M)</span>'
                 f'</div>'
             )
@@ -311,21 +311,21 @@ with tab6:
                 c_color = GREEN
                 c_label = "Silna pozytywna"
             elif val > 0.3:
-                c_color = "#F59E0B"
+                c_color = "#FBBF24"
                 c_label = "Umiarkowana"
             elif val > -0.3:
                 c_color = MUTED
                 c_label = "Slaba"
             elif val > -0.7:
-                c_color = "#F59E0B"
+                c_color = "#FBBF24"
                 c_label = "Umiarkowana negatywna"
             else:
                 c_color = RED
                 c_label = "Silna negatywna"
 
             corr_cols[i].html(
-                f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:12px;padding:16px;text-align:center">'
-                f'<div style="font-size:0.7rem;color:{MUTED};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">{col}</div>'
+                f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:16px;text-align:center">'
+                f'<div style="font-size:0.7rem;color:{MUTED};margin-bottom:4px">{col}</div>'
                 f'<div style="font-size:1.4rem;font-weight:700;color:{c_color}">{val:.2f}</div>'
                 f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px">{c_label}</div>'
                 f'</div>'

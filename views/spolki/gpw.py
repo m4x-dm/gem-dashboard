@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from components.constants import SHADOW
 from components.sidebar import get_risk_free, render_footer
 from data.gpw_universe import (
     ALL_GPW_TICKERS, GPW_NAMES, GPW_CATEGORY_MAP, GPW_CATEGORIES, GPW_BANKS,
@@ -122,19 +123,19 @@ def _render_screener_summary(df, total):
     top_sec = df["sector"].value_counts().head(1) if "sector" in df.columns else pd.Series(dtype=int)
     c1, c2, c3, c4 = st.columns(4)
     c1.html(
-        f'<div style="background:{BG_CARD};border:1px solid {GOLD}40;border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:10px;text-align:center">'
         f'<div style="color:{GOLD};font-size:10px;text-transform:uppercase">Spolek</div>'
         f'<div style="color:#fff;font-size:18px;font-weight:700">{n} / {total}</div></div>'
     )
     pe_text = f"{pe_med:.1f}" if pe_med is not None and pd.notna(pe_med) else "—"
     c2.html(
-        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:10px;text-align:center">'
         f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. P/E</div>'
         f'<div style="color:#fff;font-size:18px;font-weight:700">{pe_text}</div></div>'
     )
     roe_text = f"{roe_med*100:.0f}%" if roe_med is not None and pd.notna(roe_med) else "—"
     c3.html(
-        f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:10px;text-align:center">'
         f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Med. ROE</div>'
         f'<div style="color:#71C77E;font-size:18px;font-weight:700">{roe_text}</div></div>'
     )
@@ -142,14 +143,14 @@ def _render_screener_summary(df, total):
         sec_name = top_sec.index[0]
         sec_count = int(top_sec.iloc[0])
         c4.html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:10px;text-align:center">'
             f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
             f'<div style="color:#fff;font-size:12px;font-weight:700;line-height:1.3">{sec_name}<br>'
             f'<span style="font-size:10px;color:{MUTED}">({sec_count} spolek)</span></div></div>'
         )
     else:
         c4.html(
-            f'<div style="background:{BG_CARD};border:1px solid {BORDER};border-radius:8px;padding:10px;text-align:center">'
+            f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:10px;text-align:center">'
             f'<div style="color:{MUTED};font-size:10px;text-transform:uppercase">Top sektor</div>'
             f'<div style="color:#fff;font-size:18px;font-weight:700">—</div></div>'
         )

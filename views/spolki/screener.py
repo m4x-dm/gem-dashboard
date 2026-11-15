@@ -15,6 +15,7 @@ from components.formatting import (
     GOLD, GREEN, RED, MUTED, BG_CARD, BORDER,
 )
 from components.charts import _base_layout
+from components.constants import GOLD, SHADOW
 
 
 st.markdown("# 🔎 Cross-Asset Screener")
@@ -24,7 +25,7 @@ st.caption("Jednolity ranking momentum ze wszystkich klas aktywow")
 # Kolory klas aktywow
 # ---------------------------------------------------------------------------
 CLASS_COLORS = {
-    "ETF": "#C9A84C",
+    "ETF": GOLD,
     "S&P 500": "#3B82F6",
     "GPW": "#EF4444",
     "Kryptowaluty": "#22C55E",
@@ -135,9 +136,9 @@ for i, cls in enumerate(asset_classes):
     count = class_counts.get(cls, 0)
     color = CLASS_COLORS.get(cls, MUTED)
     scols[i].html(
-        f'<div style="background:{BG_CARD};border:1px solid {color}40;border-radius:12px;padding:14px;text-align:center">'
-        f'<div style="font-size:0.75rem;color:{color};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">{cls}</div>'
-        f'<div style="font-size:1.4rem;font-weight:700;color:#E5E7EB">{count}</div>'
+        f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:14px;text-align:center">'
+        f'<div style="font-size:0.75rem;color:{color};margin-bottom:4px">{cls}</div>'
+        f'<div style="font-size:1.4rem;font-weight:700;color:#E6E8EC">{count}</div>'
         f'<div style="font-size:0.7rem;color:{MUTED}">w rankingu</div>'
         f'</div>'
     )
