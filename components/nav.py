@@ -54,6 +54,8 @@ PAGES: list[PageDef] = [
     PageDef("drawdowny", "views/etf/drawdowny.py", "Drawdowny", ":material/trending_down:", "ETF", False,
             "Analiza spadkow od szczytu — glebokosc, czas trwania, odbudowa"),
     # --- Spolki ---
+    PageDef("karta", "views/spolki/karta.py", "Karta spółki", ":material/badge:", "Spółki", True,
+            "Jedna spolka: przeglad, finanse, wyniki, akcjonariat, dywidendy, konkurencja"),
     PageDef("sp500", "views/spolki/sp500.py", "S&P 500", ":material/flag:", "Spółki", False,
             "Ranking, wykresy, finanse i backtest ~500 spolek z indeksu S&P 500"),
     PageDef("gpw", "views/spolki/gpw.py", "GPW", ":material/flag:", "Spółki", False,
@@ -131,3 +133,13 @@ def go(key: str) -> None:
 def link(key: str, label: str | None = None, **kwargs) -> None:
     p = get(key)
     st.page_link(p.path, label=label or p.title, icon=p.icon, **kwargs)
+
+
+def go_company(ticker: str) -> None:
+    """Otwiera Karte spolki dla tickera (ticker w adresie: ?t=...)."""
+    st.switch_page(get("karta").path, query_params={"t": ticker})
+
+
+def company_link(ticker: str, label: str | None = None, **kwargs) -> None:
+    p = get("karta")
+    st.page_link(p.path, label=label or ticker, query_params={"t": ticker}, **kwargs)

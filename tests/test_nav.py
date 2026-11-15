@@ -31,11 +31,11 @@ def test_exactly_one_default_and_it_is_pulpit():
 
 
 def test_free_pages():
-    assert {p.key for p in nav.PAGES if p.free} == {"pulpit", "sygnal", "ranking-etf", "o-strategii"}
+    assert {p.key for p in nav.PAGES if p.free} == {"pulpit", "sygnal", "ranking-etf", "o-strategii", "karta"}
 
 
 def test_page_count():
-    assert len(nav.PAGES) == 24
+    assert len(nav.PAGES) == 25
 
 
 def test_sections_known_and_non_empty():
@@ -126,3 +126,14 @@ def test_page_titles_have_no_emoji():
         m = re.search(r'st\.markdown\(f?"# ([^"]*)"', f.read_text(encoding="utf-8"))
         assert m, f
         assert not any(ord(ch) > 0x2FFF for ch in m.group(1)), f
+
+
+def test_karta_first_in_spolki_and_free():
+    spolki = [p for p in nav.PAGES if p.section == "Spółki"]
+    assert spolki[0].key == "karta"
+    assert nav.get("karta").free is True
+    assert nav.get("karta").path == "views/spolki/karta.py"
+
+
+def test_company_nav_helpers_exist():
+    assert callable(nav.go_company) and callable(nav.company_link)
