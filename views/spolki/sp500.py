@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from components.constants import SHADOW
+from components import nav
 from components.sidebar import get_risk_free, render_footer
 from data.sp500_universe import (
     ALL_SP500_TICKERS, SP500_NAMES, SP500_SECTOR_MAP, SP500_SECTORS,
@@ -21,30 +22,11 @@ from components.charts import (
     price_chart, momentum_chart, drawdown_chart,
     ranking_bar_chart, correlation_heatmap, equity_chart, rs_chart,
 )
-from components.cards import (
-    stats_table, comparison_card, final_value_card,
-    ratios_card, forward_consensus_card, earnings_history_card, analyst_recos_card,
-)
-from data.financials import (
-    get_ratios_snapshot, get_forward_consensus,
-    get_earnings_history, get_analyst_recos,
-)
-from components.financials_ui import (
-    render_sprawozdania_screener,
-    render_sprawozdania_deep_dive,
-)
+from components.cards import stats_table, comparison_card, final_value_card
+from components.financials_ui import render_sprawozdania_screener
 from streamlit_local_storage import LocalStorage
 from components.watchlist import get_watchlist, toggle_ticker
 
-
-# Cross-link hint: gdy user przyszedl z F14/F16 z pre-set tickerem,
-# Streamlit nie umie pre-select tab programowo -> wskazujemy gdzie kliknac
-_pending_dd_ticker = st.session_state.get("sp500_deep_dive_ticker")
-if st.session_state.get("sp500_pending_view") == "deep_dive" and _pending_dd_ticker:
-    st.info(
-        f"📈 **Cross-link z innej strony:** wybrany ticker `{_pending_dd_ticker}`. "
-        f"Kliknij ostatni tab **'📈 Sprawozdania Q'** (8-my) zeby wejsc w deep dive."
-    )
 
 st.markdown("# Amerykanskie Akcje S&P 500")
 
@@ -168,14 +150,13 @@ def _render_screener_summary(df: pd.DataFrame, total: int) -> None:
 # ---------------------------------------------------------------------------
 # TABY
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Ranking momentum",
     "📉 Wykresy",
     "⚖️ Porownanie",
     "🧪 Backtest momentum",
     "💪 Relative Strength",
     "📊 Screening",
-    "💰 Finanse",
     "📈 Sprawozdania Q",
 ])
 
@@ -207,10 +188,6 @@ with tab1:
             rf = get_risk_free()
             ranking = build_ranking(prices, rf)
 
-            # Zapisz top ticker dla pre-fill selectbox w tabie "Finanse".
-            if len(ranking) > 0:
-                st.session_state["sp_finanse_default"] = str(ranking.index[0])
-
             # Dodaj nazwy i sektor
             ranking["Nazwa"] = ranking.index.map(lambda t: SP500_NAMES.get(t, t))
             ranking["Sektor"] = ranking.index.map(lambda t: SP500_SECTOR_MAP.get(t, "—"))
@@ -231,6 +208,20 @@ with tab1:
             display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
 
             st.dataframe(display_df, width="stretch", height=min(700, 40 + len(display_df) * 35))
+
+            # Przejscie na Karte spolki
+            if len(filtered) > 0:
+                col_pick, col_go = st.columns([3, 1])
+                with col_pick:
+                    pick = st.selectbox(
+                        "Spółka", filtered.index.tolist(), key="sp_card_pick",
+                        format_func=lambda t: f"{t} — {SP500_NAMES.get(t, t)}",
+                    )
+                with col_go:
+                    st.write("")  # spacer
+                    open_card = st.button("Otwórz kartę spółki", key="sp_card_btn")
+                if open_card and pick:
+                    nav.go_company(pick)
 
             # Eksport CSV
             csv = filtered[["Nazwa", "Sektor", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
@@ -703,25 +694,24 @@ with tab6:
                 toggle_ticker(ls, ticker)
             st.rerun()
 
-        # 6b. Selectbox + button -> pre-fill tab 💰 Finanse (zamiast on_select)
+        # 6b. Selectbox + button -> Karta spolki
         st.markdown("---")
         col_sel, col_btn = st.columns([3, 1])
         with col_sel:
-            selected_finanse = st.selectbox(
-                "Wybierz ticker do tab '💰 Finanse':",
+            selected = st.selectbox(
+                "Wybierz spółkę:",
                 options=[""] + df_sorted.index.tolist(),
-                key="sp500_screening_finanse_select",
+                key="sp500_screening_card_select",
             )
         with col_btn:
             st.write("")  # spacer
-            show_btn = st.button(
-                "💰 Pokaz w Finanse",
-                key="sp500_screening_show_finanse",
-                disabled=not selected_finanse,
+            open_btn = st.button(
+                "Otwórz kartę spółki",
+                key="sp500_screening_card_btn",
+                disabled=not selected,
             )
-        if show_btn and selected_finanse:
-            st.session_state["sp_finanse_ticker"] = selected_finanse
-            st.info(f"✓ Wybrano **{selected_finanse}** — przelacz na tab 💰 Finanse aby zobaczyc szczegoly")
+        if open_btn and selected:
+            nav.go_company(selected)
 
         # 7. CSV export
         export_df = df_sorted.copy()
@@ -737,92 +727,14 @@ with tab6:
     _screener_fragment()
 
 
-# ========================== TAB 7: FINANSE ==========================
+# ========================== TAB 7: SPRAWOZDANIA Q ==========================
 with tab7:
-    @st.fragment
-    def _finanse_fragment():
-        st.markdown("### Wskazniki finansowe + konsensus analitykow")
-        st.caption(
-            "Dane z yfinance (Ticker.info / .earnings_estimate / .earnings_history). "
-            "Cache 24h. Niektore wskazniki moga byc niedostepne dla mniejszych spolek."
-        )
-
-        # Pre-fill z top rankingu (jesli user wczesniej otworzyl tab Ranking) lub fallback.
-        # WAZNE: NIE uzywaj index= z key= jednoczesnie (powoduje cofanie do default
-        # przy re-run fragmentu). Init w session_state TYLKO przy pierwszym renderze.
-        ticker_options = sorted(SP500_NAMES.keys())
-        if "sp_finanse_ticker" not in st.session_state:
-            default_ticker = st.session_state.get("sp_finanse_default") or ticker_options[0]
-            if default_ticker in ticker_options:
-                st.session_state["sp_finanse_ticker"] = default_ticker
-
-        ticker = st.selectbox(
-            "Spolka",
-            ticker_options,
-            format_func=lambda t: f"{t} — {SP500_NAMES.get(t, t)}",
-            key="sp_finanse_ticker",
-        )
-        st.caption(f"Wskazniki dla: **{ticker}** — {SP500_NAMES.get(ticker, '')}")
-
-        with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
-            snap = get_ratios_snapshot(ticker)
-            cons = get_forward_consensus(ticker)
-            hist = get_earnings_history(ticker)
-            recos = get_analyst_recos(ticker)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            ratios_card(snap, is_bank=False)
-        with col2:
-            forward_consensus_card(cons)
-
-        col3, col4 = st.columns(2)
-        with col3:
-            earnings_history_card(hist)
-        with col4:
-            analyst_recos_card(recos)
-
-    _finanse_fragment()
-
-
-# ========================== TAB 8: SPRAWOZDANIA Q ==========================
-with tab8:
     @st.fragment
     def _sprawozdania_fragment():
         st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
 
-        # Pending view request — consume z session_state (pop = read+delete)
-        # Streamlit zabrania settowania session_state widget keys; uzywamy
-        # osobnej zmiennej i `index=` parametru.
-        pending = st.session_state.pop("sp500_pending_view", None)
-        default_index = 1 if pending == "deep_dive" else 0
-
-        view = st.radio(
-            "Widok",
-            options=["🔍 Screener", "🏢 Deep dive"],
-            horizontal=True,
-            index=default_index,
-            key="sp500_sprawozdania_view_radio",
-        )
-
-        universe = ALL_SP500_TICKERS
-
-        if view == "🔍 Screener":
-            selected = render_sprawozdania_screener(universe, market="SP500")
-            if selected:
-                # Zapisz wybor + pending request na deep dive view, rerun
-                st.session_state["sp500_deep_dive_ticker"] = selected
-                st.session_state["sp500_pending_view"] = "deep_dive"
-                st.rerun()
-        else:
-            ticker = st.session_state.get("sp500_deep_dive_ticker", "")
-            if not ticker:
-                ticker = st.selectbox(
-                    "Ticker",
-                    options=[""] + universe,
-                    key="sp500_deep_dive_manual",
-                )
-            render_sprawozdania_deep_dive(ticker, market="SP500")
+        # Przycisk "Otwórz kartę spółki" w screenerze przechodzi na Karte spolki.
+        render_sprawozdania_screener(ALL_SP500_TICKERS, market="SP500")
 
     _sprawozdania_fragment()
 

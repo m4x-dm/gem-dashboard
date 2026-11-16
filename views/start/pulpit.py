@@ -23,7 +23,7 @@ from components.watchlist import get_watchlist
 from data import market_status as ms
 from data.downloader import download_prices, download_single
 from data.etf_universe import ALL_TICKERS, ETF_NAMES, ETF_CATEGORY_MAP
-from data.financials import _detect_market, _status_badge, bulk_fetch_earnings_calendar
+from data.financials import _status_badge, bulk_fetch_earnings_calendar
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.momentum import gem_classic_signal, build_ranking, backtest_gem
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
@@ -94,15 +94,16 @@ def render_alerts() -> None:
 
 # --- 2. Wyszukiwarka ---------------------------------------------------------
 def _on_search() -> None:
-    """Callback: ustaw deep-dive i wyczysc pole (w callbacku wolno zmienic stan widgetu)."""
+    """Callback: zapamietaj wybor i wyczysc pole (w callbacku wolno zmienic stan widgetu).
+
+    Samo przejscie na Karte spolki robi render_search() w glownym przebiegu
+    skryptu — st.switch_page w callbacku nie dziala.
+    """
     choice = st.session_state.get("pulpit_search")
     if not choice:
         return
-    prefix = "sp500" if _detect_market(choice) == "SP500" else "gpw"
-    st.session_state[f"{prefix}_deep_dive_ticker"] = choice
-    st.session_state[f"{prefix}_pending_view"] = "deep_dive"
     st.session_state["pulpit_search"] = ""
-    st.session_state["_pulpit_go"] = prefix
+    st.session_state["_pulpit_go"] = choice
 
 
 def render_search() -> None:
@@ -113,10 +114,10 @@ def render_search() -> None:
         format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {names[t]}",
     )
     if not PREMIUM:
-        st.caption("Szczegóły spółki (finanse, wyniki, insiderzy) są w Premium.")
+        st.caption("Przegląd spółki za darmo, pozostałe zakładki w Premium.")
     target = st.session_state.pop("_pulpit_go", None)
     if target:
-        nav.go(target)
+        nav.go_company(target)
 
 
 # --- 3. Pasek stanu ----------------------------------------------------------

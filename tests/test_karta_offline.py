@@ -1,0 +1,318 @@
+"""Karta spolki przez router — offline (dane podstawione)."""
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+from streamlit.testing.v1 import AppTest
+
+APP = str(Path(__file__).resolve().parents[1] / "app.py")
+PAGE = "views/spolki/karta.py"
+
+
+class _FakeLS:
+    def __init__(self, *a, **k): pass
+    def getItem(self, *a, **k): return None
+    def setItem(self, *a, **k): return None
+
+
+def _series(n=400, seed=0):
+    rng = np.random.default_rng(seed)
+    idx = pd.bdate_range("2025-01-01", periods=n)
+    return pd.Series(100 * np.cumprod(1 + rng.normal(0.0005, 0.01, n)), index=idx)
+
+
+@pytest.fixture(autouse=True)
+def _offline(monkeypatch):
+    import streamlit_local_storage
+    import data.downloader as dl
+    import data.financials as fin
+    import data.company as co
+    monkeypatch.setattr(streamlit_local_storage, "LocalStorage", _FakeLS)
+    monkeypatch.setattr(dl, "download_single", lambda t, period="15y": _series())
+    monkeypatch.setattr(dl, "download_prices",
+                        lambda ts, period="15y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(ts[:30])}))
+    monkeypatch.setattr(co, "universe_prices",
+                        lambda u, period="2y": pd.DataFrame({t: _series(seed=i) for i, t in enumerate(("AAPL", "CDR.WA", *u[:30]))}))
+    monkeypatch.setattr(fin, "get_ratios_snapshot", lambda t: {"pe": 20.0, "fwd_pe": 18.0, "market_cap": 1e12,
+                                                               "dividend_yield": 0.5, "name": "Apple Inc.",
+                                                               "current_price": 100.0, "currency": "USD"})
+    monkeypatch.setattr(fin, "get_analyst_recos", lambda t: {})
+    import components.financials_ui as fu
+    import components.company.finance as cfin
+    import components.company.results as cres
+    for mod in (fin, fu, cfin, cres):
+        for name, val in (("get_forward_consensus", None), ("get_earnings_history", None),
+                          ("fetch_earnings_trend", None), ("fetch_major_holders", None),
+                          ("fetch_insider_purchases", None), ("fetch_insider_transactions", None),
+                          ("fetch_insider_roster_holders", None), ("fetch_institutional_holders", None),
+                          ("fetch_mutualfund_holders", None), ("fetch_quarterly_statements", None),
+                          ("fetch_annual_statements", None)):
+            if hasattr(mod, name):
+                monkeypatch.setattr(mod, name, lambda *a, _v=val, **k: _v)
+    for mod in (fu, cfin):
+        if hasattr(mod, "get_ratios_snapshot"):
+            monkeypatch.setattr(mod, "get_ratios_snapshot", lambda t: {"pe": 20.0, "name": "Apple Inc."})
+    monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
+    monkeypatch.setattr(fin, "_fetch_info", lambda t: {"dividendYield": 0.02, "payoutRatio": 0.3})
+    monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.1, "low52": 80.0,
+                                                          "high52": 120.0, "exchange": "NMS", "currency": "USD"})
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(dtype=float))
+    monkeypatch.setattr(co, "sector_caps", lambda m, s: pd.Series({"AAPL": 1e12, "MSFT": 9e11}))
+    monkeypatch.setattr(co, "_sector_members", lambda m, s: ["AAPL", "MSFT", "NVDA"] if m == "SP500" else ["PKO.WA", "PEO.WA"])
+
+
+SECTIONS = {"Przegląd": "przeglad", "Finanse": "finanse", "Wyniki": "wyniki",
+            "Akcjonariat": "akcjonariat", "Dywidendy": "dywidendy", "Konkurencja": "konkurencja"}
+
+
+def _run(premium: bool, t: str | None, tab: str | None = None):
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["premium"] = premium
+    at.session_state["_auth_retries"] = 3
+    if t is not None:
+        at.query_params["t"] = t
+    if tab is not None:
+        at.query_params["tab"] = tab
+    at.switch_page(PAGE).run()
+    return at
+
+
+def _html(at):
+    return " ".join(e.proto.body for e in at.get("html"))
+
+
+def _seg(at):
+    return at.button_group(key="karta_tab")
+
+
+def _unavailable(at):
+    return [c.value for c in at.caption if "dane chwilowo niedostępne" in str(c.value)]
+
+
+def test_free_shows_overview_then_teaser_per_section():
+    at = _run(False, "AAPL")
+    assert not at.exception, at.exception
+    assert len(at.tabs) == 0
+    assert _seg(at).value == "Przegląd"
+    assert _html(at).count("🔒") == 0
+    assert "Momentum GEM · #" in _html(at)
+    for name, slug in SECTIONS.items():
+        if name == "Przegląd":
+            continue
+        _seg(at).set_value(name).run()
+        assert not at.exception, (name, at.exception)
+        assert at.query_params["tab"] == [slug] or at.query_params["tab"] == slug
+        html = _html(at)
+        assert html.count("🔒") == 1, name
+        assert "Momentum GEM · #" not in html, name    # Przegląd juz sie nie renderuje
+
+
+@pytest.mark.parametrize("name", list(SECTIONS))
+def test_premium_renders_each_section(name):
+    at = _run(True, "AAPL", SECTIONS[name])
+    assert not at.exception, at.exception
+    assert _seg(at).value == name
+    assert _html(at).count("🔒") == 0
+    assert not _unavailable(at), _unavailable(at)
+
+
+def test_premium_only_selected_section_fetches_data(monkeypatch):
+    """Regresja wydajnosci: st.tabs wykonywal wszystkie sekcje (zimny Premium >3 min).
+    Na Przegladzie nie wolno liczyc kapitalizacji sektora (Konkurencja) ani akcjonariatu."""
+    import data.company as co
+    import components.financials_ui as fu
+    calls = {"caps": 0, "holders": 0}
+    def caps(m, s):
+        calls["caps"] += 1
+        return pd.Series({"AAPL": 1e12, "MSFT": 9e11})
+    def holders(*a, **k):
+        calls["holders"] += 1
+        return None
+    monkeypatch.setattr(co, "sector_caps", caps)
+    monkeypatch.setattr(fu, "fetch_major_holders", holders)
+    at = _run(True, "AAPL")
+    assert not at.exception, at.exception
+    assert calls == {"caps": 0, "holders": 0}
+    _seg(at).set_value("Konkurencja").run()
+    assert not at.exception, at.exception
+    assert calls["caps"] > 0 and calls["holders"] == 0
+    _seg(at).set_value("Akcjonariat").run()
+    assert not at.exception, at.exception
+    assert calls["holders"] > 0
+
+
+def test_tab_deep_link_dywidendy():
+    at = _run(True, "AAPL", "dywidendy")
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Dywidendy"
+    assert any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+    assert "Mediana grupy" not in _html(at)
+
+
+def test_tab_invalid_slug_falls_back_to_overview():
+    at = _run(True, "AAPL", "bzdura")
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Przegląd"
+    assert "Momentum GEM · #" in _html(at)
+
+
+def test_tab_param_removed_returns_to_overview():
+    """Odklikniecie sekcji (None) -> callback usuwa ?tab= -> wraca Przeglad.
+    AppTest nie umie ustawic None w segmented_control, wiec symulujemy stan po callbacku."""
+    at = _run(True, "AAPL", "wyniki")
+    assert _seg(at).value == "Wyniki"
+    del at.query_params["tab"]
+    at.run()
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Przegląd"
+    assert "tab" not in at.query_params
+
+
+def test_ticker_change_keeps_section():
+    at = _run(True, "AAPL", "dywidendy")
+    at.query_params["t"] = "MSFT"
+    at.run()
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Dywidendy"
+    assert at.selectbox(key="karta_search").value == "MSFT"
+
+
+def test_unknown_ticker_message():
+    at = _run(False, "XXX")
+    assert not at.exception
+    assert any("Nie znaleziono spółki" in str(m.value) for m in [*at.markdown, *at.warning, *at.info])
+
+
+def test_no_ticker_shows_search():
+    at = _run(False, None)
+    assert not at.exception
+    assert at.selectbox(key="karta_search") is not None
+
+
+def test_search_follows_ticker_change():
+    at = _run(False, "AAPL")
+    assert at.selectbox(key="karta_search").value == "AAPL"
+    at.query_params["t"] = "MSFT"
+    at.run()
+    assert not at.exception
+    assert at.selectbox(key="karta_search").value == "MSFT"
+
+
+@pytest.mark.parametrize("slug", list(SECTIONS.values()))
+def test_premium_gpw_bank_renders(slug):
+    at = _run(True, "PKO.WA", slug)
+    assert not at.exception, at.exception
+    assert not _unavailable(at), _unavailable(at)
+
+
+def test_premium_beat_miss_chart_path(monkeypatch):
+    import components.financials_ui as fu
+    import components.company.results as cres
+    baseline = len(_run(True, "AAPL", "wyniki").get("plotly_chart"))
+    df = pd.DataFrame({"eps_estimate": [1.0, 1.1, 1.2, 1.3],
+                       "eps_actual": [1.1, 1.1, 1.3, 1.4],
+                       "surprise_pct": [10.0, 0.0, 8.3, 7.7]},
+                      index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
+    for mod in (fu, cres):
+        monkeypatch.setattr(mod, "get_earnings_history", lambda *a, **k: df)
+    at = _run(True, "AAPL", "wyniki")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert len(at.get("plotly_chart")) > baseline
+
+
+def test_premium_no_dividends_info():
+    at = _run(True, "AAPL", "dywidendy")
+    assert not at.exception, at.exception
+    assert any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+
+
+def test_premium_dividends_tab_renders(monkeypatch):
+    import data.company as co
+    now = pd.Timestamp.now().normalize()
+    dates = [now - pd.DateOffset(months=2) - pd.DateOffset(months=6 * k) for k in range(12)]
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(0.5, index=pd.DatetimeIndex(sorted(dates))))
+    at = _run(True, "AAPL", "dywidendy")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert not any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+    assert not any("Brak aktualnej stopy dywidendy" in str(c.value) for c in at.caption)
+    assert at.number_input(key="kdv_amount").value == 10000.0
+    html = _html(at)
+    assert "1,00%" in html and "30,00%" in html     # yield z TTM/cena 100, payout z info
+    net = co.dividend_after_tax(10000.0, 0.01, "SP500", "zwykle")["net"]
+    expected = f"{net:,.2f} USD".replace(",", " ").replace(".", ",")
+    assert any(m.value == expected for m in at.metric), [m.value for m in at.metric]
+    assert any("USA" in str(c.value) for c in at.caption)
+
+
+def test_premium_gpw_dividends_pln_belka(monkeypatch):
+    import data.company as co
+    now = pd.Timestamp.now().normalize()
+    dates = [now - pd.DateOffset(months=2) - pd.DateOffset(months=12 * k) for k in range(6)]
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(2.0, index=pd.DatetimeIndex(sorted(dates))))
+    monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.0, "low52": 80.0,
+                                                          "high52": 120.0, "exchange": "WSE", "currency": "PLN"})
+    at = _run(True, "PKO.WA", "dywidendy")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    y = 2.0 / 100.0
+    net = co.dividend_after_tax(10000.0, y, "GPW", "zwykle")
+    assert net["tax"] == pytest.approx(10000.0 * y * 0.19)
+    assert co.dividend_after_tax(10000.0, y, "GPW", "ike")["tax"] == 0
+    fmt = lambda x: f"{x:,.2f} PLN".replace(",", " ").replace(".", ",")
+    vals = [m.value for m in at.metric]
+    assert fmt(net["net"]) in vals, vals
+    assert any("Belki" in str(c.value) for c in at.caption)
+
+
+def test_premium_peers_table_renders():
+    at = _run(True, "AAPL", "konkurencja")
+    assert not at.exception, at.exception
+    assert "Mediana grupy" in _html(at)
+    html = _html(at)
+    assert 'title="Momentum 12M">Mom. 12M</th>' in html and 'title="Kapitalizacja">Kap.</th>' in html
+    assert "1,0 bln $" in html          # market_cap 1e12 ze stubu get_ratios_snapshot
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+
+
+def test_peers_helpers_units_and_colors():
+    import numpy as np
+    from components.company import peers
+    from components.constants import GREEN, RED, TEXT
+    rows = peers.build_rows(["A"], {"A": {"dividend_yield": 0.5, "pe": -3.0, "roe": 0.2}}, pd.Series({"A": 0.1}))
+    assert rows["A"]["dividend_yield"] == pytest.approx(0.005)
+    assert np.isnan(rows["A"]["pe"]) and rows["A"]["mom12"] == 0.1
+    assert peers.fmt_cell("Stopa dywidendy", 0.005) == "0,5%"
+    assert peers.fmt_cell("Momentum 12M", 0.12) == "+12,0%" and peers.fmt_cell("ROE", 0.2) == "20,0%"
+    assert peers.fmt_cell("P/E", 12.34) == "12,3"
+    assert peers.fmt_cell("P/E", np.nan) == "—"
+    assert peers.fmt_cell("Kapitalizacja", 3.89e12) == "3,9 bln $"
+    assert peers.fmt_cell("Kapitalizacja", 880.6e9) == "880,6 mld $"
+    assert peers.fmt_cell("Kapitalizacja", 2.5e10, "zł") == "25,0 mld zł"
+    assert peers.cell_color("P/E", 10, 20) == GREEN and peers.cell_color("P/E", 30, 20) == RED
+    assert peers.cell_color("ROE", 0.3, 0.2) == GREEN and peers.cell_color("ROE", 0.1, 0.2) == RED
+    assert peers.cell_color("ROE", np.nan, 0.2) == TEXT
+
+
+def test_free_overview_momentum_card_replaces_placeholder():
+    """Momentum GEM w 1. kolumnie pod wykresem: po renderze jest karta z rankingiem,
+    a placeholder „Liczę ranking…” znika (zastapiony, nie dopisany obok)."""
+    from components.company.overview import LOADING_MOMENTUM
+    at = _run(False, "AAPL")
+    assert not at.exception, at.exception
+    html = _html(at)
+    assert "Momentum GEM · #" in html
+    assert LOADING_MOMENTUM not in html
+
+
+def test_overview_momentum_failure_shows_caption_not_blank(monkeypatch):
+    import data.company as co
+    def boom(*a, **k):
+        raise RuntimeError("yahoo down")
+    monkeypatch.setattr(co, "universe_prices", boom)
+    at = _run(False, "AAPL")
+    assert not at.exception, at.exception
+    assert any("Momentum GEM: dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+
