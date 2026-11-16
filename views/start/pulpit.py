@@ -16,7 +16,7 @@ from components.auth import is_premium, premium_teaser
 from components.cards import (card_html, metric_row, top_etf_cards, stats_table,
                               data_status_card, alert_banner, _sparkline_svg)
 from components.charts import sparkline_chart
-from components.constants import GREEN, RED, AMBER, GOLD, GOLD_SOFT, TEXT, BORDER, BG_HOVER
+from components.constants import GREEN, RED, AMBER, GOLD, GOLD_SOFT, TEXT, BORDER, BG_HOVER, SHADOW
 from components.formatting import color_for_value, MUTED, BG_CARD
 from components.sidebar import get_risk_free, render_footer
 from components.watchlist import get_watchlist
@@ -257,6 +257,41 @@ def _ticker_block(t: str, dot: str = "") -> str:
 
 _ROW = f"display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid {BORDER};"
 
+# Klikalne wiersze: karta = st.container(key="pulcard_*"), wiersz = st.container(key="pulrow_*")
+# z HTML-em wiersza i przezroczystym st.buttonem rozciagnietym na caly wiersz. Nawigacja
+# przez st.switch_page (bez przeladowania strony — sesja, Premium i Ulubione zostaja).
+_CLICK_CSS = f"""<style>
+[class*="st-key-pulcard_"] {{ background:{BG_CARD}; border-radius:14px; padding:4px 16px;
+  box-shadow:{SHADOW}; gap:0; }}
+[class*="st-key-pulcard_"] [data-testid="stHorizontalBlock"] {{ gap:16px; }}
+.st-key-pulcard_mov {{ padding-top:12px; }}
+[class*="st-key-pulcard_"] [data-testid="stColumn"] [data-testid="stVerticalBlock"] {{ gap:0; }}
+[class*="st-key-pulrow_"] {{ position:relative; gap:0; }}
+[class*="st-key-pulrow_"] .stElementContainer:has(.stButton) {{ position:absolute; inset:0; z-index:2; }}
+[class*="st-key-pulrow_"] .stButton, [class*="st-key-pulrow_"] .stButton button {{
+  width:100%; height:100%; min-height:0; }}
+[class*="st-key-pulrow_"] .stButton button {{ background:transparent; border:none; color:transparent;
+  border-radius:8px; padding:0; box-shadow:none; }}
+[class*="st-key-pulrow_"] .stButton button:hover {{ background:rgba(255,255,255,.04); }}
+[class*="st-key-pulrow_"] .stButton button:focus-visible {{ outline:1px solid {GOLD}; }}
+[class*="st-key-pulrow_"] .stButton button p {{ color:transparent; }}
+</style>"""
+
+
+def _has_card(t: str) -> bool:
+    """Karta spolki istnieje tylko dla S&P 500 i GPW (nie dla ETF-ow z Ulubionych)."""
+    return t in SP500_NAMES or t in GPW_NAMES
+
+
+def _click_rows(key: str, rows: list[tuple[str, str]]) -> None:
+    """Wiersze (ticker, html); klik w wiersz spolki otwiera jej Karte spolki."""
+    for i, (t, html) in enumerate(rows):
+        with st.container(key=f"pulrow_{key}_{i}"):
+            st.html(html)
+            if _has_card(t) and st.button(f"Otwórz kartę {t}", key=f"pulbtn_{key}_{i}_{t}",
+                                          help=f"Karta spółki {t}"):
+                nav.go_company(t)
+
 
 def render_watchlist(tickers, heading: str, empty_msg: str) -> None:
     """Karta z cena, zmiana dnia i sparkline 3M dla listy tickerow (Premium i Free)."""
@@ -274,16 +309,17 @@ def render_watchlist(tickers, heading: str, empty_msg: str) -> None:
                 raise ValueError("no data")
             color = GREEN if s.iloc[-1] >= s.iloc[0] else RED
             spark = _sparkline_svg(s, color, height=24, fill=False)
-            rows.append(
+            rows.append((t,
                 f'<div style="{_ROW}">{_ticker_block(t)}'
                 f'<div style="width:80px;flex:none">{spark}</div>'
                 f'<div style="text-align:right;flex:none"><div style="font-size:14px;font-weight:600;color:{TEXT};'
                 f'font-variant-numeric:tabular-nums">{s.iloc[-1]:,.2f}</div>'
-                f'<div style="margin-top:2px">{_pill(float(chg.iloc[0]))}</div></div></div>')
+                f'<div style="margin-top:2px">{_pill(float(chg.iloc[0]))}</div></div></div>'))
         except Exception:
-            rows.append(f'<div style="{_ROW}"><div style="font-size:14px;font-weight:600;color:{TEXT}">{t}</div>'
-                        f'<div style="font-size:12px;color:{MUTED}">brak danych</div></div>')
-    st.html(card_html("".join(rows), pad="4px 16px"))
+            rows.append((t, f'<div style="{_ROW}"><div style="font-size:14px;font-weight:600;color:{TEXT}">{t}</div>'
+                            f'<div style="font-size:12px;color:{MUTED}">brak danych</div></div>'))
+    with st.container(key="pulcard_wl"):
+        _click_rows("wl", rows)
 
 
 def render_week_earnings(ls) -> None:
@@ -313,34 +349,38 @@ def render_week_earnings(ls) -> None:
             status = f'<span style="color:{MUTED};font-size:12px;white-space:nowrap">{days_label(n)}</span>'
         dot = (f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{GOLD};'
                f'margin-left:6px;vertical-align:middle"></span>') if r["ticker"] in wl else ""
-        rows.append(
+        rows.append((r["ticker"],
             f'<div style="{_ROW}">'
             f'<div style="width:40px;flex:none;text-align:center;background:{BG_HOVER};border-radius:8px;padding:4px 0">'
             f'<div style="font-size:16px;font-weight:600;color:{TEXT};line-height:1.2">{r["date"].day}</div>'
             f'<div style="font-size:11px;color:{MUTED}">{short_month_pl(r["date"])}</div></div>'
             f'{_ticker_block(r["ticker"], dot)}'
-            f'<div style="flex:none">{status}</div></div>')
-    st.html(card_html("".join(rows), pad="4px 16px"))
+            f'<div style="flex:none">{status}</div></div>'))
+    with st.container(key="pulcard_earn"):
+        _click_rows("earn", rows)
 
 
-def _movers_col(title: str, color: str, series: pd.Series) -> str:
-    rows = "".join(
-        f'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid {BORDER}">'
-        f'{_ticker_block(t)}{_pill(float(v))}</div>'
-        for t, v in series.items())
-    return (f'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:{color};'
-            f'padding:6px 0 2px">{title}</div>{rows}</div>')
+def _movers_col(key: str, title: str, color: str, series: pd.Series) -> None:
+    st.html(f'<div style="font-size:12px;font-weight:600;color:{color};padding:6px 0 2px">{title}</div>')
+    _click_rows(key, [
+        (t, f'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid {BORDER}">'
+            f'{_ticker_block(t)}{_pill(float(v))}</div>')
+        for t, v in series.items()])
 
 
 @st.fragment
 def render_movers() -> None:
-    st.markdown("#### Wygrani / przegrani dnia")
-    try:
-        market = st.segmented_control("Rynek", ["S&P 500", "GPW"], default="S&P 500",
-                                      key="mov_market", label_visibility="collapsed")
-    except Exception:
-        market = st.radio("Rynek", ["S&P 500", "GPW"], horizontal=True, key="mov_market_r",
-                          label_visibility="collapsed")
+    # Sam naglowek (jedna linia jak w sasiednich kolumnach); przelacznik rynku jest
+    # wewnatrz karty, wiec wszystkie trzy karty startuja na tej samej wysokosci.
+    st.markdown("#### Wygrani / przegrani")
+    card = st.container(key="pulcard_mov")
+    with card:
+        try:
+            market = st.segmented_control("Rynek", ["S&P 500", "GPW"], default="S&P 500",
+                                          key="mov_market", label_visibility="collapsed")
+        except Exception:
+            market = st.radio("Rynek", ["S&P 500", "GPW"], horizontal=True, key="mov_market_r",
+                              label_visibility="collapsed")
     market = market or "S&P 500"
     universe = ALL_SP500_TICKERS if market == "S&P 500" else ALL_GPW_TICKERS
     with st.spinner(f"Liczę zmiany {market}…"):
@@ -352,9 +392,12 @@ def render_movers() -> None:
     if gainers.empty:
         unavailable(market)
         return
-    st.html(card_html(
-        f'<div style="display:flex;gap:16px">{_movers_col("Wzrosty", GREEN, gainers)}'
-        f'{_movers_col("Spadki", RED, losers)}</div>', pad="4px 16px"))
+    with card:
+        c_up, c_down = st.columns(2)
+        with c_up:
+            _movers_col("up", "Wzrosty", GREEN, gainers)
+        with c_down:
+            _movers_col("down", "Spadki", RED, losers)
 
 
 # --- 5. Top 5 ETF + wyniki 5 lat ------------------------------------------------
@@ -446,6 +489,7 @@ gem_data, regime = render_status_bar(prices, rf)
 sparks = render_market_tiles()
 st.divider()
 
+st.markdown(_CLICK_CSS, unsafe_allow_html=True)
 col_wl, col_earn, col_mov = st.columns(3)
 if PREMIUM:
     ls = LocalStorage()

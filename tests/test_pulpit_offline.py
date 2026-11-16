@@ -100,3 +100,30 @@ def test_pulpit_label_helpers():
     assert ns["days_label"](0) == "dziś"
     assert ns["days_label"](1) == "jutro"
     assert ns["days_label"](4) == "za 4 dni"
+
+
+def _row_buttons(at, prefix: str):
+    return [b for b in at.button if str(b.key or "").startswith(prefix)]
+
+
+def test_premium_watchlist_row_opens_company_card():
+    at = _run(True, favorites={"AAPL", "SPY"})
+    assert not at.exception, at.exception
+    btns = _row_buttons(at, "pulbtn_wl_")
+    # Klikalna tylko spolka (AAPL), ETF z Ulubionych (SPY) nie ma Karty spolki
+    assert [b.key.rsplit("_", 1)[-1] for b in btns] == ["AAPL"]
+    btns[0].click().run()
+    assert at.query_params.get("t") in ("AAPL", ["AAPL"])
+
+
+def test_premium_movers_row_opens_company_card(monkeypatch):
+    from data import market_status as ms
+    monkeypatch.setattr(ms, "market_movers",
+                        lambda universe: pd.Series({"AAPL": 0.05, "MSFT": 0.02, "NVDA": -0.03, "TSLA": -0.06}))
+    at = _run(True)
+    assert not at.exception, at.exception
+    up = _row_buttons(at, "pulbtn_up_")
+    assert up, "brak klikalnych wierszy w Wzrostach"
+    t = up[0].key.rsplit("_", 1)[-1]
+    up[0].click().run()
+    assert at.query_params.get("t") in (t, [t])
