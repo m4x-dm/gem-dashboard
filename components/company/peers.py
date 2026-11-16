@@ -8,7 +8,7 @@ from components.constants import TEXT, MUTED, GREEN, RED, BG_HOVER, BORDER
 from components.formatting import fmt_pct
 from data import company as co
 from data import financials as fin
-from data.financials import format_large_number
+from components.company.overview import _big
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.momentum import latest_returns
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
@@ -17,6 +17,10 @@ MEDIAN = "Mediana grupy"
 PCT_COLS = ("ROE", "Marża netto", "Wzrost przychodów", "Stopa dywidendy", "Momentum 12M")
 SIGNED_COLS = ("Wzrost przychodów", "Momentum 12M")
 MULTIPLES = ("P/E", "Forward P/E", "EV/EBITDA")
+# Krotkie naglowki, zeby tabela miescila sie w kolumnie na desktopie; pelna nazwa w title=
+SHORT = {"Kapitalizacja": "Kap.", "Forward P/E": "Fwd P/E", "Marża netto": "Marża",
+         "Wzrost przychodów": "Wzrost przych.", "Stopa dywidendy": "Stopa dyw.",
+         "Momentum 12M": "Mom. 12M"}
 
 
 def build_rows(tickers, snapshots: dict, mom12) -> dict:
@@ -35,11 +39,11 @@ def build_rows(tickers, snapshots: dict, mom12) -> dict:
     return rows
 
 
-def fmt_cell(col: str, v) -> str:
+def fmt_cell(col: str, v, ccy: str = "$") -> str:
     if v is None or not np.isfinite(v):
         return "—"
     if col == "Kapitalizacja":
-        return format_large_number(v)
+        return _big(v, ccy)     # jak w Przegladzie: "3,9 bln $", "880,6 mld $", zl dla GPW
     if col in PCT_COLS:
         s = fmt_pct(v, 1)
         return s if col in SIGNED_COLS else s.lstrip("+")
@@ -56,9 +60,11 @@ def cell_color(col: str, v, med) -> str:
     return GREEN if better else RED
 
 
-def table_html(df, ticker: str) -> str:
-    th = "padding:8px 10px;text-align:right;color:%s;font-weight:500;white-space:nowrap;border-bottom:1px solid %s;" % (MUTED, BORDER)
-    head = f'<th style="{th}text-align:left">Spółka</th>' + "".join(f'<th style="{th}">{_h.escape(c)}</th>' for c in df.columns)
+def table_html(df, ticker: str, ccy: str = "$") -> str:
+    pad = "padding:6px 7px;"
+    th = f"{pad}text-align:right;color:{MUTED};font-weight:500;white-space:nowrap;border-bottom:1px solid {BORDER};"
+    head = f'<th style="{th}text-align:left">Spółka</th>' + "".join(
+        f'<th style="{th}" title="{_h.escape(c)}">{_h.escape(SHORT.get(c, c))}</th>' for c in df.columns)
     med = df.loc[MEDIAN]
     body = ""
     for idx, r in df.iterrows():
@@ -66,14 +72,14 @@ def table_html(df, ticker: str) -> str:
         bg = f"background:{BG_HOVER};" if is_t else ""
         wt = "font-weight:700;" if is_t else ""
         lbl_col = MUTED if is_m else TEXT
-        cells = f'<td style="padding:8px 10px;white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(idx)}</td>'
+        cells = f'<td style="{pad}white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(idx)}</td>'
         for c in df.columns:
             v = r[c]
             col = MUTED if is_m else cell_color(c, v, med[c])
-            cells += (f'<td style="padding:8px 10px;text-align:right;white-space:nowrap;color:{col};{wt}'
-                      f'font-variant-numeric:tabular-nums">{fmt_cell(c, v)}</td>')
+            cells += (f'<td style="{pad}text-align:right;white-space:nowrap;color:{col};{wt}'
+                      f'font-variant-numeric:tabular-nums">{fmt_cell(c, v, ccy)}</td>')
         body += f'<tr style="{bg}border-bottom:1px solid {BORDER}">{cells}</tr>'
-    return (f'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+    return (f'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.85rem">'
             f'<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>')
 
 
@@ -99,7 +105,7 @@ def render(ticker, market):
         tickers = [ticker, *chosen]
         snaps = {t: fin.get_ratios_snapshot(t) or {} for t in tickers}
         df = co.peer_table(build_rows(tickers, snaps, mom12))
-        st.html(table_html(df, ticker))
+        st.html(table_html(df, ticker, "zł" if market == "GPW" else "$"))
         st.caption("Mediana liczona dla całej wyświetlanej grupy (łącznie z wybraną spółką). "
                    "Zielony = lepiej niż mediana, czerwony = gorzej (dla mnożników: niżej = lepiej). "
                    "Ujemne mnożniki (strata) pomijane. Momentum 12M liczone bez ostatniego miesiąca.")

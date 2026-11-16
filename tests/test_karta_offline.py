@@ -271,6 +271,9 @@ def test_premium_peers_table_renders():
     at = _run(True, "AAPL", "konkurencja")
     assert not at.exception, at.exception
     assert "Mediana grupy" in _html(at)
+    html = _html(at)
+    assert 'title="Momentum 12M">Mom. 12M</th>' in html and 'title="Kapitalizacja">Kap.</th>' in html
+    assert "1,0 bln $" in html          # market_cap 1e12 ze stubu get_ratios_snapshot
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
 
 
@@ -285,6 +288,9 @@ def test_peers_helpers_units_and_colors():
     assert peers.fmt_cell("Momentum 12M", 0.12) == "+12,0%" and peers.fmt_cell("ROE", 0.2) == "20,0%"
     assert peers.fmt_cell("P/E", 12.34) == "12,3"
     assert peers.fmt_cell("P/E", np.nan) == "—"
+    assert peers.fmt_cell("Kapitalizacja", 3.89e12) == "3,9 bln $"
+    assert peers.fmt_cell("Kapitalizacja", 880.6e9) == "880,6 mld $"
+    assert peers.fmt_cell("Kapitalizacja", 2.5e10, "zł") == "25,0 mld zł"
     assert peers.cell_color("P/E", 10, 20) == GREEN and peers.cell_color("P/E", 30, 20) == RED
     assert peers.cell_color("ROE", 0.3, 0.2) == GREEN and peers.cell_color("ROE", 0.1, 0.2) == RED
     assert peers.cell_color("ROE", np.nan, 0.2) == TEXT
