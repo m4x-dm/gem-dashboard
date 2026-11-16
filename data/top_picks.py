@@ -7,12 +7,12 @@ odpalic w GitHub Action i w testach bez runtime'u Streamlita.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 import pandas as pd
-
 from data.momentum import latest_returns, rank_based_score
 
 # Wersja reguly PER STRATEGIA — podbij przy KAZDEJ zmianie parametrow danej
@@ -254,16 +254,21 @@ def consensus_label(rm) -> str:
     return "Strong Sell"
 
 
+def _finite_float(x) -> float | None:
+    """float(x) albo None gdy brak, nie-liczba, NaN lub +-inf (log nie przyjmie NaN/Infinity)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) else None
+
+
 def _analyst_fields(info: dict) -> tuple[float | None, int]:
     """(recommendation_mean, num_analysts) z rekordu bulk, z bezpieczna konwersja."""
-    rm = info.get("recommendation_mean")
-    try:
-        rm = float(rm) if rm is not None else None
-    except (TypeError, ValueError):
-        rm = None
+    rm = _finite_float(info.get("recommendation_mean"))
     try:
         n = int(info.get("num_analysts") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         n = 0
     return rm, n
 
@@ -304,12 +309,9 @@ ANALYST_SCORER = make_analyst_scorer()
 
 def _upside(info: dict) -> float | None:
     """target_mean / current_price - 1; None gdy brak lub cena <= 0."""
-    try:
-        target = float(info.get("target_mean"))
-        price = float(info.get("current_price"))
-    except (TypeError, ValueError):
-        return None
-    if price <= 0 or pd.isna(target) or pd.isna(price):
+    target = _finite_float(info.get("target_mean"))
+    price = _finite_float(info.get("current_price"))
+    if target is None or price is None or price <= 0 or target <= 0:
         return None
     return target / price - 1
 
@@ -353,10 +355,10 @@ def enrich_analyst_context(picks: list[dict], bulk: dict) -> list[dict]:
         info = bulk.get(pick["ticker"]) or {}
         rm, n = _analyst_fields(info)
         up = _upside(info)
-        target = info.get("target_mean")
+        target = _finite_float(info.get("target_mean"))
         pick["recommendation_mean"] = round(rm, 2) if rm is not None else None
         pick["num_analysts"] = n
-        pick["target_mean"] = round(float(target), 2) if target is not None else None
+        pick["target_mean"] = round(target, 2) if target is not None else None
         pick["upside"] = round(up, 4) if up is not None else None
     return picks
 

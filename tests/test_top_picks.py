@@ -671,3 +671,53 @@ def test_enrich_analyst_context_dopisuje_pola():
     # brak rekordu -> pola sa, ale puste (UI pokazuje "—")
     assert picks[1]["recommendation_mean"] is None
     assert picks[1]["upside"] is None
+
+
+def _scores(maker, bulk):
+    scorer = maker(bulk_fn=lambda tickers: bulk)
+    return scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+
+
+def test_nan_recommendation_mean_odpada_w_obu_scorerach():
+    bulk = {"AAA": {"recommendation_mean": float("nan"), "num_analysts": 10,
+                    "target_mean": 150.0, "current_price": 100.0}}
+    assert _scores(tp.make_upside_scorer, bulk).dropna().empty
+    assert _scores(tp.make_analyst_scorer, bulk).dropna().empty
+
+
+def test_num_analysts_inf_nie_wywala():
+    bulk = {"AAA": {"recommendation_mean": 1.5, "num_analysts": float("inf"),
+                    "target_mean": 150.0, "current_price": 100.0}}
+    _scores(tp.make_analyst_scorer, bulk)
+    _scores(tp.make_upside_scorer, bulk)
+
+
+def test_niefinitny_target_odpada_i_log_jest_poprawnym_jsonem():
+    bulk = {
+        "AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": float("inf"), "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": "N/A", "current_price": 100.0},
+    }
+    assert _scores(tp.make_upside_scorer, bulk).dropna().empty
+    picks = [{"ticker": "AAA"}, {"ticker": "BBB"}]
+    tp.enrich_analyst_context(picks, bulk)
+    for p in picks:
+        assert p["target_mean"] is None
+        assert p["upside"] is None
+    json.dumps(picks, allow_nan=False)
+
+
+def test_progi_analitykow_negatywne():
+    bulk = {"PKO.WA": {"recommendation_mean": 1.5, "num_analysts": 2},
+            "AAPL": {"recommendation_mean": 1.5, "num_analysts": 3}}
+    assert _scores(tp.make_analyst_scorer, bulk).dropna().empty
+
+
+def test_upside_tiebreak_wiecej_analitykow_wyzej():
+    bulk = {"AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                    "target_mean": 120.0, "current_price": 100.0},
+            "BBB": {"recommendation_mean": 1.5, "num_analysts": 30,
+                    "target_mean": 120.0, "current_price": 100.0}}
+    s = _scores(tp.make_upside_scorer, bulk)
+    assert list(s.sort_values(ascending=False).index) == ["BBB", "AAA"]
