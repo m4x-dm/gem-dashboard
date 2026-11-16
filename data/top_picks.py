@@ -297,7 +297,9 @@ def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
     # Duplikat w indeksie wpuscilby ten sam ticker dwa razy i rozjechal wagi.
     # Scorer.fn jest publicznym punktem rozszerzenia, wiec nie ufamy indeksowi.
     scores = scores[~scores.index.duplicated()]
-    scores = scores.dropna().sort_values(ascending=False)
+    # Stabilne sortowanie po posortowanym indeksie: pelne remisy rozstrzyga
+    # ticker alfabetycznie (determinizm logu). Domyslny quicksort nie jest stabilny.
+    scores = scores.dropna().sort_index().sort_values(ascending=False, kind="mergesort")
 
     # Kontrakt: scorer dostaje `eligible` i ma zwracac wylacznie te tickery.
     # Egzekwujemy go tutaj, bo przed wprowadzeniem wymiennych scorerow robilo

@@ -563,3 +563,14 @@ def test_bulk_fetch_universe_zwraca_recommendation_mean(monkeypatch):
     monkeypatch.setattr(fin, "_fetch_info", lambda t: info)
     out = fin.bulk_fetch_universe(("ZZTEST_RM1",))
     assert out["ZZTEST_RM1"]["recommendation_mean"] == 1.8
+
+
+def test_select_picks_remis_rozstrzyga_ticker_alfabetycznie():
+    prices = _frame(400, ("CCC", "AAA", "BBB"))
+    volumes = _volumes(prices)
+    groups = {"AAA": "S1", "BBB": "S2", "CCC": "S3"}
+    tie = tp.Scorer(name="tie", supports_asof=True,
+                    fn=lambda eligible, px, asof: pd.Series(1.0, index=["CCC", "BBB", "AAA"]))
+    picks = tp.select_picks(prices, volumes, groups, prices.index[-1],
+                            top_n=3, scorer=tie)
+    assert [p["ticker"] for p in picks] == ["AAA", "BBB", "CCC"]
