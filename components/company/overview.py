@@ -173,29 +173,25 @@ def _calendar(ticker):
     st.html(card_html(_lbl("Kalendarz") + _kv(rows), extra="min-height:144px;font-size:13px;"))
 
 
-@st.fragment
-def _momentum_fragment(ticker, market):
-    try:
-        universe = ALL_SP500_TICKERS if market == "SP500" else ALL_GPW_TICKERS
-        label = "S&P 500" if market == "SP500" else "GPW"
-        prices = co.universe_prices(tuple(universe), "2y")
-        prof = co.momentum_profile(ticker, prices, get_risk_free())
-        if not prof:
-            html = _lbl("Momentum GEM") + f'<span style="color:{MUTED}">Za krótka historia notowań</span>'
-        else:
-            tiles = ""
-            for k, name in (("r1m", "1M"), ("r3m", "3M"), ("r6m", "6M"), ("r12m", "12M")):
-                v = prof.get(k)
-                c = GREEN if _ok(v) and v >= 0 else RED
-                val = _pct(v * 100) if _ok(v) else "—"
-                tiles += (f'<div style="background:{BG_HOVER};border-radius:10px;padding:8px 4px;text-align:center">'
-                          f'<div style="color:{MUTED};font-size:11px">{name}</div>'
-                          f'<b style="color:{c};font-size:12px;{NUM}">{val}</b></div>')
-            html = (_lbl(f'Momentum GEM · #{prof["rank"]} z {prof["of"]} w {label}') +
-                    f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">{tiles}</div>')
-        st.html(card_html(html, extra="min-height:144px;font-size:13px;"))
-    except Exception:
-        st.caption("Momentum GEM: dane chwilowo niedostępne")
+def _momentum_html(ticker, market) -> str:
+    universe = ALL_SP500_TICKERS if market == "SP500" else ALL_GPW_TICKERS
+    label = "S&P 500" if market == "SP500" else "GPW"
+    prices = co.universe_prices(tuple(universe), "2y")
+    prof = co.momentum_profile(ticker, prices, get_risk_free())
+    if not prof:
+        html = _lbl("Momentum GEM") + f'<span style="color:{MUTED}">Za krótka historia notowań</span>'
+    else:
+        tiles = ""
+        for k, name in (("r1m", "1M"), ("r3m", "3M"), ("r6m", "6M"), ("r12m", "12M")):
+            v = prof.get(k)
+            c = GREEN if _ok(v) and v >= 0 else RED
+            val = _pct(v * 100) if _ok(v) else "—"
+            tiles += (f'<div style="background:{BG_HOVER};border-radius:10px;padding:8px 4px;text-align:center">'
+                      f'<div style="color:{MUTED};font-size:11px">{name}</div>'
+                      f'<b style="color:{c};font-size:12px;{NUM}">{val}</b></div>')
+        html = (_lbl(f'Momentum GEM · #{prof["rank"]} z {prof["of"]} w {label}') +
+                f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">{tiles}</div>')
+    return card_html(html, extra="min-height:144px;font-size:13px;")
 
 
 def _about(ticker):
@@ -234,5 +230,8 @@ def render(ticker, market):
     with c3:
         _safe("Kalendarz", _calendar, ticker)
     _safe("O spółce", _about, ticker)
-    with mov_slot.container():
-        _momentum_fragment(ticker, market)
+    # Zwykly slot zamiast @st.fragment — w karcie nie ma widgetow, wiec fragment nic nie daje.
+    try:
+        mov_slot.html(_momentum_html(ticker, market))
+    except Exception:
+        mov_slot.caption("Momentum GEM: dane chwilowo niedostępne")

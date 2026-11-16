@@ -220,3 +220,4 @@ def test_overview_momentum_failure_shows_caption_not_blank(monkeypatch):
     at = _run(False, "AAPL")
     assert not at.exception, at.exception
     assert any("Momentum GEM: dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+
