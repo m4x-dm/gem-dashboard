@@ -16,6 +16,9 @@ TEASERS = {
     "Dywidendy": "Historia wypłat, stopa, wzrost dywidendy i kalkulator dochodu po podatku.",
     "Konkurencja": "Porównanie wskaźników z 5 najbliższymi spółkami z sektora.",
 }
+SLUGS = {"Przegląd": "przeglad", "Finanse": "finanse", "Wyniki": "wyniki",
+         "Akcjonariat": "akcjonariat", "Dywidendy": "dywidendy", "Konkurencja": "konkurencja"}
+BY_SLUG = {v: k for k, v in SLUGS.items()}
 NAMES = {**SP500_NAMES, **GPW_NAMES}
 
 
@@ -32,6 +35,25 @@ def _search(current: str | None) -> None:
     st.selectbox("Szukaj spółki (S&P 500 i GPW)", options,
                  key="karta_search", on_change=_on_pick,
                  format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {NAMES[t]}")
+
+
+def _on_tab():
+    sel = st.session_state.get("karta_tab") or "Przegląd"
+    if sel == "Przegląd":
+        st.query_params.pop("tab", None)
+    else:
+        st.query_params["tab"] = SLUGS[sel]
+
+
+def _section() -> str:
+    """Wybor sekcji — renderujemy tylko ja (st.tabs wykonywal wszystkie 6 naraz).
+    Zrodlem prawdy jest ?tab= w adresie; stan widgetu ustawiamy PRZED jego utworzeniem."""
+    want = BY_SLUG.get((st.query_params.get("tab") or "").lower().strip(), "Przegląd")
+    if st.session_state.get("karta_tab") != want:
+        st.session_state["karta_tab"] = want
+    sel = st.segmented_control("Sekcja", TABS, key="karta_tab", on_change=_on_tab,
+                               label_visibility="collapsed")
+    return sel or "Przegląd"
 
 
 def _render_tab(name: str, ticker: str, market: str) -> None:
@@ -57,12 +79,10 @@ elif ticker not in NAMES:
 else:
     market = _detect_market(ticker)
     header.render(ticker, market)
-    tabs = st.tabs(TABS)
-    for name, tab in zip(TABS, tabs):
-        with tab:
-            if name == "Przegląd" or is_premium():
-                _render_tab(name, ticker, market)
-            else:
-                premium_teaser(name, TEASERS[name])
+    name = _section()
+    if name == "Przegląd" or is_premium():
+        _render_tab(name, ticker, market)
+    else:
+        premium_teaser(name, TEASERS[name])
 
 render_footer()

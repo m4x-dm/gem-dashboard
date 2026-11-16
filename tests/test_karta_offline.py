@@ -62,12 +62,18 @@ def _offline(monkeypatch):
     monkeypatch.setattr(co, "_sector_members", lambda m, s: ["AAPL", "MSFT", "NVDA"] if m == "SP500" else ["PKO.WA", "PEO.WA"])
 
 
-def _run(premium: bool, t: str | None):
+SECTIONS = {"Przegląd": "przeglad", "Finanse": "finanse", "Wyniki": "wyniki",
+            "Akcjonariat": "akcjonariat", "Dywidendy": "dywidendy", "Konkurencja": "konkurencja"}
+
+
+def _run(premium: bool, t: str | None, tab: str | None = None):
     at = AppTest.from_file(APP, default_timeout=120)
     at.session_state["premium"] = premium
     at.session_state["_auth_retries"] = 3
     if t is not None:
         at.query_params["t"] = t
+    if tab is not None:
+        at.query_params["tab"] = tab
     at.switch_page(PAGE).run()
     return at
 
@@ -76,18 +82,100 @@ def _html(at):
     return " ".join(e.proto.body for e in at.get("html"))
 
 
-def test_free_shows_overview_and_five_teasers():
+def _seg(at):
+    return at.button_group(key="karta_tab")
+
+
+def _unavailable(at):
+    return [c.value for c in at.caption if "dane chwilowo niedostępne" in str(c.value)]
+
+
+def test_free_shows_overview_then_teaser_per_section():
     at = _run(False, "AAPL")
     assert not at.exception, at.exception
-    assert len(at.tabs) >= 6
-    assert _html(at).count("🔒") == 5
+    assert len(at.tabs) == 0
+    assert _seg(at).value == "Przegląd"
+    assert _html(at).count("🔒") == 0
+    assert "Momentum GEM · #" in _html(at)
+    for name, slug in SECTIONS.items():
+        if name == "Przegląd":
+            continue
+        _seg(at).set_value(name).run()
+        assert not at.exception, (name, at.exception)
+        assert at.query_params["tab"] == [slug] or at.query_params["tab"] == slug
+        html = _html(at)
+        assert html.count("🔒") == 1, name
+        assert "Momentum GEM · #" not in html, name    # Przegląd juz sie nie renderuje
 
 
-def test_premium_renders_all_tabs():
+@pytest.mark.parametrize("name", list(SECTIONS))
+def test_premium_renders_each_section(name):
+    at = _run(True, "AAPL", SECTIONS[name])
+    assert not at.exception, at.exception
+    assert _seg(at).value == name
+    assert _html(at).count("🔒") == 0
+    assert not _unavailable(at), _unavailable(at)
+
+
+def test_premium_only_selected_section_fetches_data(monkeypatch):
+    """Regresja wydajnosci: st.tabs wykonywal wszystkie sekcje (zimny Premium >3 min).
+    Na Przegladzie nie wolno liczyc kapitalizacji sektora (Konkurencja) ani akcjonariatu."""
+    import data.company as co
+    import components.financials_ui as fu
+    calls = {"caps": 0, "holders": 0}
+    def caps(m, s):
+        calls["caps"] += 1
+        return pd.Series({"AAPL": 1e12, "MSFT": 9e11})
+    def holders(*a, **k):
+        calls["holders"] += 1
+        return None
+    monkeypatch.setattr(co, "sector_caps", caps)
+    monkeypatch.setattr(fu, "fetch_major_holders", holders)
     at = _run(True, "AAPL")
     assert not at.exception, at.exception
-    assert _html(at).count("🔒") == 0
-    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert calls == {"caps": 0, "holders": 0}
+    _seg(at).set_value("Konkurencja").run()
+    assert not at.exception, at.exception
+    assert calls["caps"] > 0 and calls["holders"] == 0
+    _seg(at).set_value("Akcjonariat").run()
+    assert not at.exception, at.exception
+    assert calls["holders"] > 0
+
+
+def test_tab_deep_link_dywidendy():
+    at = _run(True, "AAPL", "dywidendy")
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Dywidendy"
+    assert any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+    assert "Mediana grupy" not in _html(at)
+
+
+def test_tab_invalid_slug_falls_back_to_overview():
+    at = _run(True, "AAPL", "bzdura")
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Przegląd"
+    assert "Momentum GEM · #" in _html(at)
+
+
+def test_tab_param_removed_returns_to_overview():
+    """Odklikniecie sekcji (None) -> callback usuwa ?tab= -> wraca Przeglad.
+    AppTest nie umie ustawic None w segmented_control, wiec symulujemy stan po callbacku."""
+    at = _run(True, "AAPL", "wyniki")
+    assert _seg(at).value == "Wyniki"
+    del at.query_params["tab"]
+    at.run()
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Przegląd"
+    assert "tab" not in at.query_params
+
+
+def test_ticker_change_keeps_section():
+    at = _run(True, "AAPL", "dywidendy")
+    at.query_params["t"] = "MSFT"
+    at.run()
+    assert not at.exception, at.exception
+    assert _seg(at).value == "Dywidendy"
+    assert at.selectbox(key="karta_search").value == "MSFT"
 
 
 def test_unknown_ticker_message():
@@ -111,30 +199,31 @@ def test_search_follows_ticker_change():
     assert at.selectbox(key="karta_search").value == "MSFT"
 
 
-def test_premium_gpw_bank_renders():
-    at = _run(True, "PKO.WA")
+@pytest.mark.parametrize("slug", list(SECTIONS.values()))
+def test_premium_gpw_bank_renders(slug):
+    at = _run(True, "PKO.WA", slug)
     assert not at.exception, at.exception
-    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert not _unavailable(at), _unavailable(at)
 
 
 def test_premium_beat_miss_chart_path(monkeypatch):
     import components.financials_ui as fu
     import components.company.results as cres
-    baseline = len(_run(True, "AAPL").get("plotly_chart"))
+    baseline = len(_run(True, "AAPL", "wyniki").get("plotly_chart"))
     df = pd.DataFrame({"eps_estimate": [1.0, 1.1, 1.2, 1.3],
                        "eps_actual": [1.1, 1.1, 1.3, 1.4],
                        "surprise_pct": [10.0, 0.0, 8.3, 7.7]},
                       index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
     for mod in (fu, cres):
         monkeypatch.setattr(mod, "get_earnings_history", lambda *a, **k: df)
-    at = _run(True, "AAPL")
+    at = _run(True, "AAPL", "wyniki")
     assert not at.exception, at.exception
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
     assert len(at.get("plotly_chart")) > baseline
 
 
 def test_premium_no_dividends_info():
-    at = _run(True, "AAPL")
+    at = _run(True, "AAPL", "dywidendy")
     assert not at.exception, at.exception
     assert any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
 
@@ -144,7 +233,7 @@ def test_premium_dividends_tab_renders(monkeypatch):
     now = pd.Timestamp.now().normalize()
     dates = [now - pd.DateOffset(months=2) - pd.DateOffset(months=6 * k) for k in range(12)]
     monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(0.5, index=pd.DatetimeIndex(sorted(dates))))
-    at = _run(True, "AAPL")
+    at = _run(True, "AAPL", "dywidendy")
     assert not at.exception, at.exception
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
     assert not any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
@@ -165,7 +254,7 @@ def test_premium_gpw_dividends_pln_belka(monkeypatch):
     monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(2.0, index=pd.DatetimeIndex(sorted(dates))))
     monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.0, "low52": 80.0,
                                                           "high52": 120.0, "exchange": "WSE", "currency": "PLN"})
-    at = _run(True, "PKO.WA")
+    at = _run(True, "PKO.WA", "dywidendy")
     assert not at.exception, at.exception
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
     y = 2.0 / 100.0
@@ -179,7 +268,7 @@ def test_premium_gpw_dividends_pln_belka(monkeypatch):
 
 
 def test_premium_peers_table_renders():
-    at = _run(True, "AAPL")
+    at = _run(True, "AAPL", "konkurencja")
     assert not at.exception, at.exception
     assert "Mediana grupy" in _html(at)
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
