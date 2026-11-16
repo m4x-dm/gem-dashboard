@@ -721,3 +721,37 @@ def test_upside_tiebreak_wiecej_analitykow_wyzej():
                     "target_mean": 120.0, "current_price": 100.0}}
     s = _scores(tp.make_upside_scorer, bulk)
     assert list(s.sort_values(ascending=False).index) == ["BBB", "AAA"]
+
+
+def test_validate_snapshot_akceptuje_krotszy_sklad_gdy_min_picks():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    assert validate_snapshot("gpw", ["AAA", "BBB"], prices, picks,
+                             asof=prices.index[-1], top_n=5, min_picks=1) is None
+    powod = validate_snapshot("gpw", ["AAA", "BBB"], prices, [],
+                              asof=prices.index[-1], top_n=5, min_picks=1)
+    assert powod is not None and "pozycji" in powod
+
+
+def test_validate_snapshot_min_picks_odrzuca_wiecej_niz_top_n():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}, {"ticker": "BBB", "group": "S2"}]
+    powod = validate_snapshot("gpw", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=1, min_picks=1)
+    assert powod is not None and "pozycji" in powod
+
+
+def test_strategie_ci_obejmuja_analitykow():
+    from scripts.update_top_picks import STRATEGIES, _scorer_for
+
+    assert set(STRATEGIES) == set(tp.RULE_VERSIONS)
+    for name in ("analyst", "upside"):
+        assert STRATEGIES[name]["simulate"] is False
+        assert STRATEGIES[name]["critical"] is False
+        assert STRATEGIES[name]["min_picks"] == 1
+        assert _scorer_for(STRATEGIES[name]["scorer"]).name == name
+
