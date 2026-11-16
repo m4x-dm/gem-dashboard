@@ -626,3 +626,33 @@ def test_analyst_scorer_jest_forward_only_i_bez_danych_nan():
     assert scorer.supports_asof is False
     scores = scorer.fn(["AAA"], pd.DataFrame(), pd.Timestamp("2026-11-16"))
     assert scores.dropna().empty
+
+
+def test_upside_scorer_wymaga_konsensusu_i_rankuje_po_potencjale():
+    bulk = _analyst_bulk()
+    bulk["FFF"] = {"recommendation_mean": 3.2, "num_analysts": 15,   # Hold -> odpada
+                   "target_mean": 300.0, "current_price": 100.0}
+    scorer = tp.make_upside_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    ranked = list(scores.dropna().sort_values(ascending=False).index)
+    # AAA +50%, BBB +10%, CCC +5%; DDD ponizej progu, EEE bez rm, FFF Hold
+    assert ranked == ["AAA", "BBB", "CCC"]
+    assert scores["AAA"] == pytest.approx(0.50, abs=1e-4)
+
+
+def test_upside_scorer_odrzuca_brak_ceny_i_celu():
+    bulk = {
+        "AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": None, "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 120.0, "current_price": 0.0},
+        "CCC": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 120.0, "current_price": None},
+    }
+    scorer = tp.make_upside_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert scores.dropna().empty
+
+
+def test_upside_scorer_jest_forward_only():
+    assert tp.make_upside_scorer(bulk_fn=lambda t: {}).supports_asof is False

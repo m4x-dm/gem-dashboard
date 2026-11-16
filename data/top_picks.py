@@ -297,6 +297,47 @@ def make_analyst_scorer(bulk_fn=None) -> Scorer:
 
 ANALYST_SCORER = make_analyst_scorer()
 
+
+def _upside(info: dict) -> float | None:
+    """target_mean / current_price - 1; None gdy brak lub cena <= 0."""
+    try:
+        target = float(info.get("target_mean"))
+        price = float(info.get("current_price"))
+    except (TypeError, ValueError):
+        return None
+    if price <= 0 or pd.isna(target) or pd.isna(price):
+        return None
+    return target / price - 1
+
+
+def make_upside_scorer(bulk_fn=None) -> Scorer:
+    """Scorer 'Potencjal do ceny docelowej' — tylko spolki z konsensusem >= Buy.
+
+    Warunek rm <= UPSIDE_MAX_RECOMMENDATION odcina pulapke: kurs mocno spadl,
+    analitycy nie zdazyli obnizyc celow, a sami mowia Hold/Sell.
+    score = upside + min(num_analysts, 99) * 1e-7 (tie-break).
+
+    supports_asof=False — yfinance zna tylko dzisiejsze ceny docelowe.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        bulk = _bulk_source(bulk_fn)(tuple(eligible)) or {}
+        out = {}
+        for ticker in eligible:
+            info = bulk.get(ticker) or {}
+            rm, n = _analyst_fields(info)
+            up = _upside(info)
+            if (rm is None or rm > UPSIDE_MAX_RECOMMENDATION
+                    or n < min_analysts_for(ticker) or up is None):
+                out[ticker] = float("nan")
+            else:
+                out[ticker] = up + min(n, 99) * 1e-7
+        return pd.Series(out, index=eligible, dtype="float64")
+
+    return Scorer(name="upside", supports_asof=False, fn=_fn)
+
+
+UPSIDE_SCORER = make_upside_scorer()
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
