@@ -192,7 +192,9 @@ def test_peers_helpers_units_and_colors():
     rows = peers.build_rows(["A"], {"A": {"dividend_yield": 0.5, "pe": -3.0, "roe": 0.2}}, pd.Series({"A": 0.1}))
     assert rows["A"]["dividend_yield"] == pytest.approx(0.005)
     assert np.isnan(rows["A"]["pe"]) and rows["A"]["mom12"] == 0.1
-    assert peers.fmt_cell("Stopa dywidendy", 0.005) == "+0,5%"
+    assert peers.fmt_cell("Stopa dywidendy", 0.005) == "0,5%"
+    assert peers.fmt_cell("Momentum 12M", 0.12) == "+12,0%" and peers.fmt_cell("ROE", 0.2) == "20,0%"
+    assert peers.fmt_cell("P/E", 12.34) == "12,3"
     assert peers.fmt_cell("P/E", np.nan) == "—"
     assert peers.cell_color("P/E", 10, 20) == GREEN and peers.cell_color("P/E", 30, 20) == RED
     assert peers.cell_color("ROE", 0.3, 0.2) == GREEN and peers.cell_color("ROE", 0.1, 0.2) == RED

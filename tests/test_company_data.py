@@ -127,8 +127,27 @@ def test_sector_caps_uses_info(monkeypatch):
     fake = {"AAA": {"marketCap": 10}, "BBB": {"marketCap": None}, "CCC": {}}
     monkeypatch.setattr(c, "_fetch_info", lambda t: fake.get(t, {}))
     monkeypatch.setattr(c, "_sector_members", lambda market, sector: ["AAA", "BBB", "CCC"])
-    caps = c.sector_caps.__wrapped__("SP500", "Tech")
+    c._sector_caps_cached.clear()
+    caps = c.sector_caps("SP500", "Tech")
     assert caps.to_dict() == {"AAA": 10.0}
+
+
+def test_sector_caps_partial_not_cached(monkeypatch):
+    import data.company as c
+    c._sector_caps_cached.clear()
+    calls = {"n": 0}
+
+    def info(t):
+        calls["n"] += 1
+        return {}
+    monkeypatch.setattr(c, "_fetch_info", info)
+    monkeypatch.setattr(c, "_sector_members", lambda m, s: ["A", "B", "C", "D"])
+    assert len(c.sector_caps("SP500", "X")) == 0
+    c.sector_caps("SP500", "X")
+    assert calls["n"] == 8            # drugi raz policzone ponownie = nie zapisano w cache
+    monkeypatch.setattr(c, "_fetch_info", lambda t: {"marketCap": 5})
+    assert len(c.sector_caps("SP500", "X")) == 4
+    c._sector_caps_cached.clear()
 
 
 def test_company_profile_fields(monkeypatch):

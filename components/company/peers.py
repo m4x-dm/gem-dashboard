@@ -15,6 +15,7 @@ from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
 
 MEDIAN = "Mediana grupy"
 PCT_COLS = ("ROE", "Marża netto", "Wzrost przychodów", "Stopa dywidendy", "Momentum 12M")
+SIGNED_COLS = ("Wzrost przychodów", "Momentum 12M")
 MULTIPLES = ("P/E", "Forward P/E", "EV/EBITDA")
 
 
@@ -40,8 +41,9 @@ def fmt_cell(col: str, v) -> str:
     if col == "Kapitalizacja":
         return format_large_number(v)
     if col in PCT_COLS:
-        return fmt_pct(v, 1)
-    return f"{v:.1f}"
+        s = fmt_pct(v, 1)
+        return s if col in SIGNED_COLS else s.lstrip("+")
+    return f"{v:.1f}".replace(".", ",")
 
 
 def cell_color(col: str, v, med) -> str:
@@ -64,8 +66,7 @@ def table_html(df, ticker: str) -> str:
         bg = f"background:{BG_HOVER};" if is_t else ""
         wt = "font-weight:700;" if is_t else ""
         lbl_col = MUTED if is_m else TEXT
-        name = idx if is_m else f"{idx}"
-        cells = f'<td style="padding:8px 10px;white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(name)}</td>'
+        cells = f'<td style="padding:8px 10px;white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(idx)}</td>'
         for c in df.columns:
             v = r[c]
             col = MUTED if is_m else cell_color(c, v, med[c])
@@ -101,6 +102,6 @@ def render(ticker, market):
         st.html(table_html(df, ticker))
         st.caption("Mediana liczona dla całej wyświetlanej grupy (łącznie z wybraną spółką). "
                    "Zielony = lepiej niż mediana, czerwony = gorzej (dla mnożników: niżej = lepiej). "
-                   "Ujemne mnożniki (strata) pomijane.")
+                   "Ujemne mnożniki (strata) pomijane. Momentum 12M liczone bez ostatniego miesiąca.")
     except Exception:
         st.caption("Porównanie z sektorem: dane chwilowo niedostępne")

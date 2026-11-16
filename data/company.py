@@ -154,8 +154,12 @@ def sector_of(ticker: str, market: str) -> str | None:
     return _sector_map(market).get(ticker)
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
-def sector_caps(market: str, sector: str) -> pd.Series:
+class _PartialCaps(Exception):
+    def __init__(self, partial):
+        self.partial = partial
+
+
+def _compute_caps(market: str, sector: str) -> tuple[pd.Series, int]:
     members = _sector_members(market, sector)
 
     def cap(t):
@@ -167,7 +171,23 @@ def sector_caps(market: str, sector: str) -> pd.Series:
     with ThreadPoolExecutor(max_workers=8) as ex:
         pairs = list(ex.map(cap, members))
     s = pd.Series(dict(pairs), dtype=float).dropna()
-    return s[s > 0]
+    return s[s > 0], len(members)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _sector_caps_cached(market: str, sector: str) -> pd.Series:
+    s, n = _compute_caps(market, sector)
+    if n and len(s) < 0.5 * n:      # prawdopodobnie 429 Yahoo — wyjatek = brak zapisu w cache
+        raise _PartialCaps(s)
+    return s
+
+
+def sector_caps(market: str, sector: str) -> pd.Series:
+    """Kapitalizacje sektora; cache 24h tylko gdy pobrano >=50% skladu (inaczej zwraca czesciowy wynik bez cache)."""
+    try:
+        return _sector_caps_cached(market, sector)
+    except _PartialCaps as e:
+        return e.partial
 
 
 def _opt(x):
