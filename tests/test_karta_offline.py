@@ -38,6 +38,20 @@ def _offline(monkeypatch):
                                                                "dividend_yield": 0.5, "name": "Apple Inc.",
                                                                "current_price": 100.0, "currency": "USD"})
     monkeypatch.setattr(fin, "get_analyst_recos", lambda t: {})
+    import components.financials_ui as fu
+    import components.company.finance as cfin
+    import components.company.results as cres
+    for mod in (fin, fu, cfin, cres):
+        for name, val in (("get_forward_consensus", None), ("get_earnings_history", None),
+                          ("fetch_earnings_trend", None), ("fetch_major_holders", None),
+                          ("fetch_insider_purchases", None), ("fetch_insider_transactions", None),
+                          ("fetch_insider_roster_holders", None), ("fetch_institutional_holders", None),
+                          ("fetch_mutualfund_holders", None), ("fetch_quarterly_statements", None),
+                          ("fetch_annual_statements", None)):
+            if hasattr(mod, name):
+                monkeypatch.setattr(mod, name, lambda *a, _v=val, **k: _v)
+    for mod in (fu, cfin):
+        monkeypatch.setattr(mod, "get_ratios_snapshot", lambda t: {"pe": 20.0, "name": "Apple Inc."}) if hasattr(mod, "get_ratios_snapshot") else None
     monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
     monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.1, "low52": 80.0,
                                                           "high52": 120.0, "exchange": "NMS", "currency": "USD"})
@@ -70,6 +84,7 @@ def test_premium_renders_all_tabs():
     at = _run(True, "AAPL")
     assert not at.exception, at.exception
     assert _html(at).count("🔒") == 0
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
 
 
 def test_unknown_ticker_message():
