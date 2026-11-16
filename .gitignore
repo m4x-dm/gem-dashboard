@@ -21,3 +21,5 @@ screeny/
 
 # cache runtime (parquet) — data/cache/*.csv SA sledzone (historia indeksow GPW), wiec tylko podkatalog
 data/cache/financials/
+data/cache/earnings_dates/
+data/cache/earnings_dates_v2/

@@ -774,6 +774,7 @@ def _fetch_earnings_for_one(ticker: str, retries: int = 3) -> dict | None:
 def bulk_fetch_earnings_history(
     tickers_tuple: tuple[str, ...],
     max_workers: int = 8,
+    cache_ver: int = 2,  # noqa: ARG001 — wersja klucza cache (2 = surprise w procentach); bez "_", bo Streamlit pomija takie argumenty w kluczu
 ) -> pd.DataFrame:
     """Bulk fetch earnings history dla universe (~570-620 spolek).
 
@@ -892,7 +893,8 @@ def _detect_market(ticker: str) -> str:
 # Earnings Calendar — fetch_earnings_dates + bulk_fetch
 # ---------------------------------------------------------------------------
 
-CACHE_DIR_EARNINGS_DATES = Path(__file__).parent / "cache" / "earnings_dates"
+# _v2: surprise w procentach (stare pliki w earnings_dates/ trzymaly ulamki) — nie czytamy ich
+CACHE_DIR_EARNINGS_DATES = Path(__file__).parent / "cache" / "earnings_dates_v2"
 
 
 def _cache_path_earnings_dates(ticker: str) -> Path | None:
@@ -1026,6 +1028,7 @@ def bulk_fetch_earnings_calendar(
     tickers_tuple: tuple[str, ...],
     max_workers: int = 8,
     window_days: int = 28,
+    cache_ver: int = 2,  # noqa: ARG001 — wersja klucza cache (2 = surprise w procentach)
 ) -> pd.DataFrame:
     """Bulk fetch earnings dates dla universe.
 

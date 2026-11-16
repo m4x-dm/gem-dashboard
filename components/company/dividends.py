@@ -49,7 +49,7 @@ def _chart(s):
     fig = go.Figure(go.Bar(x=[str(y) for y in annual.index], y=annual.values, marker_color=GOLD))
     fig.update_layout(**_base_layout(height=260))
     st.markdown("##### Dywidendy roczne")
-    st.plotly_chart(fig, use_container_width=True, key="kdv_annual")
+    st.plotly_chart(fig, width="stretch", key="kdv_annual")
 
 
 def _table(s, ccy):
@@ -60,7 +60,7 @@ def _table(s, ccy):
         "Waluta": ccy,
     }).iloc[::-1]
     st.markdown("##### Ostatnie wypłaty")
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, hide_index=True, width="stretch")
 
 
 def _calc(s, market, ccy):
