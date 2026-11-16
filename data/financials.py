@@ -414,6 +414,7 @@ def bulk_fetch_universe(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
             "target_mean": info.get("targetMeanPrice"),
             "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
             "recommendation_key": info.get("recommendationKey"),
+            "recommendation_mean": info.get("recommendationMean"),
         }
     return out
 

@@ -123,7 +123,7 @@ def fetch_benchmark(cfg: dict, index: pd.DatetimeIndex) -> pd.Series | None:
 
 def validate_snapshot(market: str, tickers: list[str], prices: pd.DataFrame,
                       picks: list[dict], asof: pd.Timestamp,
-                      top_n: int) -> str | None:
+                      top_n: int, min_picks: int | None = None) -> str | None:
     """Waliduje snapshot. Zwraca powod odrzucenia albo None gdy OK.
 
     Pusty lub czesciowy snapshot klamie w sekcji "Wyniki live" na zawsze —
@@ -140,8 +140,15 @@ def validate_snapshot(market: str, tickers: list[str], prices: pd.DataFrame,
         return (f"[{market}] ostatnia sesja {prices.index[-1].date()} "
                 f"starsza o {staleness} dni od asof {asof.date()}")
 
-    if len(picks) != top_n:
-        return f"[{market}] regula zwrocila {len(picks)} pozycji zamiast {top_n}"
+    # min_picks=None -> wymagamy pelnej piatki (momentum/earnings/quality).
+    # Strategie analityczne dopuszczaja krotszy sklad (cienkie pokrycie GPW),
+    # ale nigdy pusty — pusty wpis klamalby w "Wyniki live".
+    if min_picks is None:
+        if len(picks) != top_n:
+            return f"[{market}] regula zwrocila {len(picks)} pozycji zamiast {top_n}"
+    elif not (min_picks <= len(picks) <= top_n):
+        return (f"[{market}] regula zwrocila {len(picks)} pozycji "
+                f"(dozwolone {min_picks}-{top_n})")
 
     unknown = [p["ticker"] for p in picks if p["group"] == "?"]
     if unknown:
@@ -153,19 +160,22 @@ def validate_snapshot(market: str, tickers: list[str], prices: pd.DataFrame,
 
 
 STRATEGIES = {
-    "momentum": {"scorer": None, "simulate": True, "critical": True},
-    "earnings": {"scorer": "earnings", "simulate": False, "critical": False},
-    "quality": {"scorer": "quality", "simulate": False, "critical": False},
+    "momentum": {"scorer": None, "simulate": True, "critical": True, "min_picks": None},
+    "earnings": {"scorer": "earnings", "simulate": False, "critical": False, "min_picks": None},
+    "quality": {"scorer": "quality", "simulate": False, "critical": False, "min_picks": None},
+    "analyst": {"scorer": "analyst", "simulate": False, "critical": False, "min_picks": 1},
+    "upside": {"scorer": "upside", "simulate": False, "critical": False, "min_picks": 1},
 }
 
 
 def _scorer_for(name: str):
     """Leniwe pobranie scorera — importy financials tylko gdy potrzebne."""
-    if name == "earnings":
-        return tp.EARNINGS_SCORER
-    if name == "quality":
-        return tp.QUALITY_SCORER
-    return None
+    return {
+        "earnings": tp.EARNINGS_SCORER,
+        "quality": tp.QUALITY_SCORER,
+        "analyst": tp.ANALYST_SCORER,
+        "upside": tp.UPSIDE_SCORER,
+    }.get(name)
 
 
 def main() -> None:
@@ -231,8 +241,15 @@ def main() -> None:
                                     max_per_group=args.max_per_group,
                                     min_turnover=tp.MIN_TURNOVER[market],
                                     scorer=scorer)
+            if spec["min_picks"] is not None and not picks:
+                # Strategie analityczne: brak kandydatow na jednym rynku (cienkie
+                # pokrycie GPW) pomija tylko ten rynek, nie cala strategie.
+                print(f"  ({strategy}/{market}) brak spolek spelniajacych warunki — "
+                      f"rynek pominiety w snapshocie", flush=True)
+                continue
             reason = validate_snapshot(market, cfg["tickers"], prices, picks,
-                                       today, args.top_n)
+                                       today, args.top_n,
+                                       min_picks=spec["min_picks"])
             if reason:
                 if spec["critical"]:
                     sys.exit(f"BLAD: {reason}")
@@ -243,6 +260,10 @@ def main() -> None:
 
             for pick in picks:
                 pick["name"] = cfg["names"].get(pick["ticker"], "")
+            if strategy in ("analyst", "upside"):
+                from data.financials import bulk_fetch_universe
+                tp.enrich_analyst_context(
+                    picks, bulk_fetch_universe(tuple(p["ticker"] for p in picks)))
             # Rynki koncza sesje w roznych momentach (GPW wczesniej niz USA), wiec
             # jedno wspolne pole nie opisze obu. Trzymamy najswiezsza z sesji, a
             # autorytatywna data per rynek siedzi w entry_date kazdego picka —
@@ -253,6 +274,11 @@ def main() -> None:
             snapshot[market] = picks
             print("  " + " · ".join(f"{p['ticker']} ({p['group']}, {p['score']:.3f})"
                                     for p in picks), flush=True)
+
+        if not rejected and not any(snapshot.get(m) for m in markets):
+            print(f"  ODRZUCONO ({strategy}): zaden rynek nie dal skladu", flush=True)
+            failures.append(f"{strategy}: pusty snapshot")
+            rejected = True
 
         if rejected:
             continue

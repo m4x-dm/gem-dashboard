@@ -7,12 +7,12 @@ odpalic w GitHub Action i w testach bez runtime'u Streamlita.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 import pandas as pd
-
 from data.momentum import latest_returns, rank_based_score
 
 # Wersja reguly PER STRATEGIA — podbij przy KAZDEJ zmianie parametrow danej
@@ -21,6 +21,8 @@ RULE_VERSIONS = {
     "momentum": 1,
     "earnings": 1,
     "quality": 1,
+    "analyst": 1,
+    "upside": 1,
 }
 
 # Wsteczna zgodnosc: kod sprzed 2026-08-07 czyta RULE_VERSION jako int.
@@ -32,6 +34,8 @@ STRATEGY_MARKETS = {
     "momentum": ("sp500", "gpw"),
     "earnings": ("sp500",),
     "quality": ("sp500", "gpw"),
+    "analyst": ("sp500", "gpw"),
+    "upside": ("sp500", "gpw"),
 }
 
 DEFAULT_WEIGHTS = {"12M": 0.40, "6M": 0.30, "3M": 0.20, "1M": 0.10}
@@ -218,6 +222,146 @@ def make_quality_scorer(bulk_fn=None, banks: set[str] | None = None) -> Scorer:
 
 QUALITY_SCORER = make_quality_scorer()
 
+# ====== Scorery analityczne (2026-11-16, forward-only) ======
+#
+# Pomiar pokrycia yfinance 2026-11-16: SP500 ma konsensus prawie wszedzie
+# (mediana 18 analitykow), GPW tylko ok. 1/3 spolek (mediana 3) — stad
+# nizszy prog dla GPW. Ranking oparty na 1-2 opiniach to opinia jednego biura.
+
+MIN_ANALYSTS_SP500 = 5
+MIN_ANALYSTS_GPW = 3
+UPSIDE_MAX_RECOMMENDATION = 2.5   # co najmniej "Buy" w skali Yahoo 1-5
+
+
+def min_analysts_for(ticker: str) -> int:
+    """Prog liczby analitykow zalezny od rynku (GPW = sufiks .WA)."""
+    return MIN_ANALYSTS_GPW if ticker.endswith(".WA") else MIN_ANALYSTS_SP500
+
+
+def consensus_label(rm) -> str:
+    """Etykieta sredniej rekomendacji Yahoo (1 = Strong Buy ... 5 = Strong Sell)."""
+    if rm is None or pd.isna(rm):
+        return "—"
+    rm = float(rm)
+    if rm <= 1.5:
+        return "Strong Buy"
+    if rm <= 2.5:
+        return "Buy"
+    if rm <= 3.5:
+        return "Hold"
+    if rm <= 4.5:
+        return "Sell"
+    return "Strong Sell"
+
+
+def _finite_float(x) -> float | None:
+    """float(x) albo None gdy brak, nie-liczba, NaN lub +-inf (log nie przyjmie NaN/Infinity)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) else None
+
+
+def _analyst_fields(info: dict) -> tuple[float | None, int]:
+    """(recommendation_mean, num_analysts) z rekordu bulk, z bezpieczna konwersja."""
+    rm = _finite_float(info.get("recommendation_mean"))
+    try:
+        n = int(info.get("num_analysts") or 0)
+    except (TypeError, ValueError, OverflowError):
+        n = 0
+    return rm, n
+
+
+def _bulk_source(bulk_fn):
+    if bulk_fn is not None:
+        return bulk_fn
+    from data.financials import bulk_fetch_universe
+    return bulk_fetch_universe
+
+
+def make_analyst_scorer(bulk_fn=None) -> Scorer:
+    """Scorer 'Polecane przez analitykow' — najnizsza srednia rekomendacja.
+
+    score = -round(recommendation_mean, 2) + min(num_analysts, 99) * 1e-5
+    (rm zaokraglone do 0,01 — Yahoo podaje wiecej miejsc — wiec skladnik
+    <= 0,001 rozstrzyga tylko remisy: wiecej analitykow = wyzej). Spolki ponizej progu analitykow lub bez
+    rm dostaja NaN i odpadaja w select_picks.
+
+    supports_asof=False — yfinance zna tylko dzisiejszy konsensus.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        bulk = _bulk_source(bulk_fn)(tuple(eligible)) or {}
+        out = {}
+        for ticker in eligible:
+            rm, n = _analyst_fields(bulk.get(ticker) or {})
+            if rm is None or n < min_analysts_for(ticker):
+                out[ticker] = float("nan")
+            else:
+                out[ticker] = -round(rm, 2) + min(n, 99) * 1e-5
+        return pd.Series(out, index=eligible, dtype="float64")
+
+    return Scorer(name="analyst", supports_asof=False, fn=_fn)
+
+
+ANALYST_SCORER = make_analyst_scorer()
+
+
+def _upside(info: dict) -> float | None:
+    """target_mean / current_price - 1; None gdy brak lub cena <= 0."""
+    target = _finite_float(info.get("target_mean"))
+    price = _finite_float(info.get("current_price"))
+    if target is None or price is None or price <= 0 or target <= 0:
+        return None
+    return target / price - 1
+
+
+def make_upside_scorer(bulk_fn=None) -> Scorer:
+    """Scorer 'Potencjal do ceny docelowej' — tylko spolki z konsensusem >= Buy.
+
+    Warunek rm <= UPSIDE_MAX_RECOMMENDATION odcina pulapke: kurs mocno spadl,
+    analitycy nie zdazyli obnizyc celow, a sami mowia Hold/Sell.
+    score = upside + min(num_analysts, 99) * 1e-7 (tie-break).
+
+    supports_asof=False — yfinance zna tylko dzisiejsze ceny docelowe.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        bulk = _bulk_source(bulk_fn)(tuple(eligible)) or {}
+        out = {}
+        for ticker in eligible:
+            info = bulk.get(ticker) or {}
+            rm, n = _analyst_fields(info)
+            up = _upside(info)
+            if (rm is None or rm > UPSIDE_MAX_RECOMMENDATION
+                    or n < min_analysts_for(ticker) or up is None):
+                out[ticker] = float("nan")
+            else:
+                out[ticker] = up + min(n, 99) * 1e-7
+        return pd.Series(out, index=eligible, dtype="float64")
+
+    return Scorer(name="upside", supports_asof=False, fn=_fn)
+
+
+UPSIDE_SCORER = make_upside_scorer()
+
+
+def enrich_analyst_context(picks: list[dict], bulk: dict) -> list[dict]:
+    """Dopisuje do pozycji kontekst analitykow z dnia wyboru (in place).
+
+    Zapisywany w logu, zeby karta pokazywala oczekiwania z dnia zakupu,
+    a nie dzisiejsze.
+    """
+    for pick in picks:
+        info = bulk.get(pick["ticker"]) or {}
+        rm, n = _analyst_fields(info)
+        up = _upside(info)
+        target = _finite_float(info.get("target_mean"))
+        pick["recommendation_mean"] = round(rm, 2) if rm is not None else None
+        pick["num_analysts"] = n
+        pick["target_mean"] = round(target, 2) if target is not None else None
+        pick["upside"] = round(up, 4) if up is not None else None
+    return picks
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
@@ -228,6 +372,8 @@ HISTORY_PATHS = {
     "momentum": HISTORY_PATH,
     "earnings": _DATA_DIR / "top_picks_earnings_history.json",
     "quality": _DATA_DIR / "top_picks_quality_history.json",
+    "analyst": _DATA_DIR / "top_picks_analyst_history.json",
+    "upside": _DATA_DIR / "top_picks_upside_history.json",
 }
 
 
@@ -297,7 +443,9 @@ def select_picks(prices: pd.DataFrame, volumes: pd.DataFrame,
     # Duplikat w indeksie wpuscilby ten sam ticker dwa razy i rozjechal wagi.
     # Scorer.fn jest publicznym punktem rozszerzenia, wiec nie ufamy indeksowi.
     scores = scores[~scores.index.duplicated()]
-    scores = scores.dropna().sort_values(ascending=False)
+    # Stabilne sortowanie po posortowanym indeksie: pelne remisy rozstrzyga
+    # ticker alfabetycznie (determinizm logu). Domyslny quicksort nie jest stabilny.
+    scores = scores.dropna().sort_index().sort_values(ascending=False, kind="mergesort")
 
     # Kontrakt: scorer dostaje `eligible` i ma zwracac wylacznie te tickery.
     # Egzekwujemy go tutaj, bo przed wprowadzeniem wymiennych scorerow robilo
@@ -381,7 +529,10 @@ def portfolio_equity(history: dict, prices: pd.DataFrame, market: str,
     Returns:
         Series indeksowana data. Pusta, gdy log nie ma wpisow dla rynku.
     """
-    keys = sorted(history)
+    # Tylko snapshoty, ktore maja ten rynek: strategie analityczne moga pominac
+    # GPW w jednym miesiacu — wtedy poprzedni sklad trzymamy do nastepnego
+    # snapshotu z tym rynkiem (bez dziury w krzywej).
+    keys = sorted(k for k in history if history[k].get(market))
     segments = []
     for i, key in enumerate(keys):
         picks = history[key].get(market) or []

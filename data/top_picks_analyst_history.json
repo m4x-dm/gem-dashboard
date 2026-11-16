@@ -1,0 +1,141 @@
+{
+  "2026-11-01": {
+    "generated_at": "2026-11-16T09:53:39Z",
+    "asof": "2026-11-16",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "AVGO",
+        "group": "Information Technology",
+        "score": -1.274,
+        "entry_price": 347.01,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Broadcom Inc.",
+        "recommendation_mean": 1.27,
+        "num_analysts": 47,
+        "target_mean": 528.17,
+        "upside": 0.5221
+      },
+      {
+        "ticker": "ANET",
+        "group": "Information Technology",
+        "score": -1.2997,
+        "entry_price": 197.29,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Arista Networks",
+        "recommendation_mean": 1.3,
+        "num_analysts": 29,
+        "target_mean": 249.65,
+        "upside": 0.2654
+      },
+      {
+        "ticker": "AMZN",
+        "group": "Consumer Discretionary",
+        "score": -1.322,
+        "entry_price": 266.66,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Amazon.com Inc.",
+        "recommendation_mean": 1.32,
+        "num_analysts": 60,
+        "target_mean": 326.29,
+        "upside": 0.2236
+      },
+      {
+        "ticker": "GOOGL",
+        "group": "Communication Services",
+        "score": -1.3443,
+        "entry_price": 295.77,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Alphabet Inc. (A)",
+        "recommendation_mean": 1.34,
+        "num_analysts": 53,
+        "target_mean": 400.37,
+        "upside": 0.3537
+      },
+      {
+        "ticker": "SPGI",
+        "group": "Financials",
+        "score": -1.3476,
+        "entry_price": 473.59,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "S&P Global",
+        "recommendation_mean": 1.35,
+        "num_analysts": 20,
+        "target_mean": 526.7,
+        "upside": 0.1121
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "PGE.WA",
+        "group": "Uzytecznosc publiczna",
+        "score": -1.3333,
+        "entry_price": 15.84,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "PGE Polska Grupa Energetyczna",
+        "recommendation_mean": 1.33,
+        "num_analysts": 7,
+        "target_mean": 14.42,
+        "upside": -0.0889
+      },
+      {
+        "ticker": "ENA.WA",
+        "group": "Uzytecznosc publiczna",
+        "score": -1.3999,
+        "entry_price": 22.02,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Enea",
+        "recommendation_mean": 1.4,
+        "num_analysts": 5,
+        "target_mean": 25.34,
+        "upside": 0.1508
+      },
+      {
+        "ticker": "ALE.WA",
+        "group": "Konsument cykliczny",
+        "score": -1.6665,
+        "entry_price": 67.34,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Allegro",
+        "recommendation_mean": 1.67,
+        "num_analysts": 14,
+        "target_mean": 60.35,
+        "upside": -0.1045
+      },
+      {
+        "ticker": "ALR.WA",
+        "group": "Banki",
+        "score": -1.7142,
+        "entry_price": 146.95,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Alior Bank",
+        "recommendation_mean": 1.71,
+        "num_analysts": 7,
+        "target_mean": 153.51,
+        "upside": 0.0447
+      },
+      {
+        "ticker": "PCO.WA",
+        "group": "Konsument defensywny",
+        "score": -1.8332,
+        "entry_price": 50.66,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Pepco Group",
+        "recommendation_mean": 1.83,
+        "num_analysts": 12,
+        "target_mean": 48.26,
+        "upside": -0.0465
+      }
+    ]
+  }
+}

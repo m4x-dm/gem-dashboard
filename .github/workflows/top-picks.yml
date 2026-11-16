@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    # Trzy strategie: bulk earnings (~456 spolek) + bulk ratios (~600) przy
+    # Piec strategii (analyst/upside korzystaja z cache ratios po quality): bulk earnings (~456 spolek) + bulk ratios (~600) przy
     # zimnym cache. Runner nie ma persystentnego cache parquet, wiec kazdy run
     # pobiera wszystko od nowa.
     timeout-minutes: 30
@@ -36,6 +36,8 @@ jobs:
           git add data/top_picks_history.json \
                   data/top_picks_earnings_history.json \
                   data/top_picks_quality_history.json \
+                  data/top_picks_analyst_history.json \
+                  data/top_picks_upside_history.json \
                   data/top_picks_sim.json
           if git diff --staged --quiet; then
             echo "Brak zmian — nic do commitu"

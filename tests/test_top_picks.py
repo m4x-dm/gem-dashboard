@@ -485,14 +485,15 @@ def test_quality_scorer_bez_danych_zwraca_nan():
 
 
 def test_kazda_strategia_ma_wersje_i_sciezke_loga():
-    assert set(tp.RULE_VERSIONS) == {"momentum", "earnings", "quality"}
-    assert set(tp.HISTORY_PATHS) == {"momentum", "earnings", "quality"}
+    names = {"momentum", "earnings", "quality", "analyst", "upside"}
+    assert set(tp.RULE_VERSIONS) == names
+    assert set(tp.HISTORY_PATHS) == names
     for name, path in tp.HISTORY_PATHS.items():
         assert path.name.endswith(".json"), f"{name}: sciezka nie jest jsonem"
     # Momentum musi wskazywac na istniejacy log — to jedyny prawdziwy track record
     assert tp.HISTORY_PATHS["momentum"] == tp.HISTORY_PATH
-    # Trzy rozne pliki, zeby strategie sie nie nadpisywaly
-    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == 3
+    # Rozne pliki, zeby strategie sie nie nadpisywaly
+    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == len(names)
 
 
 def test_rule_version_pozostaje_intem_dla_wstecznej_zgodnosci():
@@ -505,6 +506,8 @@ def test_strategie_znaja_swoje_rynki():
     assert tp.STRATEGY_MARKETS["momentum"] == ("sp500", "gpw")
     assert tp.STRATEGY_MARKETS["earnings"] == ("sp500",)
     assert tp.STRATEGY_MARKETS["quality"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["analyst"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["upside"] == ("sp500", "gpw")
 
 
 # ====== Walidator snapshotu (2026-08-07) ======
@@ -551,3 +554,233 @@ def test_validate_snapshot_wykrywa_niskie_pokrycie():
                               asof=prices.index[-1], top_n=1)
     assert powod is not None
     assert "pokrycie" in powod.lower()
+
+
+# ====== Strategie analityczne (2026-11-16) ======
+
+def test_bulk_fetch_universe_zwraca_recommendation_mean(monkeypatch):
+    import data.financials as fin
+    info = {"currentPrice": 100.0, "trailingEps": 5.0,
+            "recommendationMean": 1.8, "numberOfAnalystOpinions": 12,
+            "targetMeanPrice": 130.0}
+    monkeypatch.setattr(fin, "_fetch_info", lambda t: info)
+    out = fin.bulk_fetch_universe(("ZZTEST_RM1",))
+    assert out["ZZTEST_RM1"]["recommendation_mean"] == 1.8
+
+
+def test_select_picks_remis_rozstrzyga_ticker_alfabetycznie():
+    prices = _frame(400, ("CCC", "AAA", "BBB"))
+    volumes = _volumes(prices)
+    groups = {"AAA": "S1", "BBB": "S2", "CCC": "S3"}
+    tie = tp.Scorer(name="tie", supports_asof=True,
+                    fn=lambda eligible, px, asof: pd.Series(1.0, index=["CCC", "BBB", "AAA"]))
+    picks = tp.select_picks(prices, volumes, groups, prices.index[-1],
+                            top_n=3, scorer=tie)
+    assert [p["ticker"] for p in picks] == ["AAA", "BBB", "CCC"]
+
+
+def _analyst_bulk():
+    return {
+        "AAA": {"recommendation_mean": 2.4, "num_analysts": 20,
+                "target_mean": 150.0, "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 110.0, "current_price": 100.0},
+        "CCC": {"recommendation_mean": 1.5, "num_analysts": 30,
+                "target_mean": 105.0, "current_price": 100.0},
+        "DDD": {"recommendation_mean": 1.1, "num_analysts": 4,     # ponizej progu SP500
+                "target_mean": 200.0, "current_price": 100.0},
+        "EEE": {"recommendation_mean": None, "num_analysts": 25,
+                "target_mean": 120.0, "current_price": 100.0},
+    }
+
+
+def test_min_analysts_zalezy_od_rynku():
+    assert tp.min_analysts_for("AAPL") == 5
+    assert tp.min_analysts_for("PKO.WA") == 3
+
+
+def test_consensus_label():
+    assert tp.consensus_label(1.3) == "Strong Buy"
+    assert tp.consensus_label(2.0) == "Buy"
+    assert tp.consensus_label(3.0) == "Hold"
+    assert tp.consensus_label(4.0) == "Sell"
+    assert tp.consensus_label(4.8) == "Strong Sell"
+    assert tp.consensus_label(None) == "—"
+
+
+def test_analyst_scorer_rankuje_po_konsensusie_z_tiebreakiem():
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: _analyst_bulk())
+    scores = scorer.fn(["AAA", "BBB", "CCC", "DDD", "EEE"], pd.DataFrame(),
+                       pd.Timestamp("2026-11-16"))
+    ranked = list(scores.dropna().sort_values(ascending=False).index)
+    # CCC i BBB maja 1,5 — CCC ma wiecej analitykow; DDD ponizej progu; EEE bez rm
+    assert ranked == ["CCC", "BBB", "AAA"]
+
+
+def test_analyst_scorer_gpw_ma_nizszy_prog():
+    bulk = {"PKO.WA": {"recommendation_mean": 1.8, "num_analysts": 3}}
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(["PKO.WA"], pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert pd.notna(scores["PKO.WA"])
+
+
+def test_analyst_scorer_jest_forward_only_i_bez_danych_nan():
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: {})
+    assert scorer.supports_asof is False
+    scores = scorer.fn(["AAA"], pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert scores.dropna().empty
+
+
+def test_upside_scorer_wymaga_konsensusu_i_rankuje_po_potencjale():
+    bulk = _analyst_bulk()
+    bulk["FFF"] = {"recommendation_mean": 3.2, "num_analysts": 15,   # Hold -> odpada
+                   "target_mean": 300.0, "current_price": 100.0}
+    scorer = tp.make_upside_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    ranked = list(scores.dropna().sort_values(ascending=False).index)
+    # AAA +50%, BBB +10%, CCC +5%; DDD ponizej progu, EEE bez rm, FFF Hold
+    assert ranked == ["AAA", "BBB", "CCC"]
+    assert scores["AAA"] == pytest.approx(0.50, abs=1e-4)
+
+
+def test_upside_scorer_odrzuca_brak_ceny_i_celu():
+    bulk = {
+        "AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": None, "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 120.0, "current_price": 0.0},
+        "CCC": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 120.0, "current_price": None},
+    }
+    scorer = tp.make_upside_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert scores.dropna().empty
+
+
+def test_upside_scorer_jest_forward_only():
+    assert tp.make_upside_scorer(bulk_fn=lambda t: {}).supports_asof is False
+
+
+def test_enrich_analyst_context_dopisuje_pola():
+    picks = [{"ticker": "AAA"}, {"ticker": "ZZZ"}]
+    tp.enrich_analyst_context(picks, _analyst_bulk())
+    assert picks[0]["recommendation_mean"] == 2.4
+    assert picks[0]["num_analysts"] == 20
+    assert picks[0]["target_mean"] == 150.0
+    assert picks[0]["upside"] == pytest.approx(0.5, abs=1e-4)
+    # brak rekordu -> pola sa, ale puste (UI pokazuje "—")
+    assert picks[1]["recommendation_mean"] is None
+    assert picks[1]["upside"] is None
+
+
+def _scores(maker, bulk):
+    scorer = maker(bulk_fn=lambda tickers: bulk)
+    return scorer.fn(list(bulk), pd.DataFrame(), pd.Timestamp("2026-11-16"))
+
+
+def test_nan_recommendation_mean_odpada_w_obu_scorerach():
+    bulk = {"AAA": {"recommendation_mean": float("nan"), "num_analysts": 10,
+                    "target_mean": 150.0, "current_price": 100.0}}
+    assert _scores(tp.make_upside_scorer, bulk).dropna().empty
+    assert _scores(tp.make_analyst_scorer, bulk).dropna().empty
+
+
+def test_num_analysts_inf_nie_wywala():
+    bulk = {"AAA": {"recommendation_mean": 1.5, "num_analysts": float("inf"),
+                    "target_mean": 150.0, "current_price": 100.0}}
+    _scores(tp.make_analyst_scorer, bulk)
+    _scores(tp.make_upside_scorer, bulk)
+
+
+def test_niefinitny_target_odpada_i_log_jest_poprawnym_jsonem():
+    bulk = {
+        "AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": float("inf"), "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": "N/A", "current_price": 100.0},
+    }
+    assert _scores(tp.make_upside_scorer, bulk).dropna().empty
+    picks = [{"ticker": "AAA"}, {"ticker": "BBB"}]
+    tp.enrich_analyst_context(picks, bulk)
+    for p in picks:
+        assert p["target_mean"] is None
+        assert p["upside"] is None
+    json.dumps(picks, allow_nan=False)
+
+
+def test_progi_analitykow_negatywne():
+    bulk = {"PKO.WA": {"recommendation_mean": 1.5, "num_analysts": 2},
+            "AAPL": {"recommendation_mean": 1.5, "num_analysts": 3}}
+    assert _scores(tp.make_analyst_scorer, bulk).dropna().empty
+
+
+def test_upside_tiebreak_wiecej_analitykow_wyzej():
+    bulk = {"AAA": {"recommendation_mean": 1.5, "num_analysts": 10,
+                    "target_mean": 120.0, "current_price": 100.0},
+            "BBB": {"recommendation_mean": 1.5, "num_analysts": 30,
+                    "target_mean": 120.0, "current_price": 100.0}}
+    s = _scores(tp.make_upside_scorer, bulk)
+    assert list(s.sort_values(ascending=False).index) == ["BBB", "AAA"]
+
+
+def test_validate_snapshot_akceptuje_krotszy_sklad_gdy_min_picks():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}]
+    assert validate_snapshot("gpw", ["AAA", "BBB"], prices, picks,
+                             asof=prices.index[-1], top_n=5, min_picks=1) is None
+    powod = validate_snapshot("gpw", ["AAA", "BBB"], prices, [],
+                              asof=prices.index[-1], top_n=5, min_picks=1)
+    assert powod is not None and "pozycji" in powod
+
+
+def test_validate_snapshot_min_picks_odrzuca_wiecej_niz_top_n():
+    from scripts.update_top_picks import validate_snapshot
+
+    prices = _frame(400, ("AAA", "BBB"))
+    picks = [{"ticker": "AAA", "group": "S1"}, {"ticker": "BBB", "group": "S2"}]
+    powod = validate_snapshot("gpw", ["AAA", "BBB"], prices, picks,
+                              asof=prices.index[-1], top_n=1, min_picks=1)
+    assert powod is not None and "pozycji" in powod
+
+
+def test_strategie_ci_obejmuja_analitykow():
+    from scripts.update_top_picks import STRATEGIES, _scorer_for
+
+    assert set(STRATEGIES) == set(tp.RULE_VERSIONS)
+    for name in ("analyst", "upside"):
+        assert STRATEGIES[name]["simulate"] is False
+        assert STRATEGIES[name]["critical"] is False
+        assert STRATEGIES[name]["min_picks"] == 1
+        assert _scorer_for(STRATEGIES[name]["scorer"]).name == name
+
+
+
+def test_workflow_commituje_wszystkie_logi():
+    """Lekcja 2026-08-07: bez git add CI liczy snapshot i wyrzuca go do kosza."""
+    from pathlib import Path
+    wf = (Path(__file__).resolve().parents[1] / ".github/workflows/top-picks.yml").read_text(
+        encoding="utf-8")
+    for path in tp.HISTORY_PATHS.values():
+        assert f"data/{path.name}" in wf, f"workflow nie commituje {path.name}"
+
+
+def test_portfolio_equity_trzyma_sklad_gdy_rynku_brak_w_srodkowym_miesiacu():
+    """Strategie analityczne moga pominac GPW w jednym miesiacu — krzywa nie moze miec dziury."""
+    idx = pd.bdate_range("2026-01-01", periods=90)
+    prices = pd.DataFrame({"AAA": np.linspace(100.0, 190.0, 90),
+                           "BBB": np.linspace(50.0, 50.0, 90)}, index=idx)
+    history = {
+        "2026-01-01": {"asof": idx[0].strftime("%Y-%m-%d"),
+                       "gpw": [{"ticker": "AAA", "weight": 1.0}]},
+        "2026-02-01": {"asof": idx[30].strftime("%Y-%m-%d"),
+                       "sp500": [{"ticker": "BBB", "weight": 1.0}]},     # brak gpw
+        "2026-03-01": {"asof": idx[60].strftime("%Y-%m-%d"),
+                       "gpw": [{"ticker": "BBB", "weight": 1.0}]},
+    }
+    equity = tp.portfolio_equity(history, prices, "gpw", start_capital=10000.0)
+    # AAA trzymane do idx[60] (nastepny snapshot Z GPW), potem BBB plasko
+    assert len(equity) == 90
+    assert float(equity.iloc[-1]) == pytest.approx(
+        10000.0 * prices["AAA"].iloc[60] / prices["AAA"].iloc[0], rel=1e-6)
