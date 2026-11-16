@@ -54,6 +54,7 @@ def _offline(monkeypatch):
         if hasattr(mod, "get_ratios_snapshot"):
             monkeypatch.setattr(mod, "get_ratios_snapshot", lambda t: {"pe": 20.0, "name": "Apple Inc."})
     monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
+    monkeypatch.setattr(fin, "_fetch_info", lambda t: {"dividendYield": 0.02, "payoutRatio": 0.3})
     monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.1, "low52": 80.0,
                                                           "high52": 120.0, "exchange": "NMS", "currency": "USD"})
     monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(dtype=float))
@@ -139,10 +140,16 @@ def test_premium_no_dividends_info():
 
 def test_premium_dividends_tab_renders(monkeypatch):
     import data.company as co
-    idx = pd.to_datetime([f"{y}-{m:02d}-15" for y in range(2020, 2026) for m in (3, 9)])
-    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(0.5, index=idx))
+    now = pd.Timestamp.now().normalize()
+    dates = [now - pd.DateOffset(months=2) - pd.DateOffset(months=6 * k) for k in range(12)]
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(0.5, index=pd.DatetimeIndex(sorted(dates))))
     at = _run(True, "AAPL")
     assert not at.exception, at.exception
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
     assert not any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+    assert not any("Brak aktualnej stopy dywidendy" in str(c.value) for c in at.caption)
     assert at.number_input(key="kdv_amount").value == 10000.0
+    net = co.dividend_after_tax(10000.0, 0.02, "SP500", "zwykle")["net"]
+    expected = f"{net:,.2f} USD".replace(",", " ").replace(".", ",")
+    assert any(m.value == expected for m in at.metric), [m.value for m in at.metric]
+    assert any("USA" in str(c.value) for c in at.caption)
