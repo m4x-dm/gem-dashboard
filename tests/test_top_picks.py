@@ -551,3 +551,15 @@ def test_validate_snapshot_wykrywa_niskie_pokrycie():
                               asof=prices.index[-1], top_n=1)
     assert powod is not None
     assert "pokrycie" in powod.lower()
+
+
+# ====== Strategie analityczne (2026-11-16) ======
+
+def test_bulk_fetch_universe_zwraca_recommendation_mean(monkeypatch):
+    import data.financials as fin
+    info = {"currentPrice": 100.0, "trailingEps": 5.0,
+            "recommendationMean": 1.8, "numberOfAnalystOpinions": 12,
+            "targetMeanPrice": 130.0}
+    monkeypatch.setattr(fin, "_fetch_info", lambda t: info)
+    out = fin.bulk_fetch_universe(("ZZTEST_RM1",))
+    assert out["ZZTEST_RM1"]["recommendation_mean"] == 1.8
