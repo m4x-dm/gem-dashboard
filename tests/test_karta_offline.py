@@ -118,6 +118,7 @@ def test_premium_gpw_bank_renders():
 def test_premium_beat_miss_chart_path(monkeypatch):
     import components.financials_ui as fu
     import components.company.results as cres
+    baseline = len(_run(True, "AAPL").get("plotly_chart"))
     df = pd.DataFrame({"eps_estimate": [1.0, 1.1, 1.2, 1.3],
                        "eps_actual": [1.1, 1.1, 1.3, 1.4],
                        "surprise_pct": [10.0, 0.0, 8.3, 7.7]},
@@ -127,5 +128,21 @@ def test_premium_beat_miss_chart_path(monkeypatch):
     at = _run(True, "AAPL")
     assert not at.exception, at.exception
     assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
-    assert any(getattr(e, "key", None) == "bm_chart_AAPL" or "bm_chart_AAPL" in str(e.proto.id)
-               for e in at.get("plotly_chart")) or len(at.get("plotly_chart")) >= 1
+    assert len(at.get("plotly_chart")) > baseline
+
+
+def test_premium_no_dividends_info():
+    at = _run(True, "AAPL")
+    assert not at.exception, at.exception
+    assert any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+
+
+def test_premium_dividends_tab_renders(monkeypatch):
+    import data.company as co
+    idx = pd.to_datetime([f"{y}-{m:02d}-15" for y in range(2020, 2026) for m in (3, 9)])
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(0.5, index=idx))
+    at = _run(True, "AAPL")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert not any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
+    assert at.number_input(key="kdv_amount").value == 10000.0
