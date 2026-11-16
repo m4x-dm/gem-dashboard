@@ -59,6 +59,7 @@ def _offline(monkeypatch):
                                                           "high52": 120.0, "exchange": "NMS", "currency": "USD"})
     monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(dtype=float))
     monkeypatch.setattr(co, "sector_caps", lambda m, s: pd.Series({"AAPL": 1e12, "MSFT": 9e11}))
+    monkeypatch.setattr(co, "_sector_members", lambda m, s: ["AAPL", "MSFT", "NVDA"] if m == "SP500" else ["PKO.WA", "PEO.WA"])
 
 
 def _run(premium: bool, t: str | None):
@@ -175,3 +176,24 @@ def test_premium_gpw_dividends_pln_belka(monkeypatch):
     vals = [m.value for m in at.metric]
     assert fmt(net["net"]) in vals, vals
     assert any("Belki" in str(c.value) for c in at.caption)
+
+
+def test_premium_peers_table_renders():
+    at = _run(True, "AAPL")
+    assert not at.exception, at.exception
+    assert "Mediana grupy" in _html(at)
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+
+
+def test_peers_helpers_units_and_colors():
+    import numpy as np
+    from components.company import peers
+    from components.constants import GREEN, RED, TEXT
+    rows = peers.build_rows(["A"], {"A": {"dividend_yield": 0.5, "pe": -3.0, "roe": 0.2}}, pd.Series({"A": 0.1}))
+    assert rows["A"]["dividend_yield"] == pytest.approx(0.005)
+    assert np.isnan(rows["A"]["pe"]) and rows["A"]["mom12"] == 0.1
+    assert peers.fmt_cell("Stopa dywidendy", 0.005) == "+0,5%"
+    assert peers.fmt_cell("P/E", np.nan) == "—"
+    assert peers.cell_color("P/E", 10, 20) == GREEN and peers.cell_color("P/E", 30, 20) == RED
+    assert peers.cell_color("ROE", 0.3, 0.2) == GREEN and peers.cell_color("ROE", 0.1, 0.2) == RED
+    assert peers.cell_color("ROE", np.nan, 0.2) == TEXT
