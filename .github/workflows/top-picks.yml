@@ -36,6 +36,8 @@ jobs:
           git add data/top_picks_history.json \
                   data/top_picks_earnings_history.json \
                   data/top_picks_quality_history.json \
+                  data/top_picks_analyst_history.json \
+                  data/top_picks_upside_history.json \
                   data/top_picks_sim.json
           if git diff --staged --quiet; then
             echo "Brak zmian — nic do commitu"

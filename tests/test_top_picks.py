@@ -755,3 +755,12 @@ def test_strategie_ci_obejmuja_analitykow():
         assert STRATEGIES[name]["min_picks"] == 1
         assert _scorer_for(STRATEGIES[name]["scorer"]).name == name
 
+
+
+def test_workflow_commituje_wszystkie_logi():
+    """Lekcja 2026-08-07: bez git add CI liczy snapshot i wyrzuca go do kosza."""
+    from pathlib import Path
+    wf = (Path(__file__).resolve().parents[1] / ".github/workflows/top-picks.yml").read_text(
+        encoding="utf-8")
+    for path in tp.HISTORY_PATHS.values():
+        assert f"data/{path.name}" in wf, f"workflow nie commituje {path.name}"
