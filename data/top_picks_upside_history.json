@@ -1,0 +1,141 @@
+{
+  "2026-11-01": {
+    "generated_at": "2026-11-16T09:54:26Z",
+    "asof": "2026-11-16",
+    "rule_version": 1,
+    "sp500": [
+      {
+        "ticker": "MU",
+        "group": "Information Technology",
+        "score": 1.0068,
+        "entry_price": 778.31,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Micron Technology",
+        "recommendation_mean": 1.35,
+        "num_analysts": 45,
+        "target_mean": 1561.91,
+        "upside": 1.0068
+      },
+      {
+        "ticker": "ORCL",
+        "group": "Information Technology",
+        "score": 0.8842,
+        "entry_price": 125.35,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Oracle Corp.",
+        "recommendation_mean": 1.5,
+        "num_analysts": 40,
+        "target_mean": 236.18,
+        "upside": 0.8842
+      },
+      {
+        "ticker": "UBER",
+        "group": "Industrials",
+        "score": 0.4096,
+        "entry_price": 69.69,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Uber Technologies",
+        "recommendation_mean": 1.59,
+        "num_analysts": 45,
+        "target_mean": 98.23,
+        "upside": 0.4096
+      },
+      {
+        "ticker": "NFLX",
+        "group": "Communication Services",
+        "score": 0.3639,
+        "entry_price": 62.15,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Netflix Inc.",
+        "recommendation_mean": 1.92,
+        "num_analysts": 43,
+        "target_mean": 84.76,
+        "upside": 0.3638
+      },
+      {
+        "ticker": "GOOGL",
+        "group": "Communication Services",
+        "score": 0.3537,
+        "entry_price": 295.77,
+        "entry_date": "2026-11-13",
+        "weight": 0.2,
+        "name": "Alphabet Inc. (A)",
+        "recommendation_mean": 1.34,
+        "num_analysts": 53,
+        "target_mean": 400.37,
+        "upside": 0.3537
+      }
+    ],
+    "gpw": [
+      {
+        "ticker": "CRI.WA",
+        "group": "Przemysl",
+        "score": 0.26,
+        "entry_price": 716.0,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Creotech Instruments",
+        "recommendation_mean": 2.25,
+        "num_analysts": 5,
+        "target_mean": 898.4,
+        "upside": 0.26
+      },
+      {
+        "ticker": "ENA.WA",
+        "group": "Uzytecznosc publiczna",
+        "score": 0.1518,
+        "entry_price": 22.02,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Enea",
+        "recommendation_mean": 1.4,
+        "num_analysts": 5,
+        "target_mean": 25.34,
+        "upside": 0.1518
+      },
+      {
+        "ticker": "ALR.WA",
+        "group": "Banki",
+        "score": 0.0457,
+        "entry_price": 146.9,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Alior Bank",
+        "recommendation_mean": 1.71,
+        "num_analysts": 7,
+        "target_mean": 153.51,
+        "upside": 0.0457
+      },
+      {
+        "ticker": "PKO.WA",
+        "group": "Banki",
+        "score": 0.0308,
+        "entry_price": 119.14,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "PKO Bank Polski",
+        "recommendation_mean": 1.93,
+        "num_analysts": 15,
+        "target_mean": 122.79,
+        "upside": 0.0308
+      },
+      {
+        "ticker": "TPE.WA",
+        "group": "Uzytecznosc publiczna",
+        "score": 0.0038,
+        "entry_price": 9.224,
+        "entry_date": "2026-11-16",
+        "weight": 0.2,
+        "name": "Tauron Polska Energia",
+        "recommendation_mean": 1.67,
+        "num_analysts": 7,
+        "target_mean": 9.25,
+        "upside": 0.0038
+      }
+    ]
+  }
+}
