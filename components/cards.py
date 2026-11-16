@@ -752,7 +752,9 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
 
     Args:
         picks: lista dictow z kluczami: ticker, name, sector, score,
-               entry, now, ret (float|None), spark (pd.Series|None)
+               entry, now, ret (float|None), spark (pd.Series|None);
+               opcjonalnie score_text (zastepuje "score X") i note
+               (dodatkowa linia HTML pod sektorem)
         currency: "USD" / "PLN" — do podpisu cen
     """
     if not picks:
@@ -770,7 +772,11 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
         sector = pick.get("sector") or "—"
 
         score = pick.get("score")
-        score_str = f"{score:.3f}".replace(".", ",") if score is not None else "—"
+        score_str = pick.get("score_text") or (
+            "score " + (f"{score:.3f}".replace(".", ",") if score is not None else "—"))
+        note = pick.get("note") or ""
+        note_html = (f'<div style="font-size:0.6rem;color:{MUTED};margin:-4px 0 8px;'
+                     f'line-height:1.4">{note}</div>') if note else ""
 
         entry, now = pick.get("entry"), pick.get("now")
         if entry is not None and now is not None:
@@ -786,7 +792,7 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
             f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
             f'<span style="background:{GOLD_SOFT};color:{GOLD};font-size:0.62rem;'
             f'font-weight:700;padding:2px 9px;border-radius:10px;letter-spacing:0.04em">#{i}</span>'
-            f'<span style="font-size:0.6rem;color:{MUTED}">score {score_str}</span>'
+            f'<span style="font-size:0.6rem;color:{MUTED}">{score_str}</span>'
             f'</div>'
             f'<div style="font-size:clamp(0.95rem,3.2vw,1.3rem);font-weight:650;color:{TEXT};'
             f'line-height:1.1">{pick["ticker"]}</div>'
@@ -795,6 +801,7 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
             f'<div style="display:inline-block;font-size:0.58rem;color:{MUTED};'
             f'background:rgba(255,255,255,0.05);border-radius:8px;padding:2px 8px;'
             f'margin-bottom:10px;letter-spacing:0.03em">{sector}</div>'
+            f'{note_html}'
             f'<div style="font-size:clamp(0.95rem,3.4vw,1.35rem);font-weight:700;color:{ret_color};'
             f'line-height:1.1">{fmt_pct(ret)}</div>'
             f'<div style="font-size:0.6rem;color:{MUTED};margin-top:3px">{prices_str}</div>'

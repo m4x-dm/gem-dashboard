@@ -23,6 +23,7 @@ from data.top_picks import (
     RULE_VERSIONS,
     SIM_PATH,
     STRATEGY_MARKETS,
+    consensus_label,
     load_history,
     portfolio_equity,
 )
@@ -44,6 +45,10 @@ EXTRA_COLUMNS = {
                  "Marza %": "profit_margin"},
     "quality": {"ROE": "roe", "Marza %": "profit_margin",
                 "Wzrost przych. %": "revenue_growth", "Debt/Eq": "debt_to_equity"},
+    "analyst": {"Konsensus": "pick:recommendation_mean", "Analitycy": "pick:num_analysts",
+                "Cena docelowa": "pick:target_mean", "Potencjal %": "pick:upside"},
+    "upside": {"Potencjal %": "pick:upside", "Konsensus": "pick:recommendation_mean",
+               "Analitycy": "pick:num_analysts", "Cena docelowa": "pick:target_mean"},
 }
 
 STRATEGY_INFO = {
@@ -61,6 +66,18 @@ STRATEGY_INFO = {
         "Jakosc biznesu",
         "Ranking po ROE, marzy netto, wzroscie przychodow i niskim zadluzeniu. "
         "Dla bankow komponent zadluzenia jest pomijany, a wagi renormalizowane.",
+    ),
+    "analyst": (
+        "Polecane przez analitykow",
+        "5 spolek z najlepsza srednia rekomendacja analitykow (skala Yahoo: "
+        "1 = Strong Buy, 5 = Sell). Min. 5 analitykow dla S&P 500 i 3 dla GPW, "
+        "przy remisie wygrywa spolka z wieksza liczba analitykow; maks. 2 na sektor.",
+    ),
+    "upside": (
+        "Potencjal do ceny docelowej",
+        "5 spolek z najwiekszym potencjalem do sredniej ceny docelowej analitykow — "
+        "tylko sposrod tych, ktore analitycy polecaja kupic (konsensus co najmniej "
+        "Buy). Progi analitykow jak w strategii Polecane; maks. 2 na sektor.",
     ),
 }
 
@@ -102,11 +119,34 @@ def render_naglowek(latest_key: str, latest: dict, markets: tuple) -> None:
 
 # ====== Sekcja 1: aktualna piatka ======
 
+def _analyst_card_fields(pick: dict, strategy: str, currency: str) -> dict:
+    """score_text + note dla kart strategii analitycznych (z danych z dnia wyboru)."""
+    if strategy not in ("analyst", "upside"):
+        return {}
+    rm, n = pick.get("recommendation_mean"), pick.get("num_analysts") or 0
+    target, up = pick.get("target_mean"), pick.get("upside")
+    rm_str = f"{rm:.2f}".replace(".", ",") if rm is not None else "—"
+    up_str = f"{up * 100:+.0f}%" if up is not None else "—"
+    tgt_str = f"{fmt_number(target, 2)} {currency}" if target is not None else "—"
+    score_text = (f"konsensus {rm_str}" if strategy == "analyst"
+                  else f"potencjal {up_str}")
+    note = (f"{consensus_label(rm)} &middot; {n} analitykow<br>"
+            f"cel {tgt_str} ({up_str})")
+    return {"score_text": score_text, "note": note}
+
+
 def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
     """Karty, wykresy i tabela fundamentalna dla najnowszego snapshotu."""
     for market in markets:
         label = MARKET_LABELS[market]
         picks = latest.get(market) or []
+        if strategy in ("analyst", "upside") and 0 < len(picks) < 5:
+            st.caption(
+                f"{MARKET_LABELS[market]}: tylko {len(picks)} spolek spelnia warunki "
+                "(min. liczba analitykow"
+                + (", konsensus co najmniej Buy" if strategy == "upside" else "")
+                + ") — piatka nie jest dobierana na sile."
+            )
         if not picks:
             continue
 
@@ -143,6 +183,7 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 "now": now,
                 "ret": ret,
                 "spark": series.tail(SPARK_SESSIONS) if not series.empty else None,
+                **_analyst_card_fields(pick, strategy, CURRENCY[market]),
             })
             row = {
                 "Ticker": ticker,
@@ -154,7 +195,10 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 "Zwrot": ret,
             }
             for column, key in EXTRA_COLUMNS[strategy].items():
-                row[column] = info.get(key)
+                if key.startswith("pick:"):
+                    row[column] = pick.get(key[5:])
+                else:
+                    row[column] = info.get(key)
             rows.append(row)
 
         top_pick_cards(cards, CURRENCY[market])
@@ -377,6 +421,14 @@ def render_strategia(strategy: str) -> None:
             "bilansu banku nie jest porownywalna ze spolka przemyslowa. Wagi "
             "pozostalych trzech skladnikow sa wtedy renormalizowane do 100%."
         )
+    elif strategy in ("analyst", "upside"):
+        st.info(
+            "**Zrodlo: konsensus analitykow z Yahoo Finance** (srednia rekomendacja, "
+            "liczba analitykow, srednia cena docelowa) — stan z dnia wyboru. Na GPW "
+            "konsensus ma ok. 1/3 spolek (pomiar 2026-11-16), stad nizszy prog i "
+            "mozliwy krotszy sklad. Pierwszy sklad wybrany 16.11.2026, czyli w polowie "
+            "miesiaca. To nie jest rekomendacja inwestycyjna."
+        )
 
     render_wyniki_live(history, markets, strategy)
 
@@ -398,13 +450,14 @@ def render_strategia(strategy: str) -> None:
 
 st.markdown("# Top Picks — piatka miesiaca")
 st.caption(
-    "Trzy niezalezne reguly wybieraja po piatce spolek pierwszego dnia miesiaca. "
-    "Kazda patrzy na co innego: cenowe momentum, jakosc wynikow kwartalnych albo "
-    "jakosc biznesu. Sklad nie jest recznie korygowany."
+    "Piec niezaleznych regul wybiera po piatce spolek pierwszego dnia miesiaca. "
+    "Kazda patrzy na co innego: cenowe momentum, jakosc wynikow kwartalnych, "
+    "jakosc biznesu albo konsensus analitykow. Sklad nie jest recznie korygowany."
 )
 
-tab_mom, tab_earn, tab_qual = st.tabs([
+tab_mom, tab_earn, tab_qual, tab_an, tab_up = st.tabs([
     "📈 Momentum", "📊 Earnings Momentum", "🏛️ Jakosc biznesu",
+    "🎯 Polecane przez analitykow", "💹 Potencjal do ceny docelowej",
 ])
 with tab_mom:
     render_strategia("momentum")
@@ -412,5 +465,9 @@ with tab_earn:
     render_strategia("earnings")
 with tab_qual:
     render_strategia("quality")
+with tab_an:
+    render_strategia("analyst")
+with tab_up:
+    render_strategia("upside")
 
 render_footer()
