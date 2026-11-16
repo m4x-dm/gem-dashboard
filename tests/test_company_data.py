@@ -42,7 +42,7 @@ def _divs():
 
 
 def test_dividend_summary_basic():
-    s = co.dividend_summary(_divs(), price=40.0, info={"dividendYield": 0.04, "payoutRatio": 0.5},
+    s = co.dividend_summary(_divs(), price=40.0, info={"dividendYield": 4.0, "payoutRatio": 0.5},
                             today=pd.Timestamp("2026-11-15"))
     assert s["pays"] is True
     assert s["yield"] == pytest.approx(0.04)
@@ -138,3 +138,39 @@ def test_company_profile_fields(monkeypatch):
                                                      "exchange": "NMS", "currency": "USD"})
     p = c.company_profile.__wrapped__("AAA")
     assert p == {"summary": "x", "beta": 1.2, "low52": 1.0, "high52": 2.0, "exchange": "NMS", "currency": "USD"}
+
+
+def _recent(amount, n=4):
+    idx = pd.to_datetime(["2026-02-01", "2026-05-01", "2026-08-01", "2026-10-01"][-n:])
+    return pd.Series(amount, index=idx)
+
+
+def test_yield_nvda_like_tiny():
+    s = co.dividend_summary(_recent(0.01), price=None,
+                            info={"dividendYield": 0.02, "trailingAnnualDividendYield": 0.0002},
+                            today=pd.Timestamp("2026-11-15"))
+    assert s["yield"] == pytest.approx(0.0002)
+
+
+def test_yield_nvda_like_only_percent_field():
+    s = co.dividend_summary(_recent(0.01), price=None, info={"dividendYield": 0.02},
+                            today=pd.Timestamp("2026-11-15"))
+    assert s["yield"] == pytest.approx(0.0002)
+
+
+def test_yield_aapl_like():
+    s = co.dividend_summary(_recent(0.25), price=None, info={"dividendYield": 0.44},
+                            today=pd.Timestamp("2026-11-15"))
+    assert s["yield"] == pytest.approx(0.0044)
+
+
+def test_yield_gpw_like_percent():
+    s = co.dividend_summary(_recent(1.0), price=None, info={"dividendYield": 5.2},
+                            today=pd.Timestamp("2026-11-15"))
+    assert s["yield"] == pytest.approx(0.052)
+
+
+def test_yield_prefers_ttm_over_price():
+    s = co.dividend_summary(_recent(0.25), price=100.0, info={"dividendYield": 9.0},
+                            today=pd.Timestamp("2026-11-15"))
+    assert s["yield"] == pytest.approx(0.01)

@@ -29,7 +29,7 @@ def _tile(label, value) -> str:
 
 
 def _money(x, ccy) -> str:
-    return f"{x:,.2f} {ccy}".replace(",", " ").replace(".", ",")
+    return f"{x:,.2f} {ccy}".replace(",", " ").replace(".", ",").strip()
 
 
 def _tiles(s):
@@ -68,10 +68,12 @@ def _calc(s, market, ccy):
     if not _ok(s.get("yield")):
         st.caption("Brak aktualnej stopy dywidendy.")
         return
-    amount = st.number_input("Kwota inwestycji", min_value=0.0, value=10000.0, step=1000.0, key="kdv_amount")
+    if market not in ("GPW", "SP500"):
+        st.caption("Kalkulator podatku dostępny dla spółek z S&P 500 i GPW")
+        return
+    amount = st.number_input(f"Kwota inwestycji ({ccy})" if ccy else "Kwota inwestycji", min_value=0.0, value=10000.0, step=1000.0, key="kdv_amount")
     acc = st.segmented_control("Konto", list(ACC), default="Zwykłe", key="kdv_acc") or "Zwykłe"
-    mk = "GPW" if market == "GPW" else "SP500"
-    r = co.dividend_after_tax(amount, s["yield"], mk, ACC[acc])
+    r = co.dividend_after_tax(amount, s["yield"], market, ACC[acc])
     c1, c2, c3 = st.columns(3)
     c1.metric("Brutto / rok", _money(r["gross"], ccy))
     c2.metric("Podatek", _money(r["tax"], ccy))

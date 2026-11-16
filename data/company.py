@@ -57,11 +57,9 @@ def momentum_profile(ticker: str, prices: pd.DataFrame, rf: float, skip_month: b
 
 
 def _norm_yield(y) -> float:
-    """yfinance raz zwraca 0.004 (ulamek), raz 0.4 (procent) — normalizuj do ulamka."""
+    """Yahoo `dividendYield` jest w PROCENTACH (0.44 = 0,44%) — zwraca ulamek."""
     v = _f(y)
-    if np.isnan(v):
-        return np.nan
-    return v / 100 if v > 0.25 else v
+    return np.nan if np.isnan(v) else v / 100
 
 
 def dividend_summary(divs: pd.Series, price: float | None, info: dict, today: pd.Timestamp) -> dict:
@@ -71,10 +69,14 @@ def dividend_summary(divs: pd.Series, price: float | None, info: dict, today: pd
     divs.index = pd.to_datetime(divs.index).tz_localize(None) if getattr(divs.index, "tz", None) else pd.to_datetime(divs.index)
     today = pd.Timestamp(today).normalize()
 
-    y = _norm_yield(info.get("dividendYield"))
-    if np.isnan(y) and price and price > 0:
-        ttm = divs[divs.index > today - pd.DateOffset(years=1)].sum()
-        y = ttm / price if ttm > 0 else np.nan
+    y = np.nan
+    ttm = divs[divs.index > today - pd.DateOffset(years=1)].sum()
+    if price is not None and np.isfinite(price) and price > 0 and ttm > 0:
+        y = ttm / price
+    if np.isnan(y):
+        y = _f(info.get("trailingAnnualDividendYield"))   # zawsze ulamek
+    if np.isnan(y):
+        y = _norm_yield(info.get("dividendYield"))
 
     annual = divs.groupby(divs.index.year).sum()
     last_full = today.year - 1

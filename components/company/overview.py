@@ -103,7 +103,7 @@ def _key_data(ticker, market, ccy):
     else:
         rows.append(("EV/EBITDA", _num(snap.get("ev_ebitda"))))
     y = co._norm_yield(snap.get("dividend_yield"))
-    rows.append(("Stopa dywidendy", _pct(y * 100, 1, sign=False) if _ok(y) else "—"))
+    rows.append(("Stopa dywidendy", _pct(y * 100, 2, sign=False) if _ok(y) else "—"))
     rows.append(("Beta", _num(prof.get("beta"), 2)))
     html = _kv(rows)
     lo, hi, px = prof.get("low52"), prof.get("high52"), snap.get("current_price")

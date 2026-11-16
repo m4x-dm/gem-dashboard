@@ -149,7 +149,29 @@ def test_premium_dividends_tab_renders(monkeypatch):
     assert not any("Spółka nie wypłaca dywidendy." in str(i.value) for i in at.info)
     assert not any("Brak aktualnej stopy dywidendy" in str(c.value) for c in at.caption)
     assert at.number_input(key="kdv_amount").value == 10000.0
-    net = co.dividend_after_tax(10000.0, 0.02, "SP500", "zwykle")["net"]
+    html = _html(at)
+    assert "1,00%" in html and "30,00%" in html     # yield z TTM/cena 100, payout z info
+    net = co.dividend_after_tax(10000.0, 0.01, "SP500", "zwykle")["net"]
     expected = f"{net:,.2f} USD".replace(",", " ").replace(".", ",")
     assert any(m.value == expected for m in at.metric), [m.value for m in at.metric]
     assert any("USA" in str(c.value) for c in at.caption)
+
+
+def test_premium_gpw_dividends_pln_belka(monkeypatch):
+    import data.company as co
+    now = pd.Timestamp.now().normalize()
+    dates = [now - pd.DateOffset(months=2) - pd.DateOffset(months=12 * k) for k in range(6)]
+    monkeypatch.setattr(co, "dividend_history", lambda t: pd.Series(2.0, index=pd.DatetimeIndex(sorted(dates))))
+    monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.0, "low52": 80.0,
+                                                          "high52": 120.0, "exchange": "WSE", "currency": "PLN"})
+    at = _run(True, "PKO.WA")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    y = 2.0 / 100.0
+    net = co.dividend_after_tax(10000.0, y, "GPW", "zwykle")
+    assert net["tax"] == pytest.approx(10000.0 * y * 0.19)
+    assert co.dividend_after_tax(10000.0, y, "GPW", "ike")["tax"] == 0
+    fmt = lambda x: f"{x:,.2f} PLN".replace(",", " ").replace(".", ",")
+    vals = [m.value for m in at.metric]
+    assert fmt(net["net"]) in vals, vals
+    assert any("Belki" in str(c.value) for c in at.caption)
