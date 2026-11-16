@@ -342,6 +342,24 @@ def make_upside_scorer(bulk_fn=None) -> Scorer:
 
 UPSIDE_SCORER = make_upside_scorer()
 
+
+def enrich_analyst_context(picks: list[dict], bulk: dict) -> list[dict]:
+    """Dopisuje do pozycji kontekst analitykow z dnia wyboru (in place).
+
+    Zapisywany w logu, zeby karta pokazywala oczekiwania z dnia zakupu,
+    a nie dzisiejsze.
+    """
+    for pick in picks:
+        info = bulk.get(pick["ticker"]) or {}
+        rm, n = _analyst_fields(info)
+        up = _upside(info)
+        target = info.get("target_mean")
+        pick["recommendation_mean"] = round(rm, 2) if rm is not None else None
+        pick["num_analysts"] = n
+        pick["target_mean"] = round(float(target), 2) if target is not None else None
+        pick["upside"] = round(up, 4) if up is not None else None
+    return picks
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"

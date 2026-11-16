@@ -659,3 +659,15 @@ def test_upside_scorer_odrzuca_brak_ceny_i_celu():
 
 def test_upside_scorer_jest_forward_only():
     assert tp.make_upside_scorer(bulk_fn=lambda t: {}).supports_asof is False
+
+
+def test_enrich_analyst_context_dopisuje_pola():
+    picks = [{"ticker": "AAA"}, {"ticker": "ZZZ"}]
+    tp.enrich_analyst_context(picks, _analyst_bulk())
+    assert picks[0]["recommendation_mean"] == 2.4
+    assert picks[0]["num_analysts"] == 20
+    assert picks[0]["target_mean"] == 150.0
+    assert picks[0]["upside"] == pytest.approx(0.5, abs=1e-4)
+    # brak rekordu -> pola sa, ale puste (UI pokazuje "—")
+    assert picks[1]["recommendation_mean"] is None
+    assert picks[1]["upside"] is None
