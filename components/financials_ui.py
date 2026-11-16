@@ -40,11 +40,10 @@ from data.financials import (
 def render_sprawozdania_screener(
     universe: list[str],
     market: str,  # "SP500" lub "GPW"
-) -> str | None:
+) -> None:
     """Renderuje screener bulk earnings (filtry + tabela + summary cards).
 
     Przycisk "Otwórz kartę spółki" przechodzi na Karte spolki (nav.go_company).
-    Returns: zawsze None (zachowane dla zgodnosci sygnatury).
     """
     st.markdown("### 🔍 Screener — beat/miss ostatniego kwartalu")
 
@@ -112,7 +111,7 @@ def render_sprawozdania_screener(
 
     if df.empty:
         st.warning("Brak danych dla universe.")
-        return None
+        return
 
     # FILTRY apply
     filtered = df.copy()
@@ -213,7 +212,6 @@ def render_sprawozdania_screener(
     if go_btn and selected:
         from components import nav  # lokalny import — unika cyklu importow
         nav.go_company(selected)
-    return None
 
 
 # ---------------------------------------------------------------------------

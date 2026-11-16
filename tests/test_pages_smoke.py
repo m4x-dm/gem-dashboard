@@ -45,3 +45,18 @@ def test_page_renders_with_premium(page):
     at.session_state["_auth_retries"] = 3
     at.switch_page(page.path).run()
     assert not at.exception, f"{page.key}: {at.exception}"
+
+
+@pytest.mark.parametrize("ticker", ["AAPL", "CDR.WA"])
+def test_karta_renders_with_premium(ticker):
+    at = AppTest.from_file(APP, default_timeout=900)
+    at.session_state["premium"] = True
+    at.session_state["_auth_retries"] = 3
+    at.query_params["t"] = ticker
+    at.switch_page("views/spolki/karta.py").run()
+    assert not at.exception, f"{ticker}: {at.exception}"
+    unavailable = [c.value for c in at.caption
+                   if "dane chwilowo niedostępne" in str(c.value)]
+    # Yahoo bywa niestabilny — raportuj, nie blokuj
+    if unavailable:
+        print(f"{ticker}: {len(unavailable)} sekcji bez danych: {unavailable}")
