@@ -485,14 +485,15 @@ def test_quality_scorer_bez_danych_zwraca_nan():
 
 
 def test_kazda_strategia_ma_wersje_i_sciezke_loga():
-    assert set(tp.RULE_VERSIONS) == {"momentum", "earnings", "quality"}
-    assert set(tp.HISTORY_PATHS) == {"momentum", "earnings", "quality"}
+    names = {"momentum", "earnings", "quality", "analyst", "upside"}
+    assert set(tp.RULE_VERSIONS) == names
+    assert set(tp.HISTORY_PATHS) == names
     for name, path in tp.HISTORY_PATHS.items():
         assert path.name.endswith(".json"), f"{name}: sciezka nie jest jsonem"
     # Momentum musi wskazywac na istniejacy log — to jedyny prawdziwy track record
     assert tp.HISTORY_PATHS["momentum"] == tp.HISTORY_PATH
-    # Trzy rozne pliki, zeby strategie sie nie nadpisywaly
-    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == 3
+    # Rozne pliki, zeby strategie sie nie nadpisywaly
+    assert len({p.name for p in tp.HISTORY_PATHS.values()}) == len(names)
 
 
 def test_rule_version_pozostaje_intem_dla_wstecznej_zgodnosci():
@@ -505,6 +506,8 @@ def test_strategie_znaja_swoje_rynki():
     assert tp.STRATEGY_MARKETS["momentum"] == ("sp500", "gpw")
     assert tp.STRATEGY_MARKETS["earnings"] == ("sp500",)
     assert tp.STRATEGY_MARKETS["quality"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["analyst"] == ("sp500", "gpw")
+    assert tp.STRATEGY_MARKETS["upside"] == ("sp500", "gpw")
 
 
 # ====== Walidator snapshotu (2026-08-07) ======

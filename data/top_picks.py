@@ -21,6 +21,8 @@ RULE_VERSIONS = {
     "momentum": 1,
     "earnings": 1,
     "quality": 1,
+    "analyst": 1,
+    "upside": 1,
 }
 
 # Wsteczna zgodnosc: kod sprzed 2026-08-07 czyta RULE_VERSION jako int.
@@ -32,6 +34,8 @@ STRATEGY_MARKETS = {
     "momentum": ("sp500", "gpw"),
     "earnings": ("sp500",),
     "quality": ("sp500", "gpw"),
+    "analyst": ("sp500", "gpw"),
+    "upside": ("sp500", "gpw"),
 }
 
 DEFAULT_WEIGHTS = {"12M": 0.40, "6M": 0.30, "3M": 0.20, "1M": 0.10}
@@ -348,6 +352,8 @@ HISTORY_PATHS = {
     "momentum": HISTORY_PATH,
     "earnings": _DATA_DIR / "top_picks_earnings_history.json",
     "quality": _DATA_DIR / "top_picks_quality_history.json",
+    "analyst": _DATA_DIR / "top_picks_analyst_history.json",
+    "upside": _DATA_DIR / "top_picks_upside_history.json",
 }
 
 
