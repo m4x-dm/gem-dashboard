@@ -70,7 +70,7 @@ STRATEGY_INFO = {
     "analyst": (
         "Polecane przez analitykow",
         "5 spolek z najlepsza srednia rekomendacja analitykow (skala Yahoo: "
-        "1 = Strong Buy, 5 = Sell). Min. 5 analitykow dla S&P 500 i 3 dla GPW, "
+        "1 = Strong Buy, 5 = Strong Sell). Min. 5 analitykow dla S&P 500 i 3 dla GPW, "
         "przy remisie wygrywa spolka z wieksza liczba analitykow; maks. 2 na sektor.",
     ),
     "upside": (
@@ -148,6 +148,9 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 + ") — piatka nie jest dobierana na sile."
             )
         if not picks:
+            if strategy in ("analyst", "upside"):
+                st.caption(f"{MARKET_LABELS[market]}: brak spolek spelniajacych warunki "
+                           "w tym miesiacu.")
             continue
 
         # Data z entry_date pickow, NIE z pola asof — rynki koncza sesje w roznych
@@ -228,6 +231,10 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 column_config={
                     "Zwrot": st.column_config.NumberColumn("Zwrot od rebalansu", format="percent"),
                     "ROE": st.column_config.NumberColumn("ROE", format="%.2f"),
+                    "Potencjal %": st.column_config.NumberColumn("Potencjal", format="percent"),
+                    "Konsensus": st.column_config.NumberColumn("Konsensus", format="%.2f"),
+                    "Cena docelowa": st.column_config.NumberColumn("Cena docelowa",
+                                                                   format="%.2f"),
                 },
             )
 

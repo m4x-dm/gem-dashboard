@@ -764,3 +764,23 @@ def test_workflow_commituje_wszystkie_logi():
         encoding="utf-8")
     for path in tp.HISTORY_PATHS.values():
         assert f"data/{path.name}" in wf, f"workflow nie commituje {path.name}"
+
+
+def test_portfolio_equity_trzyma_sklad_gdy_rynku_brak_w_srodkowym_miesiacu():
+    """Strategie analityczne moga pominac GPW w jednym miesiacu — krzywa nie moze miec dziury."""
+    idx = pd.bdate_range("2026-01-01", periods=90)
+    prices = pd.DataFrame({"AAA": np.linspace(100.0, 190.0, 90),
+                           "BBB": np.linspace(50.0, 50.0, 90)}, index=idx)
+    history = {
+        "2026-01-01": {"asof": idx[0].strftime("%Y-%m-%d"),
+                       "gpw": [{"ticker": "AAA", "weight": 1.0}]},
+        "2026-02-01": {"asof": idx[30].strftime("%Y-%m-%d"),
+                       "sp500": [{"ticker": "BBB", "weight": 1.0}]},     # brak gpw
+        "2026-03-01": {"asof": idx[60].strftime("%Y-%m-%d"),
+                       "gpw": [{"ticker": "BBB", "weight": 1.0}]},
+    }
+    equity = tp.portfolio_equity(history, prices, "gpw", start_capital=10000.0)
+    # AAA trzymane do idx[60] (nastepny snapshot Z GPW), potem BBB plasko
+    assert len(equity) == 90
+    assert float(equity.iloc[-1]) == pytest.approx(
+        10000.0 * prices["AAA"].iloc[60] / prices["AAA"].iloc[0], rel=1e-6)

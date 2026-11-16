@@ -283,9 +283,9 @@ def _bulk_source(bulk_fn):
 def make_analyst_scorer(bulk_fn=None) -> Scorer:
     """Scorer 'Polecane przez analitykow' — najnizsza srednia rekomendacja.
 
-    score = -recommendation_mean + min(num_analysts, 99) * 1e-5
-    (rm ma krok 0,01, wiec skladnik <= 0,001 rozstrzyga tylko remisy:
-    wiecej analitykow = wyzej). Spolki ponizej progu analitykow lub bez
+    score = -round(recommendation_mean, 2) + min(num_analysts, 99) * 1e-5
+    (rm zaokraglone do 0,01 — Yahoo podaje wiecej miejsc — wiec skladnik
+    <= 0,001 rozstrzyga tylko remisy: wiecej analitykow = wyzej). Spolki ponizej progu analitykow lub bez
     rm dostaja NaN i odpadaja w select_picks.
 
     supports_asof=False — yfinance zna tylko dzisiejszy konsensus.
@@ -298,7 +298,7 @@ def make_analyst_scorer(bulk_fn=None) -> Scorer:
             if rm is None or n < min_analysts_for(ticker):
                 out[ticker] = float("nan")
             else:
-                out[ticker] = -rm + min(n, 99) * 1e-5
+                out[ticker] = -round(rm, 2) + min(n, 99) * 1e-5
         return pd.Series(out, index=eligible, dtype="float64")
 
     return Scorer(name="analyst", supports_asof=False, fn=_fn)
@@ -529,7 +529,10 @@ def portfolio_equity(history: dict, prices: pd.DataFrame, market: str,
     Returns:
         Series indeksowana data. Pusta, gdy log nie ma wpisow dla rynku.
     """
-    keys = sorted(history)
+    # Tylko snapshoty, ktore maja ten rynek: strategie analityczne moga pominac
+    # GPW w jednym miesiacu — wtedy poprzedni sklad trzymamy do nastepnego
+    # snapshotu z tym rynkiem (bez dziury w krzywej).
+    keys = sorted(k for k in history if history[k].get(market))
     segments = []
     for i, key in enumerate(keys):
         picks = history[key].get(market) or []
