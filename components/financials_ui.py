@@ -292,7 +292,7 @@ def _render_beat_miss_tab(ticker: str) -> None:
         height=400,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key=f"bm_chart_{ticker}")
 
     # Tabela rewizji
     if trend_df is not None and "eps_current" in trend_df.columns:
@@ -412,7 +412,7 @@ def _render_cashflow_tab(ticker: str) -> None:
 # Insiders sub-tab helpers (F15)
 # ---------------------------------------------------------------------------
 
-def _chart_insider_net_per_month(transactions_df: pd.DataFrame) -> None:
+def _chart_insider_net_per_month(transactions_df: pd.DataFrame, ticker: str = "") -> None:
     """Plotly bar chart: net buy/sell value per miesiac (6 mc).
 
     Zielony slupek gdy net > 0, czerwony gdy net < 0.
@@ -456,10 +456,10 @@ def _chart_insider_net_per_month(transactions_df: pd.DataFrame) -> None:
         showlegend=False,
         margin=dict(l=40, r=40, t=60, b=40),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key=f"ins_net_{ticker}")
 
 
-def _chart_institutional_pie(institutional_df: pd.DataFrame) -> None:
+def _chart_institutional_pie(institutional_df: pd.DataFrame, ticker: str = "") -> None:
     """Plotly donut chart: top 10 funduszy + 'Reszta'."""
     if institutional_df is None or institutional_df.empty:
         return
@@ -495,7 +495,7 @@ def _chart_institutional_pie(institutional_df: pd.DataFrame) -> None:
         showlegend=False,
         margin=dict(l=40, r=40, t=60, b=40),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key=f"inst_pie_{ticker}")
 
 
 def _render_insiders_tab(ticker: str) -> None:
@@ -592,7 +592,7 @@ def _render_insiders_tab(ticker: str) -> None:
     # ============== SEKCJA 3: Insider Transactions + bar chart ==============
     st.markdown("#### 📈 Historia transakcji insiderow (6 mc)")
     if transactions is not None and not transactions.empty:
-        _chart_insider_net_per_month(transactions)
+        _chart_insider_net_per_month(transactions, ticker)
         display = transactions.head(30).copy()
         st.dataframe(
             display,
@@ -624,7 +624,7 @@ def _render_insiders_tab(ticker: str) -> None:
         with col_t:
             st.dataframe(institutional, width="stretch", hide_index=True)
         with col_c:
-            _chart_institutional_pie(institutional)
+            _chart_institutional_pie(institutional, ticker)
     else:
         st.caption("Brak danych dla Institutional Holders.")
 

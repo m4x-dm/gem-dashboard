@@ -51,7 +51,12 @@ def _summary_metrics(ticker: str) -> None:
 
 
 def render(ticker, market):
-    _summary_metrics(ticker)
+    if market == "GPW":
+        st.caption("Część spółek GPW (small-cap) nie ma pełnych danych w yfinance — luki są oczekiwane.")
+    try:
+        _summary_metrics(ticker)
+    except Exception:
+        st.caption("Podsumowanie wyników: dane chwilowo niedostępne")
     t1, t2, t3, t4 = st.tabs(["Beat/miss", "Rachunek zysków i strat", "Bilans", "Przepływy"])
     with t1:
         fu._render_beat_miss_tab(ticker)

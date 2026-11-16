@@ -51,7 +51,8 @@ def _offline(monkeypatch):
             if hasattr(mod, name):
                 monkeypatch.setattr(mod, name, lambda *a, _v=val, **k: _v)
     for mod in (fu, cfin):
-        monkeypatch.setattr(mod, "get_ratios_snapshot", lambda t: {"pe": 20.0, "name": "Apple Inc."}) if hasattr(mod, "get_ratios_snapshot") else None
+        if hasattr(mod, "get_ratios_snapshot"):
+            monkeypatch.setattr(mod, "get_ratios_snapshot", lambda t: {"pe": 20.0, "name": "Apple Inc."})
     monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
     monkeypatch.setattr(co, "company_profile", lambda t: {"summary": "Opis.", "beta": 1.1, "low52": 80.0,
                                                           "high52": 120.0, "exchange": "NMS", "currency": "USD"})
@@ -106,3 +107,25 @@ def test_search_follows_ticker_change():
     at.run()
     assert not at.exception
     assert at.selectbox(key="karta_search").value == "MSFT"
+
+
+def test_premium_gpw_bank_renders():
+    at = _run(True, "PKO.WA")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+
+
+def test_premium_beat_miss_chart_path(monkeypatch):
+    import components.financials_ui as fu
+    import components.company.results as cres
+    df = pd.DataFrame({"eps_estimate": [1.0, 1.1, 1.2, 1.3],
+                       "eps_actual": [1.1, 1.1, 1.3, 1.4],
+                       "surprise_pct": [10.0, 0.0, 8.3, 7.7]},
+                      index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
+    for mod in (fu, cres):
+        monkeypatch.setattr(mod, "get_earnings_history", lambda *a, **k: df)
+    at = _run(True, "AAPL")
+    assert not at.exception, at.exception
+    assert not any("dane chwilowo niedostępne" in str(c.value) for c in at.caption)
+    assert any(getattr(e, "key", None) == "bm_chart_AAPL" or "bm_chart_AAPL" in str(e.proto.id)
+               for e in at.get("plotly_chart")) or len(at.get("plotly_chart")) >= 1
