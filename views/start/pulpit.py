@@ -490,13 +490,25 @@ sparks = render_market_tiles()
 st.divider()
 
 st.markdown(_CLICK_CSS, unsafe_allow_html=True)
-col_wl, col_earn, col_mov = st.columns(3)
+_favs = set(st.session_state.get("favorites", set()))
 if PREMIUM:
     ls = LocalStorage()
+    try:
+        _wl = get_watchlist(ls) | _favs
+    except Exception:
+        _wl = _favs
+else:
+    _wl = _favs
+# Pusta watchlista idzie na koniec wiersza; z co najmniej jedna spolka — na poczatek.
+if _wl:
+    col_wl, col_earn, col_mov = st.columns(3)
+else:
+    col_earn, col_mov, col_wl = st.columns(3)
+if PREMIUM:
     with col_wl:
         try:
             render_watchlist(
-                get_watchlist(ls) | set(st.session_state.get("favorites", set())),
+                _wl,
                 "Moja watchlista",
                 "Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione).")
         except Exception:

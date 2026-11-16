@@ -127,3 +127,11 @@ def test_premium_movers_row_opens_company_card(monkeypatch):
     t = up[0].key.rsplit("_", 1)[-1]
     up[0].click().run()
     assert at.query_params.get("t") in (t, [t])
+
+
+def test_premium_watchlist_column_order():
+    # Pusta watchlista -> ostatnia kolumna; z co najmniej jedna spolka -> pierwsza
+    md = _md(_run(True))
+    assert md.index("Wyniki w tym tygodniu") < md.index("Moja watchlista")
+    md = _md(_run(True, favorites={"AAPL"}))
+    assert md.index("Moja watchlista") < md.index("Wyniki w tym tygodniu")
