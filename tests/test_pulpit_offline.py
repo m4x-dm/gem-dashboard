@@ -73,7 +73,7 @@ def test_free_pulpit_two_teasers_and_free_blocks():
     assert _html(at).count("🔒") == 2
     assert "Wyniki strategii" in _md(at)
     assert "Ulubione" in _md(at)
-    assert any("są w Premium" in c.value for c in at.caption)
+    assert any("Przegląd spółki za darmo" in c.value for c in at.caption)
 
 
 def test_premium_pulpit_no_teasers():

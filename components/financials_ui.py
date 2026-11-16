@@ -1,4 +1,5 @@
-"""Render helpery dla tab 'Sprawozdania Q' w views/spolki/sp500.py + gpw.py.
+"""Render helpery: screener 'Sprawozdania Q' (views/spolki/sp500.py + gpw.py)
+oraz zakladki _render_*_tab uzywane przez Karte spolki (components/company/).
 
 Modul jest importowany przez pages — helpery musza byc na poziomie modulu
 przed `with tab:` blokiem (regula z F12 screener, commit d7c3407).
@@ -28,7 +29,6 @@ from data.financials import (
     format_large_number,
     get_earnings_history,
     get_forward_consensus,
-    get_ratios_snapshot,
     is_bank,
 )
 
@@ -43,7 +43,8 @@ def render_sprawozdania_screener(
 ) -> str | None:
     """Renderuje screener bulk earnings (filtry + tabela + summary cards).
 
-    Returns: ticker wybrany do deep dive, lub None gdy user nie wybral.
+    Przycisk "Otwórz kartę spółki" przechodzi na Karte spolki (nav.go_company).
+    Returns: zawsze None (zachowane dla zgodnosci sygnatury).
     """
     st.markdown("### 🔍 Screener — beat/miss ostatniego kwartalu")
 
@@ -182,20 +183,20 @@ def render_sprawozdania_screener(
             toggle_ticker(ls, row["Ticker"])
         st.rerun()
 
-    # DEEP DIVE SELECT + AKCJE
+    # KARTA SPOLKI — wybor + przejscie
     st.markdown("---")
     col_sel, col_btn = st.columns([3, 1])
     with col_sel:
         selected = st.selectbox(
-            "Wybierz ticker do deep dive",
+            "Wybierz spółkę",
             options=[""] + filtered["ticker"].tolist(),
-            key=f"{market}_deep_dive_select",
+            key=f"{market}_card_select",
         )
     with col_btn:
         st.write("")  # spacer
         go_btn = st.button(
-            "📈 Pokaz szczegoly",
-            key=f"{market}_deep_dive_btn",
+            "Otwórz kartę spółki",
+            key=f"{market}_card_btn",
             disabled=not selected,
         )
 
@@ -210,12 +211,13 @@ def render_sprawozdania_screener(
     )
 
     if go_btn and selected:
-        return selected
+        from components import nav  # lokalny import — unika cyklu importow
+        nav.go_company(selected)
     return None
 
 
 # ---------------------------------------------------------------------------
-# Deep dive (per ticker) — header + 4 karty + 4 sub-taby
+# Zakladki per ticker — uzywane przez Karte spolki (components/company/)
 # ---------------------------------------------------------------------------
 
 def _format_statement_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -636,88 +638,3 @@ def _render_insiders_tab(ticker: str) -> None:
         st.dataframe(mutual, width="stretch", hide_index=True)
     else:
         st.caption("Brak danych dla Mutual Fund Holders.")
-
-
-def render_sprawozdania_deep_dive(ticker: str, market: str) -> None:
-    """Renderuje deep dive: header + 4 karty + 4 sub-taby."""
-    from data.financials import _compute_beat_streak, _quarter_label
-
-    if not ticker:
-        st.info("Wybierz ticker w screenerze i kliknij 'Pokaz szczegoly'.")
-        return
-
-    # HEADER
-    ratios = get_ratios_snapshot(ticker)
-    name = ratios.get("name") or ticker
-    sector = ratios.get("sector") or "—"
-    mcap = format_large_number(ratios.get("market_cap"))
-    st.markdown(f"### 🏢 {name} ({ticker})  ·  {sector}  ·  Cap: {mcap}")
-
-    # 4 KARTY METRYK (2 wiersze x 2 kolumny)
-    earnings_df = get_earnings_history(ticker, n_quarters=8)
-    trend_df = fetch_earnings_trend(ticker)
-
-    last_q = ""
-    eps_est = float("nan")
-    eps_act = float("nan")
-    surprise = float("nan")
-    streak = 0
-    if earnings_df is not None and not earnings_df.empty:
-        last_row = earnings_df.iloc[-1]
-        last_q = _quarter_label(earnings_df.index[-1])
-        eps_est = last_row.get("eps_estimate", float("nan"))
-        eps_act = last_row.get("eps_actual", float("nan"))
-        surprise = last_row.get("surprise_pct", float("nan"))
-        streak = _compute_beat_streak(earnings_df)
-
-    fwd_eps = float("nan")
-    fwd_growth = float("nan")
-    fwd_rev = float("nan")
-    if trend_df is not None and not trend_df.empty and "+1q" in trend_df.index:
-        fwd_eps = trend_df.loc["+1q"].get("eps_current", float("nan"))
-        fwd_growth = trend_df.loc["+1q"].get("eps_growth_yoy", float("nan"))
-        fwd_rev = trend_df.loc["+1q"].get("rev_estimate", float("nan"))
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric(
-            f"{last_q or 'Last'} EPS",
-            f"{eps_act:.2f}" if pd.notna(eps_act) else "—",
-            f"vs est {eps_est:.2f} ({surprise:+.1f}%)" if pd.notna(surprise) else "",
-        )
-    with c2:
-        st.metric("Beat streak", f"{streak} Q")
-
-    c3, c4 = st.columns(2)
-    with c3:
-        st.metric(
-            "Forward Q+1 EPS",
-            f"{fwd_eps:.2f}" if pd.notna(fwd_eps) else "—",
-            f"YoY {fwd_growth*100:+.1f}%" if pd.notna(fwd_growth) else "",
-        )
-    with c4:
-        st.metric(
-            "Forward Q+1 Revenue",
-            format_large_number(fwd_rev) if pd.notna(fwd_rev) else "—",
-        )
-
-    st.markdown("---")
-
-    # 4 SUB-TABY
-    sub1, sub2, sub3, sub4, sub5 = st.tabs([
-        "📊 Beat/Miss historia",
-        "📑 Income Statement",
-        "💰 Balance Sheet",
-        "💵 Cash Flow",
-        "👥 Insiders",
-    ])
-    with sub1:
-        _render_beat_miss_tab(ticker)
-    with sub2:
-        _render_income_statement_tab(ticker)
-    with sub3:
-        _render_balance_sheet_tab(ticker)
-    with sub4:
-        _render_cashflow_tab(ticker)
-    with sub5:
-        _render_insiders_tab(ticker)

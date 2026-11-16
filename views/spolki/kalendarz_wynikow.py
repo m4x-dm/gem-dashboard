@@ -28,23 +28,12 @@ from data.sp500_universe import ALL_SP500_TICKERS
 # Module-level helpers (regula @st.fragment: PRZED `with tab:` blokiem)
 # ---------------------------------------------------------------------------
 
-def _navigate_to_deep_dive(ticker: str) -> None:
-    """Przeskakuje do F13 deep dive dla wybranego tickera.
-
-    Pattern session_state zgodny z F13 hotfix (commit b1f8502):
-    osobna 'pending' flaga (nie widget key) + `st.switch_page`.
-    """
-    market = _detect_market(ticker)
-    if market == "SP500":
-        st.session_state["sp500_deep_dive_ticker"] = ticker
-        st.session_state["sp500_pending_view"] = "deep_dive"
-        nav.go("sp500")
-    elif market == "GPW":
-        st.session_state["gpw_deep_dive_ticker"] = ticker
-        st.session_state["gpw_pending_view"] = "deep_dive"
-        nav.go("gpw")
+def _open_company_card(ticker: str) -> None:
+    """Otwiera Karte spolki dla tickera z kalendarza (ETF/UNKNOWN -> ostrzezenie)."""
+    if _detect_market(ticker) in ("SP500", "GPW"):
+        nav.go_company(ticker)
     else:
-        st.warning(f"Deep dive niedostepny dla ETF/UNKNOWN ({ticker}).")
+        st.warning(f"Karta spolki niedostepna dla ETF/UNKNOWN ({ticker}).")
 
 
 def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -> None:
@@ -370,26 +359,26 @@ _render_calendar_table(sorted_df, watchlist, ls)
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
-# CROSS-LINK do F13 Sprawozdania Q deep dive
+# CROSS-LINK do Karty spolki
 # ---------------------------------------------------------------------------
 
-st.markdown("### 📈 Deep dive (Sprawozdania Q)")
+st.markdown("### 🏢 Karta spółki")
 col_sel, col_btn = st.columns([3, 1])
 with col_sel:
     selected_ticker = st.selectbox(
-        "Wybierz ticker do deep dive:",
+        "Wybierz spółkę:",
         options=[""] + sorted_df["ticker"].tolist(),
-        key="calendar_deep_dive_select",
+        key="calendar_card_select",
     )
 with col_btn:
     st.write("")  # spacer
     go_btn = st.button(
-        "📈 Pokaz szczegoly",
-        key="calendar_deep_dive_btn",
+        "Otwórz kartę spółki",
+        key="calendar_card_btn",
         disabled=not selected_ticker,
     )
 
 if go_btn and selected_ticker:
-    _navigate_to_deep_dive(selected_ticker)
+    _open_company_card(selected_ticker)
 
 render_footer()

@@ -322,30 +322,27 @@ else:
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
-# CROSS-LINK do F13 Sprawozdania Q deep dive Insiders sub-tab
+# CROSS-LINK do Karty spolki (zakladka Akcjonariat = insiderzy)
 # ---------------------------------------------------------------------------
 
-st.markdown("### 📈 Deep dive (F13 Insiders)")
+st.markdown("### 🏢 Karta spółki")
 col_sel, col_btn = st.columns([3, 1])
 with col_sel:
     selected_ticker = st.selectbox(
-        "Wybierz ticker do deep dive:",
+        "Wybierz spółkę:",
         options=[""] + filtered["ticker"].tolist(),
-        key="insider_screener_deep_dive_select",
+        key="insider_screener_card_select",
     )
 with col_btn:
     st.write("")  # spacer
     go_btn = st.button(
-        "📈 Pokaz szczegoly",
-        key="insider_screener_deep_dive_btn",
+        "Otwórz kartę spółki",
+        key="insider_screener_card_btn",
         disabled=not selected_ticker,
     )
 
 if go_btn and selected_ticker:
-    # Pattern session_state z F14 hotfix (b1f8502): pending flag NIE widget key
-    st.session_state["sp500_deep_dive_ticker"] = selected_ticker
-    st.session_state["sp500_pending_view"] = "deep_dive"
-    nav.go("sp500")
+    nav.go_company(selected_ticker)
 
 st.markdown("---")
 
