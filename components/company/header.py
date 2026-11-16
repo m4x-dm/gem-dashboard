@@ -41,7 +41,7 @@ def render(ticker: str, market: str) -> None:
     if chg is not None:
         col, bg = (GREEN, "rgba(52,211,153,.12)") if chg >= 0 else (RED, "rgba(248,113,113,.12)")
         pill = (f'<span style="background:{bg};color:{col};padding:2px 9px;border-radius:999px;'
-                f'font-size:12px">{chg*100:+.2f}% dziś</span>')
+                f'font-size:12px">{f"{chg*100:+.2f}".replace(".", ",")}% dziś</span>')
     price_txt = f"{price:,.2f} {ccy}".replace(",", " ").replace(".", ",") if price is not None else "—"
     meta = " · ".join(x for x in (company_name(ticker, market), sector, EXCHANGE[market]) if x)
     st.html(

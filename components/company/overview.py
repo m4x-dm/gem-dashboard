@@ -18,6 +18,7 @@ PERIODS = {"1M": "1mo", "6M": "6mo", "1R": "1y", "5L": "5y", "Max": "max"}
 REC_PL = {"strong_buy": "Kupuj", "buy": "Kupuj", "hold": "Trzymaj", "sell": "Sprzedaj",
           "underperform": "Sprzedaj", "strong_sell": "Sprzedaj"}
 NUM = "font-variant-numeric:tabular-nums;"
+LOADING_MOMENTUM = "Liczę ranking momentum…"
 
 
 def _ok(x) -> bool:
@@ -223,11 +224,15 @@ def render(ticker, market):
     with c_kv:
         _safe("Kluczowe dane", _key_data, ticker, market, ccy)
     c1, c2, c3 = st.columns(3)
-    mov_slot = c1.container()
+    # Momentum liczy sie na koncu (zimny cache ~1-2 min dla calego universe) —
+    # do tego czasu slot pokazuje karte "Licze ranking…", nie pusta dziure.
+    mov_slot = c1.empty()
+    mov_slot.html(card_html(_lbl("Momentum GEM") + f'<span style="color:{MUTED}">{LOADING_MOMENTUM}</span>',
+                            extra="min-height:144px;font-size:13px;"))
     with c2:
         _safe("Analitycy", _analysts, ticker, ccy)
     with c3:
         _safe("Kalendarz", _calendar, ticker)
     _safe("O spółce", _about, ticker)
-    with mov_slot:
+    with mov_slot.container():
         _momentum_fragment(ticker, market)

@@ -199,3 +199,24 @@ def test_peers_helpers_units_and_colors():
     assert peers.cell_color("P/E", 10, 20) == GREEN and peers.cell_color("P/E", 30, 20) == RED
     assert peers.cell_color("ROE", 0.3, 0.2) == GREEN and peers.cell_color("ROE", 0.1, 0.2) == RED
     assert peers.cell_color("ROE", np.nan, 0.2) == TEXT
+
+
+def test_free_overview_momentum_card_replaces_placeholder():
+    """Momentum GEM w 1. kolumnie pod wykresem: po renderze jest karta z rankingiem,
+    a placeholder „Liczę ranking…” znika (zastapiony, nie dopisany obok)."""
+    from components.company.overview import LOADING_MOMENTUM
+    at = _run(False, "AAPL")
+    assert not at.exception, at.exception
+    html = _html(at)
+    assert "Momentum GEM · #" in html
+    assert LOADING_MOMENTUM not in html
+
+
+def test_overview_momentum_failure_shows_caption_not_blank(monkeypatch):
+    import data.company as co
+    def boom(*a, **k):
+        raise RuntimeError("yahoo down")
+    monkeypatch.setattr(co, "universe_prices", boom)
+    at = _run(False, "AAPL")
+    assert not at.exception, at.exception
+    assert any("Momentum GEM: dane chwilowo niedostępne" in str(c.value) for c in at.caption)
