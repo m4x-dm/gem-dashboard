@@ -574,3 +574,55 @@ def test_select_picks_remis_rozstrzyga_ticker_alfabetycznie():
     picks = tp.select_picks(prices, volumes, groups, prices.index[-1],
                             top_n=3, scorer=tie)
     assert [p["ticker"] for p in picks] == ["AAA", "BBB", "CCC"]
+
+
+def _analyst_bulk():
+    return {
+        "AAA": {"recommendation_mean": 2.4, "num_analysts": 20,
+                "target_mean": 150.0, "current_price": 100.0},
+        "BBB": {"recommendation_mean": 1.5, "num_analysts": 10,
+                "target_mean": 110.0, "current_price": 100.0},
+        "CCC": {"recommendation_mean": 1.5, "num_analysts": 30,
+                "target_mean": 105.0, "current_price": 100.0},
+        "DDD": {"recommendation_mean": 1.1, "num_analysts": 4,     # ponizej progu SP500
+                "target_mean": 200.0, "current_price": 100.0},
+        "EEE": {"recommendation_mean": None, "num_analysts": 25,
+                "target_mean": 120.0, "current_price": 100.0},
+    }
+
+
+def test_min_analysts_zalezy_od_rynku():
+    assert tp.min_analysts_for("AAPL") == 5
+    assert tp.min_analysts_for("PKO.WA") == 3
+
+
+def test_consensus_label():
+    assert tp.consensus_label(1.3) == "Strong Buy"
+    assert tp.consensus_label(2.0) == "Buy"
+    assert tp.consensus_label(3.0) == "Hold"
+    assert tp.consensus_label(4.0) == "Sell"
+    assert tp.consensus_label(4.8) == "Strong Sell"
+    assert tp.consensus_label(None) == "—"
+
+
+def test_analyst_scorer_rankuje_po_konsensusie_z_tiebreakiem():
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: _analyst_bulk())
+    scores = scorer.fn(["AAA", "BBB", "CCC", "DDD", "EEE"], pd.DataFrame(),
+                       pd.Timestamp("2026-11-16"))
+    ranked = list(scores.dropna().sort_values(ascending=False).index)
+    # CCC i BBB maja 1,5 — CCC ma wiecej analitykow; DDD ponizej progu; EEE bez rm
+    assert ranked == ["CCC", "BBB", "AAA"]
+
+
+def test_analyst_scorer_gpw_ma_nizszy_prog():
+    bulk = {"PKO.WA": {"recommendation_mean": 1.8, "num_analysts": 3}}
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: bulk)
+    scores = scorer.fn(["PKO.WA"], pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert pd.notna(scores["PKO.WA"])
+
+
+def test_analyst_scorer_jest_forward_only_i_bez_danych_nan():
+    scorer = tp.make_analyst_scorer(bulk_fn=lambda tickers: {})
+    assert scorer.supports_asof is False
+    scores = scorer.fn(["AAA"], pd.DataFrame(), pd.Timestamp("2026-11-16"))
+    assert scores.dropna().empty

@@ -218,6 +218,85 @@ def make_quality_scorer(bulk_fn=None, banks: set[str] | None = None) -> Scorer:
 
 QUALITY_SCORER = make_quality_scorer()
 
+# ====== Scorery analityczne (2026-11-16, forward-only) ======
+#
+# Pomiar pokrycia yfinance 2026-11-16: SP500 ma konsensus prawie wszedzie
+# (mediana 18 analitykow), GPW tylko ok. 1/3 spolek (mediana 3) — stad
+# nizszy prog dla GPW. Ranking oparty na 1-2 opiniach to opinia jednego biura.
+
+MIN_ANALYSTS_SP500 = 5
+MIN_ANALYSTS_GPW = 3
+UPSIDE_MAX_RECOMMENDATION = 2.5   # co najmniej "Buy" w skali Yahoo 1-5
+
+
+def min_analysts_for(ticker: str) -> int:
+    """Prog liczby analitykow zalezny od rynku (GPW = sufiks .WA)."""
+    return MIN_ANALYSTS_GPW if ticker.endswith(".WA") else MIN_ANALYSTS_SP500
+
+
+def consensus_label(rm) -> str:
+    """Etykieta sredniej rekomendacji Yahoo (1 = Strong Buy ... 5 = Strong Sell)."""
+    if rm is None or pd.isna(rm):
+        return "—"
+    rm = float(rm)
+    if rm <= 1.5:
+        return "Strong Buy"
+    if rm <= 2.5:
+        return "Buy"
+    if rm <= 3.5:
+        return "Hold"
+    if rm <= 4.5:
+        return "Sell"
+    return "Strong Sell"
+
+
+def _analyst_fields(info: dict) -> tuple[float | None, int]:
+    """(recommendation_mean, num_analysts) z rekordu bulk, z bezpieczna konwersja."""
+    rm = info.get("recommendation_mean")
+    try:
+        rm = float(rm) if rm is not None else None
+    except (TypeError, ValueError):
+        rm = None
+    try:
+        n = int(info.get("num_analysts") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    return rm, n
+
+
+def _bulk_source(bulk_fn):
+    if bulk_fn is not None:
+        return bulk_fn
+    from data.financials import bulk_fetch_universe
+    return bulk_fetch_universe
+
+
+def make_analyst_scorer(bulk_fn=None) -> Scorer:
+    """Scorer 'Polecane przez analitykow' — najnizsza srednia rekomendacja.
+
+    score = -recommendation_mean + min(num_analysts, 99) * 1e-5
+    (rm ma krok 0,01, wiec skladnik <= 0,001 rozstrzyga tylko remisy:
+    wiecej analitykow = wyzej). Spolki ponizej progu analitykow lub bez
+    rm dostaja NaN i odpadaja w select_picks.
+
+    supports_asof=False — yfinance zna tylko dzisiejszy konsensus.
+    """
+    def _fn(eligible: list[str], px: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
+        bulk = _bulk_source(bulk_fn)(tuple(eligible)) or {}
+        out = {}
+        for ticker in eligible:
+            rm, n = _analyst_fields(bulk.get(ticker) or {})
+            if rm is None or n < min_analysts_for(ticker):
+                out[ticker] = float("nan")
+            else:
+                out[ticker] = -rm + min(n, 99) * 1e-5
+        return pd.Series(out, index=eligible, dtype="float64")
+
+    return Scorer(name="analyst", supports_asof=False, fn=_fn)
+
+
+ANALYST_SCORER = make_analyst_scorer()
+
 _DATA_DIR = Path(__file__).parent
 HISTORY_PATH = _DATA_DIR / "top_picks_history.json"
 SIM_PATH = _DATA_DIR / "top_picks_sim.json"
