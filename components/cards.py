@@ -541,7 +541,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
         template="plotly_dark",
         paper_bgcolor=BG_CARD,
         plot_bgcolor=BG_CARD,
-        title=dict(text="Forward konsensus EPS", font=dict(size=13, color=TEXT)),
+        title=dict(text=tr("Forward konsensus EPS"), font=dict(size=13, color=TEXT)),
         font=dict(color=MUTED, size=11),
         xaxis=dict(showgrid=False, color=MUTED),
         yaxis=dict(gridcolor=BORDER, showgrid=True, color=MUTED, title=tr("EPS estimate")),
@@ -774,7 +774,7 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
 
         score = pick.get("score")
         score_str = pick.get("score_text") or (
-            "score " + (f"{score:.3f}".replace(".", ",") if score is not None else "—"))
+            "score " + (fmt_number(score, 3) if score is not None else "—"))
         note = pick.get("note") or ""
         note_html = (f'<div style="font-size:0.6rem;color:{MUTED};margin:-4px 0 8px;'
                      f'line-height:1.4">{note}</div>') if note else ""

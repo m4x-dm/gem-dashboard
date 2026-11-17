@@ -847,21 +847,23 @@ def _status_badge(date, eps_act, eps_est) -> str:
     ts = pd.Timestamp(date).normalize()
     days_diff = (ts - today).days
 
+    from components.i18n import tr  # tylko do wyswietlania (badge nie jest porownywany w logice)
+
     if days_diff == 0:
-        return "🔥 DZIŚ"
+        return tr("🔥 DZIŚ")
     if days_diff > 0:  # Future
         if days_diff <= 7:
-            return f"🔜 W {days_diff}d"
+            return tr("🔜 W {n}d", n=days_diff)
         if days_diff <= 14:
-            return f"⏰ W {days_diff}d"
+            return tr("⏰ W {n}d", n=days_diff)
         return f"📅 {ts.strftime('%d.%m')}"
     # Past
     abs_diff = abs(days_diff)
     if pd.notna(eps_act) and pd.notna(eps_est):
         if eps_act > eps_est:
-            return f"✅ Beat ({abs_diff}d temu)"
-        return f"❌ Miss ({abs_diff}d temu)"
-    return f"⚪ {abs_diff}d temu"
+            return tr("✅ Beat ({n}d temu)", n=abs_diff)
+        return tr("❌ Miss ({n}d temu)", n=abs_diff)
+    return tr("⚪ {n}d temu", n=abs_diff)
 
 
 def _get_etf_set() -> set[str]:

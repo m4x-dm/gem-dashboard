@@ -138,6 +138,32 @@ DYNAMIC: dict[str, str] = {
     # Krypto — kategorie
     "Layer 2 / Skalowanie": "Layer 2 / Scaling", "Memecoiny": "Memecoins", "Prywatnosc": "Privacy",
     "Infrastruktura / Narzedzia": "Infrastructure / Tools", "RWA / Tokenizacja": "RWA / Tokenisation", "Inne": "Other",
+    # Raport PDF (components/pdf_report.py)
+    "GEM ETF Dashboard — Raport": "GEM ETF Dashboard — Report",
+    "Wygenerowano: {now}": "Generated: {now}",
+    "Aktualny sygnal: {signal}": "Current signal: {signal}",
+    "Zwrot 12M": "12M return",
+    "Forward konsensus EPS": "Forward EPS consensus",
+    "Statystyki strategii (5 lat)": "Strategy statistics (5 years)",
+    "VEA (Rozwin.)": "VEA (Developed)",
+    "EEM (Wsch.)": "EEM (Emerging)",
+    "AGG (Obligacje)": "AGG (Bonds)",
+    "Top 5 ETF-ow wg momentum": "Top 5 ETFs by momentum",
+    "Aktywo": "Asset",
+    "Zmiana 1M": "1M change",
+    "Ranking ETF — Top 10": "ETF ranking — Top 10",
+    "Makro Dashboard": "Macro dashboard",
+    "Wskaznik": "Indicator",
+    "Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej. "
+    "Wyniki historyczne nie gwarantuja przyszlych zwrotow.":
+        "This dashboard is for educational and informational purposes only. It is not investment advice. "
+        "Past performance does not guarantee future returns.",
+    # Kalendarz wynikow — mapa, sortowanie, statusy
+    "Pon": "Mon", "Wt": "Tue", "Sr": "Wed", "Cz": "Thu", "Pt": "Fri",
+    "Data (najblizej dzis)": "Date (closest to today)", "Data (chronologicznie)": "Date (chronological)",
+    "EPS surprise % (past)": "EPS surprise % (past)", "Ticker A-Z": "Ticker A-Z",
+    "🔥 DZIŚ": "🔥 TODAY", "🔜 W {n}d": "🔜 In {n}d", "⏰ W {n}d": "⏰ In {n}d",
+    "✅ Beat ({n}d temu)": "✅ Beat ({n}d ago)", "❌ Miss ({n}d temu)": "❌ Miss ({n}d ago)", "⚪ {n}d temu": "⚪ {n}d ago",
     # Waluta
     "1M Roznica": "1M difference", "3M Roznica": "3M difference", "6M Roznica": "6M difference", "12M Roznica": "12M difference",
 }

@@ -222,7 +222,7 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 key=f"pie_{strategy}_{market}",
             )
 
-        with st.expander(tr('📋 Szczegoly fundamentalne — {market_name}', market_name=market_name)):
+        with st.expander(tr('📋 Szczegoly fundamentalne — {market_name}', market_name=tr(market_name))):
             st.dataframe(
                 pd.DataFrame(rows),
                 hide_index=True,

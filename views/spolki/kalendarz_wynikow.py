@@ -22,7 +22,7 @@ from data.financials import (
 )
 from data.gpw_universe import ALL_GPW_TICKERS
 from data.sp500_universe import ALL_SP500_TICKERS
-from components.i18n import tr
+from components.i18n import tr, is_pl
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
 
         # Label tygodnia: numer relatywny do dziś
         week_diff = (current_week_start - today_norm).days // 7
-        week_labels.append(f"T{week_diff:+d}")
+        week_labels.append(f"{'T' if is_pl() else 'W'}{week_diff:+d}")
         matrix.append(row)
         cell_data.append(row_data)
         current_week_start += pd.Timedelta(weeks=1)
@@ -95,7 +95,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
 
     fig = go.Figure(go.Heatmap(
         z=matrix,
-        x=["Pon", "Wt", "Sr", "Cz", "Pt"],
+        x=[tr(d) for d in ["Pon", "Wt", "Sr", "Cz", "Pt"]],
         y=week_labels,
         colorscale=[[0, "#1F2937"], [0.5, "#D4B062"], [1, "#F1D58E"]],
         showscale=True,
@@ -109,7 +109,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
     today_dow = today_norm.weekday()
     if today_dow < 5:  # tylko Pon-Pt
         try:
-            t0_idx = week_labels.index("T+0")
+            t0_idx = week_labels.index(f"{'T' if is_pl() else 'W'}+0")
             fig.add_shape(
                 type="rect",
                 x0=today_dow - 0.5, x1=today_dow + 0.5,
@@ -196,7 +196,9 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
             "EPS est": st.column_config.NumberColumn("EPS est", format="%.2f", width="small"),
             "EPS act": st.column_config.NumberColumn("EPS act", format="%.2f", width="small"),
             "Δ%": st.column_config.NumberColumn("Δ%", format="%+.1f%%", width="small"),
-            "Data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", width="medium"),
+            "Data": st.column_config.DateColumn(tr("Data"), format="YYYY-MM-DD", width="medium"),
+            "Nazwa": st.column_config.TextColumn(tr("Nazwa")),
+            "Sektor": st.column_config.TextColumn(tr("Sektor")),
             "Status": st.column_config.TextColumn("Status", width="medium"),
         },
         disabled=disabled_cols,
@@ -284,6 +286,7 @@ with st.expander(tr("Filtry"), expanded=True):
                 "Ticker A-Z",
             ],
             index=0,
+            format_func=tr,
             key="calendar_sort",
         )
         refresh = st.button(tr("🔄 Refresh cache"), key="calendar_refresh")
