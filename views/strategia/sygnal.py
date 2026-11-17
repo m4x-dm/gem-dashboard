@@ -15,6 +15,7 @@ from components.cards import signal_card, metric_row, top_etf_cards
 from components.charts import ranking_bar_chart, _base_layout
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, SHADOW
+from components.i18n import tr, tr_doc
 
 SIGNAL_COLORS = {"QQQ": GREEN, "VEA": "#3B82F6", "EEM": "#A855F7", "ACWI": "#06B6D4", "AGG": "#FBBF24"}
 SIGNAL_LABELS = {"QQQ": "Akcje USA", "VEA": "Rynki rozwinięte", "EEM": "Rynki wschodzace",
@@ -31,14 +32,14 @@ def render_now(rf: float) -> None:
     # Klasyczny GEM
     gem_data = gem_classic_signal(prices, rf)
 
-    st.markdown("### Klasyczny GEM (QQQ / VEA / EEM / ACWI / AGG)")
+    st.markdown("### " + tr("Klasyczny GEM (QQQ / VEA / EEM / ACWI / AGG)"))
     signal_card(gem_data)
     metric_row(gem_data["qqq_12m"], gem_data["vea_12m"], gem_data["eem_12m"], gem_data["acwi_12m"], gem_data["agg_12m"], rf)
 
     st.divider()
 
     # Rozszerzony ranking
-    st.markdown("### Top 5 ETF-ow — rozszerzony ranking momentum")
+    st.markdown("### " + tr("Top 5 ETF-ow — rozszerzony ranking momentum"))
     ranking = build_ranking(prices, rf, skip_month=False)
 
     # Nazwy dla custom tickerow
@@ -54,15 +55,15 @@ def render_now(rf: float) -> None:
         top_etf_cards(valid_ranking, names, categories, n=5)
 
         st.divider()
-        st.markdown("### Top 10 — wykres momentum")
-        fig = ranking_bar_chart(valid_ranking, top_n=10)
+        st.markdown("### " + tr("Top 10 — wykres momentum"))
+        fig = ranking_bar_chart(valid_ranking, top_n=10, title=tr("Top 10 — wynik momentum"))
         st.plotly_chart(fig, width="stretch")
     else:
-        st.warning("Brak danych do wyswietlenia rankingu.")
+        st.warning(tr("Brak danych do wyswietlenia rankingu."))
 
     # Info
-    with st.expander("Jak czytac sygnal GEM?"):
-        st.markdown("""
+    with st.expander(tr("Jak czytac sygnal GEM?")):
+        st.markdown(tr_doc("sygnal_jak_czytac", """
         **Klasyczny GEM** analizuje 5 aktywow:
         1. Jesli zwrot QQQ 12M < stopa wolna → **kup obligacje (AGG)**
         2. Jesli momentum dodatni → **kup najlepszy z QQQ / VEA / EEM / ACWI** (porownanie relatywne)
@@ -80,13 +81,13 @@ def render_now(rf: float) -> None:
 
         **Uwaga:** dla rankingu akcji (S&P 500, GPW, krypto) nadal uzywamy 12-1
         skip-month — efekt rewersji ma znaczenie dla pojedynczych spolek.
-        """)
+        """))
 
 
 def build_signal_periods(rf: float):
     """Z dawnej 17_sygnaly.py: pobranie period='max' + backtest_gem + signal_periods.
     Zwraca (prices, signal_periods) albo None, gdy brak danych."""
-    with st.spinner("Pobieram dane i obliczam sygnaly..."):
+    with st.spinner(tr("Pobieram dane i obliczam sygnaly...")):
         required = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
         prices = download_prices(required, period="max")
         result = backtest_gem(prices, rf, start_capital=10000)
@@ -116,36 +117,36 @@ def render_current_position(signal_periods) -> None:
     days_in = current["duration_days"]
     sig = current["signal"]
     color = SIGNAL_COLORS.get(sig, MUTED)
-    label = SIGNAL_LABELS.get(sig, sig)
+    label = tr(SIGNAL_LABELS.get(sig, sig))
     start_str = current["start"].strftime("%Y-%m-%d")
 
     st.html(
         f'<div style="background:{BG_CARD};border-left:3px solid {color};box-shadow:{SHADOW};border-radius:16px;padding:40px;text-align:center;margin-bottom:24px">'
         f'<div style="font-size:3.5rem;font-weight:800;color:{color}">{sig}</div>'
         f'<div style="font-size:1.2rem;color:{MUTED};margin:8px 0">{label}</div>'
-        f'<div style="font-size:2rem;font-weight:700;color:#E6E8EC;margin:16px 0">Od {days_in} dni</div>'
-        f'<div style="font-size:0.9rem;color:{MUTED}">Data ostatniej zmiany: {start_str}</div>'
+        f'<div style="font-size:2rem;font-weight:700;color:#E6E8EC;margin:16px 0">{tr("Od {n} dni", n=days_in)}</div>'
+        f'<div style="font-size:0.9rem;color:{MUTED}">{tr("Data ostatniej zmiany")}: {start_str}</div>'
         f'</div>'
     )
 
     # Previous signals
     if len(signal_periods) >= 2:
-        st.markdown("#### Poprzednie sygnaly")
+        st.markdown("#### " + tr("Poprzednie sygnaly"))
         prev = signal_periods[-5:][::-1] if len(signal_periods) >= 5 else signal_periods[::-1]
         for sp in prev[1:]:  # skip current
             sc = SIGNAL_COLORS.get(sp["signal"], MUTED)
-            sl = SIGNAL_LABELS.get(sp["signal"], sp["signal"])
+            sl = tr(SIGNAL_LABELS.get(sp["signal"], sp["signal"]))
             st.html(
                 f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
                 f'<span style="color:{sc};font-weight:700;font-size:1.1rem">{sp["signal"]} <span style="font-size:0.8rem;font-weight:400;color:{MUTED}">({sl})</span></span>'
-                f'<span style="color:{MUTED};font-size:0.85rem">{sp["start"].strftime("%Y-%m-%d")} → {sp["end"].strftime("%Y-%m-%d")} ({sp["duration_days"]} dni)</span>'
+                f'<span style="color:{MUTED};font-size:0.85rem">{sp["start"].strftime("%Y-%m-%d")} → {sp["end"].strftime("%Y-%m-%d")} ({tr("{n} dni", n=sp["duration_days"])})</span>'
                 f'</div>'
             )
 
 
 def render_history_tab(signal_periods) -> None:
     """Dawny tab2 'Timeline'."""
-    st.subheader("Timeline sygnalow GEM")
+    st.subheader(tr("Timeline sygnalow GEM"))
 
     # Colored timeline chart
     fig = go.Figure()
@@ -162,31 +163,31 @@ def render_history_tab(signal_periods) -> None:
             hovertemplate=(
                 f'{sp["signal"]}<br>'
                 f'{sp["start"].strftime("%Y-%m-%d")} → {sp["end"].strftime("%Y-%m-%d")}<br>'
-                f'{sp["duration_days"]} dni<extra></extra>'
+                f'{tr("{n} dni", n=sp["duration_days"])}<extra></extra>'
             ),
         ))
 
     # Custom x-axis for dates
-    fig.update_layout(**_base_layout("Historia sygnalow GEM", height=150))
+    fig.update_layout(**_base_layout(tr("Historia sygnalow GEM"), height=150))
     fig.update_xaxes(type="date")
     fig.update_yaxes(visible=False)
     fig.update_layout(margin=dict(l=20, r=20, t=50, b=30))
     st.plotly_chart(fig, width="stretch")
 
     # Full table
-    st.markdown("#### Pelna lista zmian sygnalu")
+    st.markdown("#### " + tr("Pelna lista zmian sygnalu"))
     df = pd.DataFrame(signal_periods)
     df["start"] = df["start"].dt.strftime("%Y-%m-%d")
     df["end"] = df["end"].dt.strftime("%Y-%m-%d")
     df_display = df[["start", "end", "signal", "duration_days"]].copy()
-    df_display.columns = ["Poczatek", "Koniec", "Sygnal", "Czas trwania (dni)"]
+    df_display.columns = [tr("Poczatek"), tr("Koniec"), tr("Sygnal"), tr("Czas trwania (dni)")]
     df_display = df_display.iloc[::-1].reset_index(drop=True)
     st.dataframe(df_display, width="stretch", hide_index=True)
 
 
 def render_stats_tab(signal_periods) -> None:
     """Dawny tab3 'Statystyki'."""
-    st.subheader("Statystyki sygnalow")
+    st.subheader(tr("Statystyki sygnalow"))
 
     # % time in each signal
     total_days = sum(sp["duration_days"] for sp in signal_periods)
@@ -206,14 +207,14 @@ def render_stats_tab(signal_periods) -> None:
     with col1:
         pie_colors = {k: SIGNAL_COLORS.get(k, MUTED) for k in time_in}
         fig = go.Figure(go.Pie(
-            labels=[SIGNAL_LABELS.get(k, k) for k in time_in],
+            labels=[tr(SIGNAL_LABELS.get(k, k)) for k in time_in],
             values=list(time_in.values()),
             marker=dict(colors=[pie_colors[k] for k in time_in]),
             textfont=dict(size=12),
             hole=0.4,
-            hovertemplate="%{label}<br>%{value} dni (%{percent})<extra></extra>",
+            hovertemplate="%{label}<br>%{value} " + tr("dni") + " (%{percent})<extra></extra>",
         ))
-        fig.update_layout(**_base_layout("% czasu w kazdym sygnale", height=350))
+        fig.update_layout(**_base_layout(tr("% czasu w kazdym sygnale"), height=350))
         st.plotly_chart(fig, width="stretch")
 
     with col2:
@@ -222,20 +223,21 @@ def render_stats_tab(signal_periods) -> None:
             pct = time_in[sig] / total_days * 100
             avg_dur = np.mean(durations_all[sig])
             color = SIGNAL_COLORS.get(sig, MUTED)
-            label = SIGNAL_LABELS.get(sig, sig)
+            label = tr(SIGNAL_LABELS.get(sig, sig))
             st.html(
                 f'<div style="background:{BG_CARD};border-left:4px solid {color};border-radius:8px;padding:12px;margin-bottom:8px">'
                 f'<div style="color:{color};font-weight:700;font-size:1rem">{sig} ({label})</div>'
                 f'<div style="color:{MUTED};font-size:0.85rem">'
-                f'{pct:.1f}% czasu · {count_in[sig]} wystapien · sredni czas: {avg_dur:.0f} dni'
-                f'</div>'
+                + tr("{pct}% czasu · {n} wystapien · sredni czas: {avg} dni",
+                     pct=f"{pct:.1f}", n=count_in[sig], avg=f"{avg_dur:.0f}")
+                + f'</div>'
                 f'</div>'
             )
 
 
 def render_calendar_tab(prices, signal_periods) -> None:
     """Dawny tab4 'Kalendarz'."""
-    st.subheader("Kalendarz sygnalow (rok × miesiac)")
+    st.subheader(tr("Kalendarz sygnalow (rok × miesiac)"))
 
     # Build year×month matrix of dominant signal
     all_dates = prices.index[prices.index >= signal_periods[0]["start"]]
@@ -258,8 +260,8 @@ def render_calendar_tab(prices, signal_periods) -> None:
     sig_to_num = {"QQQ": 4, "ACWI": 3, "VEA": 2, "EEM": 1, "AGG": 0}
     years = sorted(set(idx[0] for idx in monthly_sig.index))
     months = list(range(1, 13))
-    MONTH_NAMES = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze",
-                   "Lip", "Sie", "Wrz", "Paz", "Lis", "Gru"]
+    MONTH_NAMES = [tr(m) for m in ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze",
+                                   "Lip", "Sie", "Wrz", "Paz", "Lis", "Gru"]]
 
     z = np.full((len(years), 12), np.nan)
     text = np.full((len(years), 12), "", dtype=object)
@@ -288,17 +290,17 @@ def render_calendar_tab(prices, signal_periods) -> None:
         texttemplate="%{text}",
         textfont=dict(size=10),
         showscale=False,
-        hovertemplate="Rok: %{y}<br>Miesiac: %{x}<br>Sygnal: %{text}<extra></extra>",
+        hovertemplate=tr("Rok") + ": %{y}<br>" + tr("Miesiac") + ": %{x}<br>" + tr("Sygnal") + ": %{text}<extra></extra>",
     ))
     h = max(400, len(years) * 24)
-    fig.update_layout(**_base_layout("Kalendarz sygnalow GEM", height=h))
+    fig.update_layout(**_base_layout(tr("Kalendarz sygnalow GEM"), height=h))
     fig.update_xaxes(side="top")
     st.plotly_chart(fig, width="stretch")
 
     # Legend
     legend_html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">'
     for sig, color in SIGNAL_COLORS.items():
-        label = SIGNAL_LABELS.get(sig, sig)
+        label = tr(SIGNAL_LABELS.get(sig, sig))
         legend_html += (
             f'<span style="display:inline-flex;align-items:center;gap:4px">'
             f'<span style="background:{color};width:14px;height:14px;border-radius:3px;display:inline-block"></span>'
@@ -309,10 +311,10 @@ def render_calendar_tab(prices, signal_periods) -> None:
     st.html(legend_html)
 
 
-st.markdown("# Sygnał GEM")
+st.markdown("# " + tr("Sygnał GEM"))
 rf = get_risk_free()
 
-tab_now, tab_hist, tab_stats, tab_cal = st.tabs(["🎯 Teraz", "📜 Historia", "📊 Statystyki", "📅 Kalendarz"])
+tab_now, tab_hist, tab_stats, tab_cal = st.tabs(["🎯 " + tr("Teraz"), "📜 " + tr("Historia"), "📊 " + tr("Statystyki"), "📅 " + tr("Kalendarz")])
 
 with tab_now:
     render_now(rf)
@@ -322,7 +324,7 @@ if is_premium():
     if data is None:
         for t in (tab_hist, tab_stats, tab_cal):
             with t:
-                st.error("Brak wystarczajacych danych do obliczenia historii sygnalow.")
+                st.error(tr("Brak wystarczajacych danych do obliczenia historii sygnalow."))
     else:
         prices_hist, periods = data
         with tab_hist:
@@ -334,8 +336,9 @@ if is_premium():
         with tab_cal:
             render_calendar_tab(prices_hist, periods)
 else:
-    for t, name in ((tab_hist, "Historia sygnałów"), (tab_stats, "Statystyki sygnałów"), (tab_cal, "Kalendarz sygnałów")):
+    for t, name in ((tab_hist, tr("Historia sygnałów")), (tab_stats, tr("Statystyki sygnałów")),
+                    (tab_cal, tr("Kalendarz sygnałów"))):
         with t:
-            premium_teaser(name, "Pełna historia zmian sygnału GEM, czas trwania pozycji i alokacja w czasie.")
+            premium_teaser(name, tr("Pełna historia zmian sygnału GEM, czas trwania pozycji i alokacja w czasie."))
 
 render_footer()

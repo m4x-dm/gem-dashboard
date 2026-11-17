@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 import streamlit as st
 
+from components.i18n import LANGS, tr
+
 
 @dataclass(frozen=True)
 class PageDef:
@@ -103,16 +105,30 @@ def by_path(path: str) -> PageDef | None:
 
 
 def by_title(title: str) -> PageDef | None:
-    """Router identyfikuje biezaca strone po tytule (st.Page nie udostepnia sciezki)."""
-    return _BY_TITLE.get(title)
+    """Router identyfikuje biezaca strone po tytule (st.Page nie udostepnia sciezki).
+
+    Tytul moze byc polski albo przetlumaczony (menu jest w jezyku uzytkownika).
+    """
+    page = _BY_TITLE.get(title)
+    if page is not None:
+        return page
+    from components import i18n
+    for lang in LANGS:
+        if lang == i18n.DEFAULT_LANG:
+            continue
+        catalog = i18n._catalog(lang)
+        for p in PAGES:
+            if catalog.get(p.title) == title:
+                return p
+    return None
 
 
 def access_info(title: str) -> tuple[bool, str, str, str]:
-    """(free, icon, title, description). Nieznana strona = zamknieta (fail closed)."""
-    page = _BY_TITLE.get(title)
+    """(free, icon, title, description) w biezacym jezyku. Nieznana strona = zamknieta (fail closed)."""
+    page = by_title(title)
     if page is None:
-        return False, ":material/lock:", title, "Ta strona wymaga dostępu Premium."
-    return page.free, page.icon, page.title, page.description
+        return False, ":material/lock:", title, tr("Ta strona wymaga dostępu Premium.")
+    return page.free, page.icon, tr(page.title), tr(page.description)
 
 
 def build_navigation() -> dict[str, list]:
@@ -120,9 +136,9 @@ def build_navigation() -> dict[str, list]:
     sections: dict[str, list] = {name: [] for name in SECTION_ORDER}
     for p in PAGES:
         sections[p.section].append(
-            st.Page(p.path, title=p.title, icon=p.icon, default=p.default)
+            st.Page(p.path, title=tr(p.title), icon=p.icon, default=p.default)
         )
-    return {name: pages for name, pages in sections.items() if pages}
+    return {(tr(name) if name else name): pages for name, pages in sections.items() if pages}
 
 
 def go(key: str) -> None:
@@ -132,7 +148,7 @@ def go(key: str) -> None:
 
 def link(key: str, label: str | None = None, **kwargs) -> None:
     p = get(key)
-    st.page_link(p.path, label=label or p.title, icon=p.icon, **kwargs)
+    st.page_link(p.path, label=label or tr(p.title), icon=p.icon, **kwargs)
 
 
 def go_company(ticker: str) -> None:

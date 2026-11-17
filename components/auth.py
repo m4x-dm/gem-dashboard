@@ -4,6 +4,7 @@ import hashlib
 import streamlit as st
 
 from components.constants import BG_CARD, GOLD, GOLD_SOFT, MUTED, SHADOW, TEXT
+from components.i18n import tr
 
 # Klucz localStorage
 STORAGE_KEY = "gem_premium_hash"
@@ -102,18 +103,18 @@ def render_lock_screen(icon: str, title: str, desc: str) -> None:
         <div style="color:{MUTED};font-size:14px;margin-bottom:28px;line-height:1.6;">{desc}</div>
         <div style="background:{GOLD_SOFT};border-radius:12px;padding:18px;margin-bottom:24px;">
             <div style="color:{GOLD};font-weight:650;font-size:16px;margin-bottom:6px;">
-                Odblokuj wszystkie strony Premium
+                {tr("Odblokuj wszystkie strony Premium")}
             </div>
             <div style="color:{MUTED};font-size:13px;">
-                Jednorazowy dostęp &middot; 49 zł &middot; Lifetime
+                {tr("Jednorazowy dostęp &middot; 49 zł &middot; Lifetime")}
             </div>
         </div>
         <a href="{NAFFY_URL}" target="_blank" rel="noopener" style="display:inline-block;
             background:{GOLD};color:#1A1405;font-weight:650;font-size:15px;padding:13px 36px;
-            border-radius:10px;text-decoration:none;margin-bottom:20px;">Kup dostep Premium</a>
+            border-radius:10px;text-decoration:none;margin-bottom:20px;">{tr("Kup dostep Premium")}</a>
         <div style="color:{MUTED};font-size:12px;line-height:1.6;">
-            Po zakupie otrzymasz kod aktywacyjny w pliku PDF.<br>
-            Wpisz go w panelu bocznym (sidebar), aby odblokować dostęp.
+            {tr("Po zakupie otrzymasz kod aktywacyjny w pliku PDF.")}<br>
+            {tr("Wpisz go w panelu bocznym (sidebar), aby odblokować dostęp.")}
         </div>
     </div>
     """)
@@ -129,4 +130,4 @@ def premium_teaser(title: str, desc: str) -> None:
         <div style="color:{MUTED};font-size:13px;line-height:1.5;margin-bottom:4px;">{desc}</div>
     </div>
     """)
-    st.link_button("Odblokuj Premium", NAFFY_URL, width="stretch")
+    st.link_button(tr("Odblokuj Premium"), NAFFY_URL, width="stretch")

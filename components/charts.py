@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 
 from components.constants import GOLD, BG, BG2, GRID, TEXT, MUTED, BG_CARD, BORDER, CHART_COLORS as COLORS  # noqa: F401
+from components.i18n import tr
 
 
 def _base_layout(title: str = "", height: int = 450) -> dict:
@@ -14,7 +15,7 @@ def _base_layout(title: str = "", height: int = 450) -> dict:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         colorway=COLORS,
-        title=dict(text=title, font=dict(size=15, color=TEXT)),
+        title=dict(text=tr(title), font=dict(size=15, color=TEXT)),
         font=dict(family="Inter, system-ui, sans-serif", color=MUTED, size=12),
         xaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
         yaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
@@ -111,7 +112,7 @@ def ranking_bar_chart(ranking_df: pd.DataFrame, top_n: int = 10,
         textfont=dict(size=11),
     ))
     fig.update_layout(**_base_layout(title, height=max(300, top_n * 35)))
-    fig.update_xaxes(title_text="Wynik kompozytowy (%)")
+    fig.update_xaxes(title_text=tr("Wynik kompozytowy (%)"))
     return fig
 
 
@@ -151,7 +152,7 @@ def correlation_heatmap(corr_matrix: pd.DataFrame,
 def category_pie(category_counts: dict, title: str = "Rozklad kategorii") -> go.Figure:
     """Pie chart kategorii ETF."""
     fig = go.Figure(go.Pie(
-        labels=list(category_counts.keys()),
+        labels=[tr(k) for k in category_counts.keys()],
         values=list(category_counts.values()),
         marker=dict(colors=COLORS[:len(category_counts)]),
         textfont=dict(size=12),

@@ -10,6 +10,7 @@ from components.formatting import (
 )
 from components.constants import CHART_COLORS, TEXT, AMBER, SHADOW, BG_HOVER, GOLD_SOFT
 from data.financials import format_large_number
+from components.i18n import tr
 
 
 def card_html(inner: str, accent: str | None = None, pad: str = "16px 18px",
@@ -37,9 +38,9 @@ def signal_card(signal_data: dict, compact: bool = False) -> None:
     mb = "0" if compact else "24px"
 
     st.html(card_html(
-        f'<div style="font-size:12px;color:{MUTED};margin-bottom:6px">Sygnał GEM</div>'
+        f'<div style="font-size:12px;color:{MUTED};margin-bottom:6px">{tr("Sygnał GEM")}</div>'
         f'<div style="font-size:{size};font-weight:650;color:{color};line-height:1.2;'
-        f'font-variant-numeric:tabular-nums">{signal_data["signal_label"]} · {signal}</div>',
+        f'font-variant-numeric:tabular-nums">{tr(signal_data["signal_label"])} · {signal}</div>',
         accent=color, pad=pad, extra=f"margin-bottom:{mb};",
     ))
 
@@ -50,12 +51,12 @@ def metric_row(qqq_ret: float, vea_ret: float, eem_ret: float,
     rf_label = f"{rf:.2f}%" if rf is not None else "—"
 
     cols = st.columns(6)
-    _metric_card(cols[0], "USA (QQQ)", qqq_ret, f"12M zwrot vs RF {rf_label}")
-    _metric_card(cols[1], "Rynki rozwi. (VEA)", vea_ret, "12M zwrot")
-    _metric_card(cols[2], "Rynki wsch. (EEM)", eem_ret, "12M zwrot")
-    _metric_card(cols[3], "Globalne (ACWI)", acwi_ret, "12M zwrot")
-    _metric_card(cols[4], "Obligacje (AGG)", agg_ret, "12M zwrot")
-    _metric_card(cols[5], "Stopa wolna (T-bill)", rf / 100 if rf is not None else None, "Roczna, 13-week")
+    _metric_card(cols[0], "USA (QQQ)", qqq_ret, tr("12M zwrot vs RF {rf}", rf=rf_label))
+    _metric_card(cols[1], tr("Rynki rozwi. (VEA)"), vea_ret, tr("12M zwrot"))
+    _metric_card(cols[2], tr("Rynki wsch. (EEM)"), eem_ret, tr("12M zwrot"))
+    _metric_card(cols[3], tr("Globalne (ACWI)"), acwi_ret, tr("12M zwrot"))
+    _metric_card(cols[4], tr("Obligacje (AGG)"), agg_ret, tr("12M zwrot"))
+    _metric_card(cols[5], tr("Stopa wolna (T-bill)"), rf / 100 if rf is not None else None, tr("Roczna, 13-week"))
 
 
 def _metric_card(col, title: str, value: float | None, subtitle: str) -> None:
@@ -86,12 +87,12 @@ def top_etf_cards(ranking_df, etf_names: dict, etf_categories: dict, n: int = 5)
 
         cols[i].html(
             card_html(
-                f'<div style="font-size:0.72rem;color:{MUTED};margin-bottom:4px">{cat}</div>'
+                f'<div style="font-size:0.72rem;color:{MUTED};margin-bottom:4px">{tr(cat)}</div>'
                 f'<div style="font-size:clamp(0.9rem,3vw,1.3rem);font-weight:650;color:{TEXT}">{ticker}</div>'
-                f'<div style="font-size:0.72rem;color:{MUTED};margin:4px 0 8px">{name}</div>'
+                f'<div style="font-size:0.72rem;color:{MUTED};margin:4px 0 8px">{tr(name)}</div>'
                 f'<div style="font-size:1.1rem;font-weight:650;color:{color_for_value(score)};'
                 f'font-variant-numeric:tabular-nums">{fmt_pct(score)}</div>'
-                f'<div style="font-size:0.68rem;color:{color};margin-top:4px">Mom. abs: {mom_abs}</div>',
+                f'<div style="font-size:0.68rem;color:{color};margin-top:4px">Mom. abs: {tr(mom_abs)}</div>',
                 pad="clamp(8px,2vw,16px)", extra="text-align:center;height:100%;",
             )
         )
@@ -124,11 +125,11 @@ def macro_card(title: str, current_value: str, unit: str,
     st.html(
         card_html(
             f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-            f'<span style="font-size:0.82rem;color:{MUTED}">{title}</span>'
-            f'<span style="background:{traffic_light_color}20;color:{traffic_light_color};padding:2px 10px;border-radius:12px;font-size:0.7rem;font-weight:600">{label}</span>'
+            f'<span style="font-size:0.82rem;color:{MUTED}">{tr(title)}</span>'
+            f'<span style="background:{traffic_light_color}20;color:{traffic_light_color};padding:2px 10px;border-radius:12px;font-size:0.7rem;font-weight:600">{tr(label)}</span>'
             f'</div>'
             f'<div style="font-size:clamp(1.2rem,4vw,1.6rem);font-weight:650;color:{TEXT};margin-bottom:4px;'
-            f'font-variant-numeric:tabular-nums">{current_value} <span style="font-size:0.85rem;color:{MUTED}">{unit}</span></div>'
+            f'font-variant-numeric:tabular-nums">{current_value} <span style="font-size:0.85rem;color:{MUTED}">{tr(unit)}</span></div>'
             f'<div>{changes_html}</div>'
         )
     )
@@ -142,7 +143,7 @@ def stats_table(stats: dict) -> None:
     has_winrate = any("Win Rate" in s for s in stats.values())
     has_pf = any("Profit Factor" in s for s in stats.values())
 
-    headers = ['<th style="text-align:left;padding:clamp(4px,1vw,8px);color:%s">Strategia</th>' % MUTED]
+    headers = ['<th style="text-align:left;padding:clamp(4px,1vw,8px);color:%s">%s</th>' % (MUTED, tr("Strategia"))]
     for label in ["CAGR", "Max DD", "Sharpe"]:
         headers.append(f'<th style="text-align:right;padding:clamp(4px,1vw,8px);color:{MUTED};font-weight:500">{label}</th>')
     if has_sortino:
@@ -172,7 +173,7 @@ def stats_table(stats: dict) -> None:
         dd_color = RED if max_dd < -0.15 else AMBER if max_dd < -0.05 else GREEN
         row = (
             f'<tr style="border-bottom:1px solid {BORDER}">'
-            f'<td style="padding:clamp(4px,1vw,8px);font-weight:600">{name}</td>'
+            f'<td style="padding:clamp(4px,1vw,8px);font-weight:600">{tr(name)}</td>'
             f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{cagr_color};font-weight:600">{fmt_pct(s.get("CAGR"))}</td>'
             f'<td style="text-align:right;padding:clamp(4px,1vw,8px);color:{dd_color}">{fmt_pct(max_dd)}</td>'
             f'<td style="text-align:right;padding:clamp(4px,1vw,8px)">{_fmt(s.get("Sharpe"))}</td>'
@@ -220,9 +221,9 @@ def comparison_card(ticker: str, name: str, category: str,
     accent = CHART_COLORS[color_index % len(CHART_COLORS)]
     display = ticker_display or ticker
     html = (
-        f'<div style="font-size:0.72rem;color:{MUTED}">{category}</div>'
+        f'<div style="font-size:0.72rem;color:{MUTED}">{tr(category)}</div>'
         f'<div style="font-size:1.4rem;font-weight:650;color:{accent};margin:4px 0">{display}</div>'
-        f'<div style="font-size:0.72rem;color:{MUTED};margin-bottom:12px">{name}</div>'
+        f'<div style="font-size:0.72rem;color:{MUTED};margin-bottom:12px">{tr(name)}</div>'
     )
     for p in ["1M", "3M", "6M", "12M"]:
         val = returns.get(p) if isinstance(returns, pd.Series) and p in returns.index else None
@@ -263,7 +264,7 @@ def ta_signal_card(ticker: str, name: str, signals: dict) -> None:
             return f'<span style="color:{GREEN}">▲ Bullish{detail}</span>'
         elif val < 0:
             return f'<span style="color:{RED}">▼ Bearish{detail}</span>'
-        return f'<span style="color:#F59E0B">— Neutralny{detail}</span>'
+        return f'<span style="color:#F59E0B">— {tr("Neutralny")}{detail}</span>'
 
     indicators = [
         ("Trend (EMA 200)", signals.get("trend", 0), signals.get("trend_detail", "")),
@@ -289,13 +290,13 @@ def ta_signal_card(ticker: str, name: str, signals: dict) -> None:
     strength_color = GREEN if agg > 0 else RED if agg < 0 else MUTED
     st.html(
         card_html(
-            f'<div style="font-size:0.78rem;color:{MUTED};margin-bottom:4px">Sygnał TA</div>'
-            f'<div style="font-size:clamp(1.1rem,4vw,1.5rem);font-weight:650;color:{color};margin-bottom:4px">{label}</div>'
+            f'<div style="font-size:0.78rem;color:{MUTED};margin-bottom:4px">{tr("Sygnał TA")}</div>'
+            f'<div style="font-size:clamp(1.1rem,4vw,1.5rem);font-weight:650;color:{color};margin-bottom:4px">{tr(label)}</div>'
             f'<div style="font-size:1rem;color:{TEXT};font-weight:600">{display_ticker}</div>'
             f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:16px">{name}</div>'
             f'<div style="text-align:left;max-width:360px;margin:0 auto">{ind_html}</div>'
             f'<div style="margin-top:12px;font-size:0.85rem;color:{strength_color};font-family:monospace;letter-spacing:2px">{strength_bar}</div>'
-            f'<div style="font-size:0.75rem;color:{MUTED}">Siła: {agg:+d} / {n_ind}</div>',
+            f'<div style="font-size:0.75rem;color:{MUTED}">{tr("Siła")}: {agg:+d} / {n_ind}</div>',
             accent=color, pad="24px", extra="text-align:center;margin-bottom:16px;",
         )
     )
@@ -313,11 +314,11 @@ def data_status_card() -> None:
 
     fail_pct = len(failures) / total * 100
     if fail_pct == 0:
-        color, label = GREEN, "Wszystkie dane OK"
+        color, label = GREEN, tr("Wszystkie dane OK")
     elif fail_pct < 20:
-        color, label = AMBER, f"{len(failures)} brak danych"
+        color, label = AMBER, tr("{n} brak danych", n=len(failures))
     else:
-        color, label = RED, f"{len(failures)} brak danych"
+        color, label = RED, tr("{n} brak danych", n=len(failures))
 
     # Breakdown zrodel
     source_counts = {}
@@ -359,10 +360,10 @@ def alert_banner(ticker: str, condition: str, threshold: float,
 
     if condition == "spadek":
         color, icon = RED, "▼"
-        desc = f"spadl o {abs(actual_change)*100:.1f}%"
+        desc = tr("spadl o {pct}%", pct=f"{abs(actual_change)*100:.1f}")
     else:
         color, icon = GREEN, "▲"
-        desc = f"wzrosl o {actual_change*100:.1f}%"
+        desc = tr("wzrosl o {pct}%", pct=f"{actual_change*100:.1f}")
 
     st.html(
         f'<div style="background:{color}15;border-left:3px solid {color};border-radius:10px;'
@@ -371,7 +372,7 @@ def alert_banner(ticker: str, condition: str, threshold: float,
         f'<div>'
         f'<span style="color:{color};font-weight:700;font-size:0.95rem">{ticker}</span>'
         f'<span style="color:{MUTED};font-size:0.85rem;margin-left:8px">'
-        f'{desc} ({period}), prog: {threshold:.1f}%</span>'
+        f'{desc} ({period}), {tr("prog")}: {threshold:.1f}%</span>'
         f'</div>'
         f'</div>'
     )
@@ -385,7 +386,7 @@ def final_value_card(name: str, value: float, start_capital: float,
     gain_color = GREEN if gain >= 0 else RED
     st.html(
         card_html(
-            f'<div style="font-size:0.78rem;color:{MUTED}">{name}</div>'
+            f'<div style="font-size:0.78rem;color:{MUTED}">{tr(name)}</div>'
             f'<div style="font-size:1.4rem;font-weight:650;color:{GOLD};font-variant-numeric:tabular-nums">{fmt_number(value, 0)} {currency}</div>'
             f'<div style="font-size:0.8rem;color:{gain_color}">{"+" if gain >= 0 else ""}{fmt_number(gain, 0)} {currency}</div>',
             extra="text-align:center;",

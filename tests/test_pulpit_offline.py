@@ -87,10 +87,17 @@ def test_premium_pulpit_no_teasers():
 def test_pulpit_label_helpers():
     import re
     src = (Path(APP).parent / PULPIT).read_text(encoding="utf-8")
-    ns = {"pd": pd}
-    m = re.search(r"^_MONTHS_SHORT_PL = .*?\n", src, re.M)
-    assert m
-    exec(m.group(0), ns)
+    from components import i18n
+    lang = {"v": "pl"}
+    ns = {
+        "pd": pd,
+        "is_pl": lambda: lang["v"] == "pl",
+        "tr": lambda text, **kw: (i18n._catalog(lang["v"]).get(text, text)).format(**kw),
+    }
+    for const in ("_MONTHS_SHORT_PL", "_MONTHS_EN"):
+        m = re.search(rf"^{const} = \[.*?\]\n", src, re.M | re.S)
+        assert m, const
+        exec(m.group(0), ns)
     for name in ("short_month_pl", "days_label"):
         m = re.search(rf"^def {name}\(.*?\n\n\n", src, re.S | re.M)
         assert m, name
@@ -100,6 +107,10 @@ def test_pulpit_label_helpers():
     assert ns["days_label"](0) == "dziś"
     assert ns["days_label"](1) == "jutro"
     assert ns["days_label"](4) == "za 4 dni"
+    lang["v"] = "en"
+    assert ns["short_month_pl"]("2026-11-17") == "Nov"
+    assert ns["days_label"](0) == "today"
+    assert ns["days_label"](4) == "in 4 days"
 
 
 def _row_buttons(at, prefix: str):

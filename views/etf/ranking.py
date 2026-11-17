@@ -8,9 +8,10 @@ from data.downloader import download_prices
 from data.momentum import build_ranking
 from components.formatting import fmt_pct
 from components.charts import ranking_bar_chart, category_pie
+from components.i18n import tr
 
 
-st.markdown("# Ranking Momentum")
+st.markdown("# " + tr("Ranking Momentum"))
 
 # Pobierz dane
 tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", [])))
@@ -28,9 +29,9 @@ ranking["Kategoria"] = ranking.index.map(lambda t: ETF_CATEGORY_MAP.get(t, "Wlas
 col1, col2 = st.columns(2)
 with col1:
     categories = ["Wszystkie"] + list(ETF_CATEGORIES.keys()) + ["Wlasne"]
-    cat_filter = st.selectbox("Kategoria", categories)
+    cat_filter = st.selectbox(tr("Kategoria"), categories, format_func=tr)
 with col2:
-    mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"])
+    mom_filter = st.selectbox(tr("Momentum absolutny"), ["Wszystkie", "TAK", "NIE"], format_func=tr)
 
 # Filtrowanie
 filtered = ranking.copy()
@@ -40,7 +41,7 @@ if mom_filter != "Wszystkie":
     filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
 # Tabela
-st.markdown(f"**{len(filtered)}** ETF-ow | Stopa wolna: **{rf:.2f}%**")
+st.markdown(tr("**{n}** ETF-ow | Stopa wolna: **{rf}%**", n=len(filtered), rf=f"{rf:.2f}"))
 
 display_df = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
 display_df.index.name = "Ticker"
@@ -49,7 +50,11 @@ display_df.index.name = "Ticker"
 for col in ["1M", "3M", "6M", "12M", "Wynik"]:
     display_df[col] = display_df[col].apply(lambda x: fmt_pct(x) if pd.notna(x) else "—")
 
-display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs."})
+display_df["Nazwa"] = display_df["Nazwa"].map(tr)
+display_df["Kategoria"] = display_df["Kategoria"].map(tr)
+display_df["Momentum_abs"] = display_df["Momentum_abs"].map(tr)
+display_df = display_df.rename(columns={"Momentum_abs": "Mom. abs.", "Nazwa": tr("Nazwa"),
+                                        "Kategoria": tr("Kategoria"), "Wynik": tr("Wynik")})
 
 st.dataframe(
     display_df,
@@ -61,7 +66,7 @@ st.dataframe(
 csv = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
 csv.index.name = "Ticker"
 st.download_button(
-    "📥 Eksportuj CSV",
+    "📥 " + tr("Eksportuj CSV"),
     csv.to_csv(),
     "gem_ranking.csv",
     "text/csv",
@@ -74,12 +79,12 @@ col1, col2 = st.columns(2)
 with col1:
     valid = ranking.dropna(subset=["Wynik"])
     if not valid.empty:
-        fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Ranking momentum")
+        fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title=tr("Ranking momentum"))
         st.plotly_chart(fig, width="stretch")
 
 with col2:
     cat_counts = ranking["Kategoria"].value_counts().to_dict()
-    fig = category_pie(cat_counts, title="ETF-y wg kategorii")
+    fig = category_pie(cat_counts, title=tr("ETF-y wg kategorii"))
     st.plotly_chart(fig, width="stretch")
 
 render_footer()

@@ -2,11 +2,12 @@
 
 import streamlit as st
 from components.sidebar import render_footer
+from components.i18n import tr, tr_doc
 
 
-st.markdown("# O strategii GEM")
+st.markdown("# " + tr("O strategii GEM"))
 
-st.markdown("""
+st.markdown(tr_doc("o_strategii", """
 ## Czym jest GEM?
 
 **Global Equity Momentum (GEM)** to strategia inwestycyjna opracowana przez **Gary'ego Antonacciego**,
@@ -104,6 +105,6 @@ Wagi faworyzuja **dlugookresowy trend** (12M = 50%), ale uwzgledniaja tez krotsz
 
 > **Wazne:** Ten dashboard sluzy wylacznie celom edukacyjnym. Nie jest to rekomendacja inwestycyjna.
 > Przed podjęciem decyzji inwestycyjnych skonsultuj sie z licencjonowanym doradca finansowym.
-""")
+"""))
 
 render_footer()

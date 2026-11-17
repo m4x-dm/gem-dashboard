@@ -18,6 +18,7 @@ from components.cards import (card_html, metric_row, top_etf_cards, stats_table,
 from components.charts import sparkline_chart
 from components.constants import GREEN, RED, AMBER, GOLD, GOLD_SOFT, TEXT, BORDER, BG_HOVER, SHADOW
 from components.formatting import color_for_value, MUTED, BG_CARD
+from components.i18n import tr, is_pl
 from components.sidebar import get_risk_free, render_footer
 from components.watchlist import get_watchlist
 from data import market_status as ms
@@ -35,12 +36,15 @@ SIGNAL_SHORT = {"QQQ": "Akcje USA", "VEA": "Rynki rozwinięte", "EEM": "Rynki ws
 _DAYS_PL = ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela"]
 _MONTHS_PL = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia",
               "września", "października", "listopada", "grudnia"]
+_DAYS_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+_MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August",
+              "September", "October", "November", "December"]
 STATUS_CARD_HEIGHT = "132px"
 PREMIUM = is_premium()
 
 
 def unavailable(title: str) -> None:
-    st.caption(f"{title}: dane chwilowo niedostępne")
+    st.caption(f"{title}: " + tr("dane chwilowo niedostępne"))
 
 
 def _ascii(text) -> str:
@@ -57,13 +61,16 @@ def _finite(x) -> bool:
 
 
 def date_pl(ts: pd.Timestamp, weekday: bool = False) -> str:
-    """'15 listopada' lub 'niedziela, 15 listopada'."""
+    """'15 listopada' lub 'niedziela, 15 listopada' (EN: 'Sunday, November 15')."""
+    if not is_pl():
+        txt = f"{_MONTHS_EN[ts.month - 1]} {ts.day}"
+        return f"{_DAYS_EN[ts.weekday()]}, {txt}" if weekday else txt
     txt = f"{ts.day} {_MONTHS_PL[ts.month - 1]}"
     return f"{_DAYS_PL[ts.weekday()]}, {txt}" if weekday else txt
 
 
 def greeting(now: pd.Timestamp) -> str:
-    return "Dobry wieczór" if now.hour >= 18 else "Dzień dobry"
+    return tr("Dobry wieczór") if now.hour >= 18 else tr("Dzień dobry")
 
 
 def status_card(label: str, value: str, caption: str, color: str = TEXT, pill: str = "") -> None:
@@ -110,11 +117,11 @@ def render_search() -> None:
     names = {**SP500_NAMES, **GPW_NAMES}
     options = [""] + sorted(names, key=lambda t: names[t])
     st.selectbox(
-        "Szukaj spółki (S&P 500 i GPW)", options, key="pulpit_search", on_change=_on_search,
-        format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {names[t]}",
+        tr("Szukaj spółki (S&P 500 i GPW)"), options, key="pulpit_search", on_change=_on_search,
+        format_func=lambda t: tr("Wpisz nazwę lub ticker…") if not t else f"{t} — {names[t]}",
     )
     if not PREMIUM:
-        st.caption("Przegląd spółki za darmo, pozostałe zakładki w Premium.")
+        st.caption(tr("Przegląd spółki za darmo, pozostałe zakładki w Premium."))
     target = st.session_state.pop("_pulpit_go", None)
     if target:
         nav.go_company(target)
@@ -135,40 +142,40 @@ def render_status_bar(prices: pd.DataFrame, rf: float):
                 since = ms.signal_since(hist["signals"]) if hist else None
                 if since:
                     days = (pd.Timestamp.now().normalize() - pd.Timestamp(since[0]).normalize()).days
-                    pill = f"od {max(days, 0)} dni"
+                    pill = tr("od {n} dni", n=max(days, 0))
             except Exception:
                 pass
             nxt = ms.next_rebalance_date(pd.Timestamp.now())
-            value = (f"{SIGNAL_SHORT[sig]} · {sig}" if sig in SIGNAL_SHORT else gem_data["signal_label"])
-            status_card("Sygnał GEM", value, f"Następne przeliczenie: {date_pl(nxt)}",
+            value = (f"{tr(SIGNAL_SHORT[sig])} · {sig}" if sig in SIGNAL_SHORT else tr(gem_data["signal_label"]))
+            status_card(tr("Sygnał GEM"), value, tr("Następne przeliczenie: {date}", date=date_pl(nxt)),
                         color=SIGNAL_COLORS.get(sig, MUTED), pill=pill)
         except Exception:
             gem_data = None
-            unavailable("Sygnał GEM")
+            unavailable(tr("Sygnał GEM"))
     with c_reg:
         try:
             data = {t: download_single(t, period="1y") for t in ms.REGIME_TICKERS}
             regime = ms.compute_regime({t: s for t, s in data.items() if s is not None})
-            status_card("Regime rynku", regime["label"], f'{regime["score"]:.0f}/100 · {regime["desc"]}',
+            status_card(tr("Regime rynku"), tr(regime["label"]), f'{regime["score"]:.0f}/100 · {tr(regime["desc"])}',
                         color=REGIME_COLORS[regime["label"]])
         except Exception:
             regime = None
-            unavailable("Regime rynku")
+            unavailable(tr("Regime rynku"))
     if gem_data is not None:
         try:
             metric_row(gem_data["qqq_12m"], gem_data["vea_12m"], gem_data["eem_12m"],
                        gem_data["acwi_12m"], gem_data["agg_12m"], rf)
         except Exception:
-            unavailable("Metryki 12M")
+            unavailable(tr("Metryki 12M"))
     return gem_data, regime
 
 
 def _vix_label(v: float) -> str:
     if v < 15:
-        return "Niski strach"
+        return tr("Niski strach")
     if v < 25:
-        return "Umiarkowany"
-    return "Wysoki strach"
+        return tr("Umiarkowany")
+    return tr("Wysoki strach")
 
 
 def _tile_html(label: str, last: float, c1d: float, chg_1m: float, spark: pd.Series, extra: str) -> str:
@@ -192,9 +199,10 @@ def _tile_html(label: str, last: float, c1d: float, chg_1m: float, spark: pd.Ser
 
 def render_market_tiles() -> list:
     """Wskazniki rynku (VIX, indeksy, FX, zloto, BTC...). Zwraca liste sparklines dla PDF."""
-    st.markdown("### Wskaźniki rynku")
+    st.markdown("### " + tr("Wskaźniki rynku"))
     sparks, tiles = [], []
     for ticker, label in ms.MARKET_TILES:
+        label = tr(label)
         try:
             s = download_single(ticker, period="6mo")
             if s is None or len(s) < 2:
@@ -223,21 +231,23 @@ _MONTHS_SHORT_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz
 
 
 def short_month_pl(ts) -> str:
-    """Polski skrot miesiaca: 'lis', 'paź'."""
-    return _MONTHS_SHORT_PL[pd.Timestamp(ts).month - 1]
+    """Skrot miesiaca: 'lis', 'paź' (EN: 'Nov')."""
+    m = pd.Timestamp(ts).month
+    return _MONTHS_EN[m - 1][:3] if not is_pl() else _MONTHS_SHORT_PL[m - 1]
 
 
 def days_label(n: int) -> str:
     """Etykieta odleglosci: 'dziś', 'jutro', 'za 3 dni'."""
     if n <= 0:
-        return "dziś"
+        return tr("dziś")
     if n == 1:
-        return "jutro"
-    return f"za {n} dni"
+        return tr("jutro")
+    return tr("za {n} dni", n=n)
 
 
 def _ticker_name(t: str) -> str:
-    return SP500_NAMES.get(t) or GPW_NAMES.get(t) or ETF_NAMES.get(t) or ""
+    etf = ETF_NAMES.get(t)
+    return SP500_NAMES.get(t) or GPW_NAMES.get(t) or (tr(etf) if etf else "")
 
 
 def _pill(chg: float) -> str:
@@ -288,8 +298,8 @@ def _click_rows(key: str, rows: list[tuple[str, str]]) -> None:
     for i, (t, html) in enumerate(rows):
         with st.container(key=f"pulrow_{key}_{i}"):
             st.html(html)
-            if _has_card(t) and st.button(f"Otwórz kartę {t}", key=f"pulbtn_{key}_{i}_{t}",
-                                          help=f"Karta spółki {t}"):
+            if _has_card(t) and st.button(tr("Otwórz kartę {ticker}", ticker=t), key=f"pulbtn_{key}_{i}_{t}",
+                                          help=tr("Karta spółki {ticker}", ticker=t)):
                 nav.go_company(t)
 
 
@@ -317,24 +327,24 @@ def render_watchlist(tickers, heading: str, empty_msg: str) -> None:
                 f'<div style="margin-top:2px">{_pill(float(chg.iloc[0]))}</div></div></div>'))
         except Exception:
             rows.append((t, f'<div style="{_ROW}"><div style="font-size:14px;font-weight:600;color:{TEXT}">{t}</div>'
-                            f'<div style="font-size:12px;color:{MUTED}">brak danych</div></div>'))
+                            f'<div style="font-size:12px;color:{MUTED}">{tr("brak danych")}</div></div>'))
     with st.container(key="pulcard_wl"):
         _click_rows("wl", rows)
 
 
 def render_week_earnings(ls) -> None:
-    st.markdown("#### Wyniki w tym tygodniu")
+    st.markdown("#### " + tr("Wyniki w tym tygodniu"))
     wl = get_watchlist(ls)
     tickers = tuple(ms.pulpit_earnings_tickers(wl))
     df = bulk_fetch_earnings_calendar(tickers, window_days=7)
     if df is None or df.empty:
-        st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
+        st.caption(tr("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek."))
         return
     df = df.assign(date=pd.to_datetime(df["date"]))
     today = pd.Timestamp.now().normalize()
     df = df[(df["date"] >= today) & (df["date"] <= today + pd.Timedelta(days=7))]
     if df.empty:
-        st.caption("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek.")
+        st.caption(tr("Brak nadchodzących raportów w ciągu 7 dni dla watchlisty i największych spółek."))
         return
     # Najpierw spolki z watchlisty, w obu grupach chronologicznie
     df = (df.assign(_wl=~df["ticker"].isin(wl))
@@ -344,7 +354,7 @@ def render_week_earnings(ls) -> None:
         n = (r["date"].normalize() - today).days
         if n <= 0:
             status = (f'<span style="background:{GOLD_SOFT};color:{GOLD};font-size:12px;padding:2px 8px;'
-                      f'border-radius:999px">dziś</span>')
+                      f'border-radius:999px">{tr("dziś")}</span>')
         else:
             status = f'<span style="color:{MUTED};font-size:12px;white-space:nowrap">{days_label(n)}</span>'
         dot = (f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{GOLD};'
@@ -372,7 +382,7 @@ def _movers_col(key: str, title: str, color: str, series: pd.Series) -> None:
 def render_movers() -> None:
     # Sam naglowek (jedna linia jak w sasiednich kolumnach); przelacznik rynku jest
     # wewnatrz karty, wiec wszystkie trzy karty startuja na tej samej wysokosci.
-    st.markdown("#### Wygrani / przegrani")
+    st.markdown("#### " + tr("Wygrani / przegrani"))
     card = st.container(key="pulcard_mov")
     with card:
         try:
@@ -383,7 +393,7 @@ def render_movers() -> None:
                               label_visibility="collapsed")
     market = market or "S&P 500"
     universe = ALL_SP500_TICKERS if market == "S&P 500" else ALL_GPW_TICKERS
-    with st.spinner(f"Liczę zmiany {market}…"):
+    with st.spinner(tr("Liczę zmiany {market}…", market=market)):
         try:
             gainers, losers = ms.top_movers(ms.market_movers(tuple(universe)), n=5)
         except Exception:
@@ -395,14 +405,14 @@ def render_movers() -> None:
     with card:
         c_up, c_down = st.columns(2)
         with c_up:
-            _movers_col("up", "Wzrosty", GREEN, gainers)
+            _movers_col("up", tr("Wzrosty"), GREEN, gainers)
         with c_down:
-            _movers_col("down", "Spadki", RED, losers)
+            _movers_col("down", tr("Spadki"), RED, losers)
 
 
 # --- 5. Top 5 ETF + wyniki 5 lat ------------------------------------------------
 def render_top_etf(prices: pd.DataFrame, rf: float):
-    st.markdown("### Top 5 ETF wg momentum")
+    st.markdown("### " + tr("Top 5 ETF wg momentum"))
     names, cats = dict(ETF_NAMES), dict(ETF_CATEGORY_MAP)
     for t in st.session_state.get("custom_tickers", []):
         names.setdefault(t, t)
@@ -410,24 +420,24 @@ def render_top_etf(prices: pd.DataFrame, rf: float):
     try:
         ranking = build_ranking(prices, rf, skip_month=False).dropna(subset=["Wynik"])
         if ranking.empty:
-            unavailable("Ranking ETF")
+            unavailable(tr("Ranking ETF"))
         else:
             top_etf_cards(ranking, names, cats, n=5)
     except Exception:
         ranking = pd.DataFrame()
-        unavailable("Ranking ETF")
+        unavailable(tr("Ranking ETF"))
     return ranking, names
 
 
 def render_strategy_5y(rf: float):
-    st.markdown("### Wyniki strategii (5 lat)")
+    st.markdown("### " + tr("Wyniki strategii (5 lat)"))
     try:
         bt = backtest_gem(download_prices(["QQQ", "VEA", "EEM", "ACWI", "AGG"], period="7y"), rf)
     except Exception:
-        unavailable("Wyniki strategii")
+        unavailable(tr("Wyniki strategii"))
         return None
     if bt is None:
-        st.info("Za malo danych do backtestu GEM (wymagane 252+ sesji).")
+        st.info(tr("Za malo danych do backtestu GEM (wymagane 252+ sesji)."))
         return None
     show = {k: bt["stats"][k] for k in ("GEM", "QQQ B&H", "ACWI B&H", "AGG B&H") if k in bt["stats"]}
     if show:
@@ -436,15 +446,15 @@ def render_strategy_5y(rf: float):
 
 
 def render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats) -> None:
-    with st.expander("Eksport raportu PDF", icon=":material/picture_as_pdf:"):
-        st.caption("Wybierz sekcje do wlaczenia w raport")
-        pdf_gem = st.checkbox("Sygnal GEM", value=True, key="pdf_gem")
-        pdf_regime = st.checkbox("Regime rynkowy", value=True, key="pdf_regime")
-        pdf_top5 = st.checkbox("Top 5 ETF-ow", value=True, key="pdf_top5")
-        pdf_sparks = st.checkbox("Kluczowe aktywa", value=True, key="pdf_sparks")
-        pdf_bt = st.checkbox("Statystyki strategii", value=True, key="pdf_bt")
-        pdf_rank = st.checkbox("Ranking ETF top 10", value=True, key="pdf_rank")
-        if not st.button("Generuj raport PDF", key="pdf_gen_btn"):
+    with st.expander(tr("Eksport raportu PDF"), icon=":material/picture_as_pdf:"):
+        st.caption(tr("Wybierz sekcje do wlaczenia w raport"))
+        pdf_gem = st.checkbox(tr("Sygnal GEM"), value=True, key="pdf_gem")
+        pdf_regime = st.checkbox(tr("Regime rynkowy"), value=True, key="pdf_regime")
+        pdf_top5 = st.checkbox(tr("Top 5 ETF-ow"), value=True, key="pdf_top5")
+        pdf_sparks = st.checkbox(tr("Kluczowe aktywa"), value=True, key="pdf_sparks")
+        pdf_bt = st.checkbox(tr("Statystyki strategii"), value=True, key="pdf_bt")
+        pdf_rank = st.checkbox(tr("Ranking ETF top 10"), value=True, key="pdf_rank")
+        if not st.button(tr("Generuj raport PDF"), key="pdf_gen_btn"):
             return
         from components.pdf_report import generate_report
         sections = {}
@@ -464,17 +474,17 @@ def render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats) -> N
                                           row.get("Momentum_abs", "—"))
                                          for t, row in ranking.head(10).iterrows()]
         if sections:
-            st.download_button("Pobierz PDF", data=generate_report(sections),
+            st.download_button(tr("Pobierz PDF"), data=generate_report(sections),
                                file_name=f"gem_raport_{pd.Timestamp.now():%Y%m%d}.pdf",
                                mime="application/pdf")
         else:
-            st.warning("Wybierz co najmniej jedna sekcje.")
+            st.warning(tr("Wybierz co najmniej jedna sekcje."))
 
 
 # =============================================================================
 _now = pd.Timestamp.now()
 st.markdown(f"# {greeting(_now)}")
-st.caption(f"{date_pl(_now, weekday=True)} · dane z zamknięcia ostatniej sesji")
+st.caption(f"{date_pl(_now, weekday=True)} · " + tr("dane z zamknięcia ostatniej sesji"))
 try:
     render_alerts()
 except Exception:
@@ -509,28 +519,28 @@ if PREMIUM:
         try:
             render_watchlist(
                 _wl,
-                "Moja watchlista",
-                "Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione).")
+                tr("Moja watchlista"),
+                tr("Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione)."))
         except Exception:
-            unavailable("Watchlista")
+            unavailable(tr("Watchlista"))
     with col_earn:
         try:
             render_week_earnings(ls)
         except Exception:
-            unavailable("Wyniki w tym tygodniu")
+            unavailable(tr("Wyniki w tym tygodniu"))
     mov_slot = col_mov.container()
 else:
     with col_wl:
         try:
-            render_watchlist(set(st.session_state.get("favorites", set())), "Ulubione",
-                             "Dodaj tickery w panelu bocznym (Ulubione).")
+            render_watchlist(set(st.session_state.get("favorites", set())), tr("Ulubione"),
+                             tr("Dodaj tickery w panelu bocznym (Ulubione)."))
         except Exception:
-            unavailable("Ulubione")
-        st.caption("Watchlista ze spółek S&P 500 / GPW (gwiazdki ⭐) — w Premium.")
+            unavailable(tr("Ulubione"))
+        st.caption(tr("Watchlista ze spółek S&P 500 / GPW (gwiazdki ⭐) — w Premium."))
     with col_earn:
-        premium_teaser("Wyniki w tym tygodniu", "Kto raportuje w tym tygodniu — najpierw Twoje spółki.")
+        premium_teaser(tr("Wyniki w tym tygodniu"), tr("Kto raportuje w tym tygodniu — najpierw Twoje spółki."))
     with col_mov:
-        premium_teaser("Wygrani i przegrani", "Największe zmiany dnia w S&P 500 i na GPW.")
+        premium_teaser(tr("Wygrani i przegrani"), tr("Największe zmiany dnia w S&P 500 i na GPW."))
 
 st.divider()
 ranking, names = render_top_etf(prices, rf)
@@ -544,10 +554,10 @@ if PREMIUM:
     with mov_slot:
         render_movers()
 
-with st.expander("Status danych"):
+with st.expander(tr("Status danych")):
     try:
         data_status_card()
     except Exception:
-        unavailable("Status danych")
+        unavailable(tr("Status danych"))
 
 render_footer()
