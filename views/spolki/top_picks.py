@@ -27,6 +27,7 @@ from data.top_picks import (
     load_history,
     portfolio_equity,
 )
+from components.i18n import tr
 
 
 MARKET_LABELS = {"sp500": "🇺🇸 S&P 500", "gpw": "🇵🇱 GPW"}
@@ -97,21 +98,21 @@ def render_naglowek(latest_key: str, latest: dict, markets: tuple) -> None:
     nxt = _next_rebalance(today)
     days_left = (nxt - today).days
     n_picks = sum(len(latest.get(m) or []) for m in markets)
-    rynki = "rynki" if len(markets) > 1 else "rynek"
+    rynki = tr("rynki") if len(markets) > 1 else tr("rynek")
 
     st.html(
         f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:14px;'
         f'padding:16px 20px;margin:8px 0 4px;display:flex;flex-wrap:wrap;gap:12px;'
         f'justify-content:space-between;align-items:center">'
         f'<div>'
-        f'<div style="font-size:0.78rem;color:{MUTED}">Skład na</div>'
+        f'<div style="font-size:0.78rem;color:{MUTED}">{tr("Skład na")}</div>'
         f'<div style="font-size:1.5rem;font-weight:650;color:{GOLD};line-height:1.2">{latest_key}</div>'
         f'</div>'
         f'<div style="font-size:0.75rem;color:{MUTED};line-height:1.7;text-align:right">'
-        f'{n_picks} spolek &middot; {len(markets)} {rynki} &middot; '
-        f'regula v{latest.get("rule_version", "?")}<br>'
-        f'nastepny rebalans <span style="color:{TEXT};font-weight:600">'
-        f'{nxt.strftime("%d.%m.%Y")}</span> (za {days_left} dni)'
+        f'{tr("{n} spolek", n=n_picks)} &middot; {len(markets)} {rynki} &middot; '
+        f'{tr("regula")} v{latest.get("rule_version", "?")}<br>'
+        f'{tr("nastepny rebalans")} <span style="color:{TEXT};font-weight:600">'
+        f'{nxt.strftime("%d.%m.%Y")}</span> ({tr("za {n} dni", n=days_left)})'
         f'</div>'
         f'</div>'
     )
@@ -125,13 +126,13 @@ def _analyst_card_fields(pick: dict, strategy: str, currency: str) -> dict:
         return {}
     rm, n = pick.get("recommendation_mean"), pick.get("num_analysts") or 0
     target, up = pick.get("target_mean"), pick.get("upside")
-    rm_str = f"{rm:.2f}".replace(".", ",") if rm is not None else "—"
+    rm_str = fmt_number(rm, 2) if rm is not None else "—"
     up_str = f"{up * 100:+.0f}%" if up is not None else "—"
     tgt_str = f"{fmt_number(target, 2)} {currency}" if target is not None else "—"
-    score_text = (f"konsensus {rm_str}" if strategy == "analyst"
-                  else f"potencjal {up_str}")
-    note = (f"{consensus_label(rm)} &middot; {n} analitykow<br>"
-            f"cel {tgt_str} ({up_str})")
+    score_text = (tr("konsensus {v}", v=rm_str) if strategy == "analyst"
+                  else tr("potencjal {v}", v=up_str))
+    note = (f"{consensus_label(rm)} &middot; {tr('{n} analitykow', n=n)}<br>"
+            f"{tr('cel')} {tgt_str} ({up_str})")
     return {"score_text": score_text, "note": note}
 
 
@@ -142,15 +143,14 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
         picks = latest.get(market) or []
         if strategy in ("analyst", "upside") and 0 < len(picks) < 5:
             st.caption(
-                f"{MARKET_LABELS[market]}: tylko {len(picks)} spolek spelnia warunki "
-                "(min. liczba analitykow"
-                + (", konsensus co najmniej Buy" if strategy == "upside" else "")
-                + ") — piatka nie jest dobierana na sile."
+                tr("{market}: tylko {n} spolek spelnia warunki (min. liczba analitykow",
+                   market=MARKET_LABELS[market], n=len(picks))
+                + (tr(", konsensus co najmniej Buy") if strategy == "upside" else "")
+                + tr(") — piatka nie jest dobierana na sile.")
             )
         if not picks:
             if strategy in ("analyst", "upside"):
-                st.caption(f"{MARKET_LABELS[market]}: brak spolek spelniajacych warunki "
-                           "w tym miesiacu.")
+                st.caption(tr('{v0}: brak spolek spelniajacych warunki w tym miesiacu.', v0=MARKET_LABELS[market]))
             continue
 
         # Data z entry_date pickow, NIE z pola asof — rynki koncza sesje w roznych
@@ -159,7 +159,7 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
         sesje = sorted({p.get("entry_date", "") for p in picks if p.get("entry_date")})
         dzien = sesje[-1] if sesje else latest.get("asof", "—")
         icon, market_name = label.split(" ", 1)
-        section_band(icon, market_name, f"policzone na zamkniecie {dzien}")
+        section_band(icon, market_name, tr("policzone na zamkniecie {date}", date=dzien))
 
         tickers = [p["ticker"] for p in picks]
         prices = download_prices(tickers, period="1y")
@@ -193,7 +193,7 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
                 "Nazwa": pick.get("name", ""),
                 "Sektor": sector,
                 "Score": round(pick["score"], 3),
-                f"Wejscie ({CURRENCY[market]})": round(entry, 2),
+                tr("Wejscie ({currency})", currency=CURRENCY[market]): round(entry, 2),
                 "Teraz": round(now, 2) if now is not None else None,
                 "Zwrot": ret,
             }
@@ -210,39 +210,39 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
         with chart_col:
             st.plotly_chart(
                 picks_return_bar([c["ticker"] for c in cards], [c["ret"] for c in cards],
-                                 title="Zwrot od rebalansu"),
+                                 title=tr("Zwrot od rebalansu")),
                 width="stretch",
                 key=f"bar_{strategy}_{market}",
             )
         with pie_col:
             sector_counts = Counter(c["sector"] for c in cards)
             st.plotly_chart(
-                category_pie(dict(sector_counts), title="Sektory w piatce (limit 2)"),
+                category_pie(dict(sector_counts), title=tr("Sektory w piatce (limit 2)")),
                 width="stretch",
                 key=f"pie_{strategy}_{market}",
             )
 
-        with st.expander(f"📋 Szczegoly fundamentalne — {market_name}"):
+        with st.expander(tr('📋 Szczegoly fundamentalne — {market_name}', market_name=market_name)):
             st.dataframe(
                 pd.DataFrame(rows),
                 hide_index=True,
                 width="stretch",
                 key=f"tabela_{strategy}_{market}",
                 column_config={
-                    "Zwrot": st.column_config.NumberColumn("Zwrot od rebalansu", format="percent"),
+                    "Zwrot": st.column_config.NumberColumn(tr("Zwrot od rebalansu"), format="percent"),
                     "ROE": st.column_config.NumberColumn("ROE", format="%.2f"),
-                    "Potencjal %": st.column_config.NumberColumn("Potencjal", format="percent"),
-                    "Konsensus": st.column_config.NumberColumn("Konsensus", format="%.2f"),
-                    "Cena docelowa": st.column_config.NumberColumn("Cena docelowa",
+                    "Potencjal %": st.column_config.NumberColumn(tr("Potencjal"), format="percent"),
+                    "Konsensus": st.column_config.NumberColumn(tr("Konsensus"), format="%.2f"),
+                    "Cena docelowa": st.column_config.NumberColumn(tr("Cena docelowa"),
                                                                    format="%.2f"),
                 },
             )
 
     if strategy == "momentum":
         st.info(
-            "Kolumny fundamentalne (P/E, Fwd P/E, ROE, dywidenda) sa **kontekstem do samodzielnej "
+            tr("Kolumny fundamentalne (P/E, Fwd P/E, ROE, dywidenda) sa **kontekstem do samodzielnej "
             "oceny** — nie biora udzialu w wyborze spolek. Regula patrzy wylacznie na momentum, "
-            "plynnosc i limit sektorowy."
+            "plynnosc i limit sektorowy.")
         )
 
 
@@ -251,12 +251,11 @@ def render_sklad(latest: dict, markets: tuple, strategy: str) -> None:
 def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
     """Krzywa kapitalu portfela typow vs benchmark rynku."""
     st.markdown("---")
-    st.markdown("## Wyniki live")
+    st.markdown(tr("## Wyniki live"))
 
     if len(history) < 2:
         st.info(
-            f"Track record narasta od pierwszego snapshotu ({sorted(history)[0]}). "
-            "Krzywa kapitalu pojawi sie po pierwszym rebalansie — wroc za miesiac."
+            tr('Track record narasta od pierwszego snapshotu ({v0}). Krzywa kapitalu pojawi sie po pierwszym rebalansie — wroc za miesiac.', v0=sorted(history)[0])
         )
         return
 
@@ -285,13 +284,11 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
         if bench_state["stale"]:
             if bench_state["last_date"] is None:
                 st.warning(
-                    f"Brak danych benchmarku {bench} - ponizsze porownanie jest niepelne."
+                    tr('Brak danych benchmarku {bench} - ponizsze porownanie jest niepelne.', bench=bench)
                 )
             else:
                 st.warning(
-                    f"Benchmark {bench} ma ostatnie notowanie z {bench_state['last_date']} "
-                    f"({bench_state['age_days']} dni temu). Porownanie 'vs {bench}' jest "
-                    "nieaktualne - zrodlo danych wymaga sprawdzenia."
+                    tr("Benchmark {bench} ma ostatnie notowanie z {v1} ({v2} dni temu). Porownanie 'vs {bench}' jest nieaktualne - zrodlo danych wymaga sprawdzenia.", bench=bench, v1=bench_state['last_date'], v2=bench_state['age_days'])
                 )
 
         curves = {f"Top Picks {label}": equity}
@@ -311,22 +308,22 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
 
         total = float(equity.iloc[-1] / equity.iloc[0] - 1)
         cols = st.columns(4)
-        kpi_card(cols[0], "Zwrot od startu", fmt_pct(total), f"kapital 10 000 {CURRENCY[market]}",
+        kpi_card(cols[0], "Zwrot od startu", fmt_pct(total), tr("kapital 10 000 {currency}", currency=CURRENCY[market]),
                  GREEN if total > 0 else RED if total < 0 else "#E6E8EC")
         if bench_total is None:
             kpi_card(cols[1], f"vs {bench}", "—", "brak danych benchmarku")
         else:
             diff = (total - bench_total) * 100
             kpi_card(cols[1], f"vs {bench}",
-                     f"{diff:+.1f} p.p.".replace(".", ","),
+                     tr("{v} p.p.", v=fmt_number(diff, 1) if diff <= 0 else "+" + fmt_number(diff, 1)),
                      f"{bench}: {fmt_pct(bench_total)}",
                      GREEN if diff > 0 else RED if diff < 0 else "#E6E8EC")
         kpi_card(cols[2], "Rebalansow", str(len(history)), "snapshotow w logu")
         kpi_card(cols[3], "Wartosc portfela",
                  f"{fmt_number(float(equity.iloc[-1]), 0)} {CURRENCY[market]}",
-                 f"start 10 000 {CURRENCY[market]}")
+                 tr("start 10 000 {currency}", currency=CURRENCY[market]))
 
-        st.plotly_chart(equity_chart(curves, title=f"Top Picks {label} vs {bench}"),
+        st.plotly_chart(equity_chart(curves, title=tr('Top Picks {label} vs {bench}', label=label, bench=bench)),
                         width="stretch",
                         key=f"equity_{strategy}_{market}")
 
@@ -336,23 +333,22 @@ def render_wyniki_live(history: dict, markets: tuple, strategy: str) -> None:
 def render_symulacja() -> None:
     """Backtest reguly momentum wstecz — tylko dla strategii cenowej."""
     st.markdown("---")
-    with st.expander("🔬 Symulacja reguly wstecz — przeczytaj zastrzezenie", expanded=False):
+    with st.expander(tr("🔬 Symulacja reguly wstecz — przeczytaj zastrzezenie"), expanded=False):
         st.error(
-            "**To nie jest track record.** Sklad historyczny liczony z DZISIEJSZEGO universe "
+            tr("**To nie jest track record.** Sklad historyczny liczony z DZISIEJSZEGO universe "
             "(SP500_TOP100 i obecne sklady WIG20/mWIG40/sWIG80). Spolki, ktore wypadly z "
             "indeksow, w danych nie istnieja — survivorship bias zawyza wynik. Traktuj to jako "
-            "test spojnosci reguly, nie jako obietnice zwrotu."
+            "test spojnosci reguly, nie jako obietnice zwrotu.")
         )
 
         if not SIM_PATH.exists():
-            st.info(f"Brak pliku `{SIM_PATH.name}`. Uruchom `python scripts/update_top_picks.py`.")
+            st.info(tr('Brak pliku `{v0}`. Uruchom `python scripts/update_top_picks.py`.', v0=SIM_PATH.name))
             return
 
         sim = json.loads(SIM_PATH.read_text(encoding="utf-8"))
         params = sim.get("params", {})
         st.caption(
-            f"Wygenerowano: {sim.get('generated_at', '—')} · regula v{sim.get('rule_version', '?')} · "
-            f"koszty {params.get('transaction_cost', 0):.1%} + Belka {params.get('tax_belka', 0):.0%}"
+            tr('Wygenerowano: {v0} · regula v{v1} · koszty {v2} + Belka {v3}', v0=sim.get('generated_at', '—'), v1=sim.get('rule_version', '?'), v2=f"{params.get('transaction_cost', 0):.1%}", v3=f"{params.get('tax_belka', 0):.0%}")
         )
 
         for market, label in MARKET_LABELS.items():
@@ -360,7 +356,7 @@ def render_symulacja() -> None:
             if not block:
                 continue
             index = pd.DatetimeIndex(block["dates"])
-            curves = {f"Regula {label}": pd.Series(block["equity"], index=index)}
+            curves = {tr("Regula {label}", label=label): pd.Series(block["equity"], index=index)}
             bench_name = block.get("benchmark_name")
             bench_values = block.get("benchmark") or []
             has_bench = bool(bench_name) and len(bench_values) == len(index)
@@ -373,12 +369,12 @@ def render_symulacja() -> None:
             cols = st.columns(4)
             kpi_card(cols[0], "CAGR", fmt_pct(stats.get("cagr")), "srednioroczny zwrot")
             kpi_card(cols[1], "Max DD", fmt_pct(stats.get("max_dd")), "najglebszy spadek", RED)
-            kpi_card(cols[2], "Sharpe", f"{stats.get('sharpe', 0):.2f}".replace(".", ","),
+            kpi_card(cols[2], "Sharpe", fmt_number(stats.get('sharpe', 0), 2),
                      "zwrot / zmiennosc")
             kpi_card(cols[3], "Trafnosc vs benchmark",
                      fmt_pct(stats.get("hit_rate")) if has_bench else "—",
                      "% miesiecy lepszych" if has_bench else "brak benchmarku")
-            st.plotly_chart(equity_chart(curves, title=f"Symulacja reguly — {label}"),
+            st.plotly_chart(equity_chart(curves, title=tr('Symulacja reguly — {label}', label=label)),
                             width="stretch")
 
 
@@ -387,6 +383,7 @@ def render_symulacja() -> None:
 def render_strategia(strategy: str) -> None:
     """Cala zakladka jednej strategii."""
     title, opis = STRATEGY_INFO[strategy]
+    title, opis = tr(title), tr(opis)
     markets = STRATEGY_MARKETS[strategy]
 
     st.markdown(f"### {title}")
@@ -395,9 +392,7 @@ def render_strategia(strategy: str) -> None:
     history = load_history(HISTORY_PATHS[strategy])
     if not history:
         st.warning(
-            f"Brak pliku `{HISTORY_PATHS[strategy].name}`. Uruchom "
-            f"`python scripts/update_top_picks.py --only {strategy}`, "
-            "zeby wygenerowac pierwszy snapshot."
+            tr('Brak pliku `{v0}`. Uruchom `python scripts/update_top_picks.py --only {strategy}`, zeby wygenerowac pierwszy snapshot.', v0=HISTORY_PATHS[strategy].name, strategy=strategy)
         )
         return
 
@@ -407,9 +402,7 @@ def render_strategia(strategy: str) -> None:
     versions = {snap.get("rule_version", 0) for snap in history.values()}
     if len(versions) > 1:
         st.warning(
-            f"⚠️ Log zawiera snapshoty z roznych wersji reguly ({sorted(versions)}). "
-            f"Wyniki sprzed zmiany nie sa porownywalne z obecnymi "
-            f"(aktualna: v{RULE_VERSIONS[strategy]})."
+            tr('⚠️ Log zawiera snapshoty z roznych wersji reguly ({v0}). Wyniki sprzed zmiany nie sa porownywalne z obecnymi (aktualna: v{v1}).', v0=sorted(versions), v1=RULE_VERSIONS[strategy])
         )
 
     render_naglowek(latest_key, latest, markets)
@@ -417,24 +410,24 @@ def render_strategia(strategy: str) -> None:
 
     if strategy == "earnings":
         st.info(
-            "**Tylko S&P 500.** yfinance nie ma historii wynikow kwartalnych dla "
+            tr("**Tylko S&P 500.** yfinance nie ma historii wynikow kwartalnych dla "
             "ok. 80% spolek z GPW (pomiar na probce 30 spolek, 2026-08-07), wiec "
             "regula nie mialaby z czego wybierac. To samo ograniczenie dotyczy "
-            "strony Insider Screener."
+            "strony Insider Screener.")
         )
     elif strategy == "quality":
         st.info(
-            "Dla bankow z GPW komponent zadluzenia jest pomijany — struktura "
+            tr("Dla bankow z GPW komponent zadluzenia jest pomijany — struktura "
             "bilansu banku nie jest porownywalna ze spolka przemyslowa. Wagi "
-            "pozostalych trzech skladnikow sa wtedy renormalizowane do 100%."
+            "pozostalych trzech skladnikow sa wtedy renormalizowane do 100%.")
         )
     elif strategy in ("analyst", "upside"):
         st.info(
-            "**Zrodlo: konsensus analitykow z Yahoo Finance** (srednia rekomendacja, "
+            tr("**Zrodlo: konsensus analitykow z Yahoo Finance** (srednia rekomendacja, "
             "liczba analitykow, srednia cena docelowa) — stan z dnia wyboru. Na GPW "
             "konsensus ma ok. 1/3 spolek (pomiar 2026-11-16), stad nizszy prog i "
             "mozliwy krotszy sklad. Pierwszy sklad wybrany 16.11.2026, czyli w polowie "
-            "miesiaca. To nie jest rekomendacja inwestycyjna."
+            "miesiaca. To nie jest rekomendacja inwestycyjna.")
         )
 
     render_wyniki_live(history, markets, strategy)
@@ -444,27 +437,27 @@ def render_strategia(strategy: str) -> None:
     else:
         st.markdown("---")
         st.info(
-            "**Bez symulacji wstecz.** Ta strategia opiera sie na danych "
+            tr("**Bez symulacji wstecz.** Ta strategia opiera sie na danych "
             "fundamentalnych, ktore yfinance udostepnia wylacznie w wersji "
             "„na dzis\" — nie da sie odtworzyc, jak wygladaly rok temu. "
             "Symulacja liczylaby historyczne miesiace dzisiejszymi danymi "
             "(lookahead bias), wiec swiadomie jej nie ma. Track record narasta "
-            "od pierwszego snapshotu."
+            "od pierwszego snapshotu.")
         )
 
 
 # ====== Render strony ======
 
-st.markdown("# Top Picks — piatka miesiaca")
+st.markdown(tr("# Top Picks — piatka miesiaca"))
 st.caption(
-    "Piec niezaleznych regul wybiera po piatce spolek pierwszego dnia miesiaca. "
+    tr("Piec niezaleznych regul wybiera po piatce spolek pierwszego dnia miesiaca. "
     "Kazda patrzy na co innego: cenowe momentum, jakosc wynikow kwartalnych, "
-    "jakosc biznesu albo konsensus analitykow. Sklad nie jest recznie korygowany."
+    "jakosc biznesu albo konsensus analitykow. Sklad nie jest recznie korygowany.")
 )
 
 tab_mom, tab_earn, tab_qual, tab_an, tab_up = st.tabs([
-    "📈 Momentum", "📊 Earnings Momentum", "🏛️ Jakosc biznesu",
-    "🎯 Polecane przez analitykow", "💹 Potencjal do ceny docelowej",
+    tr("📈 Momentum"), tr("📊 Earnings Momentum"), tr("🏛️ Jakosc biznesu"),
+    tr("🎯 Polecane przez analitykow"), tr("💹 Potencjal do ceny docelowej"),
 ])
 with tab_mom:
     render_strategia("momentum")

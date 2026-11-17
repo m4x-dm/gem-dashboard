@@ -22,6 +22,7 @@ from data.financials import (
 )
 from data.gpw_universe import ALL_GPW_TICKERS
 from data.sp500_universe import ALL_SP500_TICKERS
+from components.i18n import tr
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ def _open_company_card(ticker: str) -> None:
     if _detect_market(ticker) in ("SP500", "GPW"):
         nav.go_company(ticker)
     else:
-        st.warning(f"Karta spolki niedostepna dla ETF/UNKNOWN ({ticker}).")
+        st.warning(tr('Karta spolki niedostepna dla ETF/UNKNOWN ({ticker}).', ticker=ticker))
 
 
 def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -> None:
@@ -98,7 +99,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
         y=week_labels,
         colorscale=[[0, "#1F2937"], [0.5, "#D4B062"], [1, "#F1D58E"]],
         showscale=True,
-        colorbar=dict(title="Raporty"),
+        colorbar=dict(title=tr("Raporty")),
         hovertext=hover_text,
         hovertemplate="%{hovertext}<extra></extra>",
         zmin=0,
@@ -120,7 +121,7 @@ def _render_heatmap(df: pd.DataFrame, weeks_back: int = 3, weeks_fwd: int = 4) -
             pass
 
     fig.update_layout(
-        title="Kalendarz miesiecy — 8 tygodni (T-3 do T+4)",
+        title=tr("Kalendarz miesiecy — 8 tygodni (T-3 do T+4)"),
         template="plotly_dark",
         height=400,
         yaxis=dict(autorange="reversed"),  # T-3 na gorze
@@ -152,7 +153,7 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
     st.rerun() dla refresh state.
     """
     if df.empty:
-        st.info("Brak wynikow po filtrach.")
+        st.info(tr("Brak wynikow po filtrach."))
         return
 
     df = df.copy()
@@ -214,7 +215,7 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
     # CSV export
     csv = display.drop(columns=["⭐"]).to_csv(index=False).encode("utf-8")
     st.download_button(
-        "📥 Eksport CSV",
+        tr("📥 Eksport CSV"),
         data=csv,
         file_name="earnings_calendar.csv",
         mime="text/csv",
@@ -224,11 +225,11 @@ def _render_calendar_table(df: pd.DataFrame, watchlist_set: set[str], ls_obj) ->
 
 
 # Header
-st.markdown("# Earnings Calendar")
+st.markdown(tr("# Earnings Calendar"))
 st.caption(
-    "Nadchodzace i niedawne raporty (±28 dni) dla SP500 + GPW. "
+    tr("Nadchodzace i niedawne raporty (±28 dni) dla SP500 + GPW. "
     "Kliknij ⭐ aby dodac spolke do watchlistu. "
-    "ETF wykluczone — nie maja earnings."
+    "ETF wykluczone — nie maja earnings.")
 )
 
 # Universe
@@ -242,30 +243,32 @@ watchlist = get_watchlist(ls)
 # FILTRY (expander)
 # ---------------------------------------------------------------------------
 
-with st.expander("Filtry", expanded=True):
+with st.expander(tr("Filtry"), expanded=True):
     col1, col2, col3 = st.columns(3)
     with col1:
         market_filter = st.radio(
-            "Market",
+            tr("Market"),
             options=["Wszystkie", "SP500", "GPW"],
             horizontal=True,
+            format_func=tr,
             key="calendar_market",
         )
         status_filter = st.radio(
-            "Status",
+            tr("Status"),
             options=["Wszystkie", "Future", "Past"],
             horizontal=True,
+            format_func=tr,
             key="calendar_status",
         )
     with col2:
         sector_filter = st.multiselect(
-            "Sektor (multiselect)",
+            tr("Sektor (multiselect)"),
             options=[],  # populated po fetch
             default=[],
             key="calendar_sector",
         )
         only_watchlist = st.checkbox(
-            "⭐ Tylko watchlist",
+            tr("⭐ Tylko watchlist"),
             value=False,
             disabled=len(watchlist) == 0,
             help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
@@ -273,7 +276,7 @@ with st.expander("Filtry", expanded=True):
         )
     with col3:
         sort_by = st.selectbox(
-            "Sort",
+            tr("Sort"),
             options=[
                 "Data (najblizej dzis)",
                 "Data (chronologicznie)",
@@ -283,7 +286,7 @@ with st.expander("Filtry", expanded=True):
             index=0,
             key="calendar_sort",
         )
-        refresh = st.button("🔄 Refresh cache", key="calendar_refresh")
+        refresh = st.button(tr("🔄 Refresh cache"), key="calendar_refresh")
         if refresh:
             st.cache_data.clear()
             st.rerun()
@@ -295,7 +298,7 @@ with st.expander("Filtry", expanded=True):
 df = bulk_fetch_earnings_calendar(universe)
 
 if df.empty:
-    st.warning("Brak danych earnings w wybranym oknie ±28 dni.")
+    st.warning(tr("Brak danych earnings w wybranym oknie ±28 dni."))
     render_footer()
     st.stop()
 
@@ -329,14 +332,14 @@ n_miss = int((past_df["eps_actual"] < past_df["eps_estimate"]).sum())
 avg_surprise = past_df["eps_surprise_pct"].mean()
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total ±28d", f"{total}")
-c2.metric("Future (nadchodzace)", f"{n_future}", f"{n_this_week} w tym tyg.")
+c1.metric(tr("Total ±28d"), f"{total}")
+c2.metric(tr("Future (nadchodzace)"), f"{n_future}", tr('{n_this_week} w tym tyg.', n_this_week=n_this_week))
 c3.metric(
-    "Past Beat / Miss",
+    tr("Past Beat / Miss"),
     f"{n_beat} / {n_miss}",
     f"{n_beat / (n_beat + n_miss) * 100:.0f}% beat" if (n_beat + n_miss) > 0 else "",
 )
-c4.metric("Avg surprise %", f"{avg_surprise:+.1f}%" if pd.notna(avg_surprise) else "—")
+c4.metric(tr("Avg surprise %"), f"{avg_surprise:+.1f}%" if pd.notna(avg_surprise) else "—")
 
 st.markdown("---")
 
@@ -352,7 +355,7 @@ st.markdown("---")
 # TABELA (data_editor z checkbox watchlist)
 # ---------------------------------------------------------------------------
 
-st.markdown("### 📋 Tabela raportow")
+st.markdown(tr("### 📋 Tabela raportow"))
 sorted_df = _apply_sort(filtered, sort_by)
 _render_calendar_table(sorted_df, watchlist, ls)
 
@@ -362,18 +365,18 @@ st.markdown("---")
 # CROSS-LINK do Karty spolki
 # ---------------------------------------------------------------------------
 
-st.markdown("### 🏢 Karta spółki")
+st.markdown(tr("### 🏢 Karta spółki"))
 col_sel, col_btn = st.columns([3, 1])
 with col_sel:
     selected_ticker = st.selectbox(
-        "Wybierz spółkę:",
+        tr("Wybierz spółkę:"),
         options=[""] + sorted_df["ticker"].tolist(),
         key="calendar_card_select",
     )
 with col_btn:
     st.write("")  # spacer
     go_btn = st.button(
-        "Otwórz kartę spółki",
+        tr("Otwórz kartę spółki"),
         key="calendar_card_btn",
         disabled=not selected_ticker,
     )

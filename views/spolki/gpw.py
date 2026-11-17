@@ -27,9 +27,10 @@ from components.charts import (
 from components.cards import stats_table, comparison_card, final_value_card
 from streamlit_local_storage import LocalStorage
 from components.watchlist import get_watchlist, toggle_ticker
+from components.i18n import tr
 
 
-st.markdown("# Polskie Akcje GPW")
+st.markdown(tr("# Polskie Akcje GPW"))
 
 # ---------------------------------------------------------------------------
 # Wspolne: wybor indeksu
@@ -143,37 +144,37 @@ def _render_screener_summary(df, total):
 # TABY
 # ---------------------------------------------------------------------------
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 Ranking momentum",
-    "📉 Wykresy",
-    "⚖️ Porownanie",
-    "🧪 Backtest momentum",
-    "💪 Relative Strength",
-    "📊 Screening",
-    "📈 Sprawozdania Q",
+    tr("📊 Ranking momentum"),
+    tr("📉 Wykresy"),
+    tr("⚖️ Porownanie"),
+    tr("🧪 Backtest momentum"),
+    tr("💪 Relative Strength"),
+    tr("📊 Screening"),
+    tr("📈 Sprawozdania Q"),
 ])
 
 # ========================== TAB 1: RANKING ==========================
 with tab1:
     @st.fragment
     def _ranking_fragment():
-        st.markdown("### Ranking momentum — spolki GPW")
+        st.markdown(tr("### Ranking momentum — spolki GPW"))
 
         col1, col2 = st.columns(2)
         with col1:
-            idx_filter = st.selectbox("Indeks", INDEX_OPTIONS, key="rank_idx")
+            idx_filter = st.selectbox(tr("Indeks"), INDEX_OPTIONS, key="rank_idx", format_func=tr)
         with col2:
-            mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="rank_mom")
+            mom_filter = st.selectbox(tr("Momentum absolutny"), ["Wszystkie", "TAK", "NIE"], key="rank_mom", format_func=tr)
 
         tickers = _tickers_for_index(idx_filter)
         _tab1_ok = bool(tickers)
         if not _tab1_ok:
-            st.warning("Brak tickerow dla wybranego indeksu.")
+            st.warning(tr("Brak tickerow dla wybranego indeksu."))
         else:
-            with st.spinner("Pobieram dane GPW..."):
+            with st.spinner(tr("Pobieram dane GPW...")):
                 prices = download_prices(tickers, period="2y")
 
             if prices.empty:
-                st.error("Nie udalo sie pobrac danych.")
+                st.error(tr("Nie udalo sie pobrac danych."))
                 _tab1_ok = False
 
         if _tab1_ok:
@@ -191,7 +192,7 @@ with tab1:
             if mom_filter != "Wszystkie":
                 filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
-            st.markdown(f"**{len(filtered)}** spolek | Stopa wolna: **{rf:.2f}%**")
+            st.markdown(tr('**{v0}** spolek | Stopa wolna: **{v1}%**', v0=len(filtered), v1=f'{rf:.2f}'))
 
             display_df = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
             display_df.index.name = "Ticker"
@@ -206,38 +207,38 @@ with tab1:
                 col_pick, col_go = st.columns([3, 1])
                 with col_pick:
                     pick = st.selectbox(
-                        "Spółka", filtered.index.tolist(), key="gpw_card_pick",
+                        tr("Spółka"), filtered.index.tolist(), key="gpw_card_pick",
                         format_func=lambda t: f"{t} — {GPW_NAMES.get(t, t)}",
                     )
                 with col_go:
                     st.write("")  # spacer
-                    open_card = st.button("Otwórz kartę spółki", key="gpw_card_btn")
+                    open_card = st.button(tr("Otwórz kartę spółki"), key="gpw_card_btn")
                 if open_card and pick:
                     nav.go_company(pick)
 
             # Eksport CSV
             csv = filtered[["Nazwa", "Indeks", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
             csv.index.name = "Ticker"
-            st.download_button("📥 Eksportuj CSV", csv.to_csv(), "gpw_ranking.csv", "text/csv")
+            st.download_button(tr("📥 Eksportuj CSV"), csv.to_csv(), "gpw_ranking.csv", "text/csv")
 
             st.divider()
 
             # Wykres slupkowy top 15
             valid = filtered.dropna(subset=["Wynik"])
             if not valid.empty:
-                fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum GPW")
+                fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title=tr("Top 15 — wynik momentum GPW"))
                 st.plotly_chart(fig, width="stretch")
 
     _ranking_fragment()
 
 # ========================== TAB 2: WYKRESY ==========================
 with tab2:
-    st.markdown("### Wykresy — spolki GPW")
+    st.markdown(tr("### Wykresy — spolki GPW"))
 
     options_map = {t: f"{t} — {GPW_NAMES.get(t, t)}" for t in ALL_GPW_TICKERS}
 
     selected_charts = st.multiselect(
-        "Wybierz spolki (maks. 5)",
+        tr("Wybierz spolki (maks. 5)"),
         options=list(options_map.keys()),
         default=["PKO.WA", "CDR.WA", "KGH.WA"],
         format_func=lambda x: options_map[x],
@@ -250,14 +251,14 @@ with tab2:
         "1 miesiac": "1mo", "3 miesiace": "3mo", "6 miesiecy": "6mo",
         "1 rok": "1y", "2 lata": "2y", "5 lat": "5y", "10 lat": "10y", "Maksymalny": "max",
     }
-    period_label = st.selectbox("Okres", list(period_map.keys()), index=5, key="chart_period")
+    period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=5, key="chart_period", format_func=tr)
     period = period_map[period_label]
     is_strategy_view = period_label == "Strategia 12-1"
 
     if not selected_charts:
-        st.info("Wybierz co najmniej 1 spolke.")
+        st.info(tr("Wybierz co najmniej 1 spolke."))
     else:
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             chart_prices = pd.DataFrame()
             for t in selected_charts:
                 s = download_single(t, period=period)
@@ -268,22 +269,22 @@ with tab2:
         if is_strategy_view and len(chart_prices) > 273:
             chart_prices = chart_prices.iloc[-273:-21]
         elif is_strategy_view:
-            st.warning("Za malo danych dla widoku Strategia 12-1.")
+            st.warning(tr("Za malo danych dla widoku Strategia 12-1."))
 
         if chart_prices.empty:
-            st.error("Nie udalo sie pobrac danych.")
+            st.error(tr("Nie udalo sie pobrac danych."))
         else:
-            sub1, sub2, sub3 = st.tabs(["📈 Cena", "🚀 Momentum", "📉 Drawdown"])
+            sub1, sub2, sub3 = st.tabs([tr("📈 Cena"), tr("🚀 Momentum"), tr("📉 Drawdown")])
 
             with sub1:
-                normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="gpw_norm")
+                normalize = st.checkbox(tr("Normalizuj (baza = 100)"), value=True, key="gpw_norm")
                 title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (PLN)"
                 fig = price_chart(chart_prices, title=title, normalize=normalize)
                 st.plotly_chart(fig, width="stretch")
 
             with sub2:
-                window = st.slider("Okno momentum (dni)", 21, 504, 252, step=21, key="gpw_mom_win")
-                fig = momentum_chart(chart_prices, window=window, title=f"Momentum {window}D (rolling)")
+                window = st.slider(tr("Okno momentum (dni)"), 21, 504, 252, step=21, key="gpw_mom_win")
+                fig = momentum_chart(chart_prices, window=window, title=tr('Momentum {window}D (rolling)', window=window))
                 st.plotly_chart(fig, width="stretch")
 
             with sub3:
@@ -292,7 +293,7 @@ with tab2:
 
 # ========================== TAB 3: POROWNANIE ==========================
 with tab3:
-    st.markdown("### Porownanie spolek GPW")
+    st.markdown(tr("### Porownanie spolek GPW"))
 
     # Indeksy GPW (ETF-y Beta przez yfinance, sklejone z cache)
     GPW_INDEX_NAMES = {"WIG20": "WIG20 (indeks)", "mWIG40": "mWIG40 (indeks)", "sWIG80": "sWIG80 (indeks)"}
@@ -306,7 +307,7 @@ with tab3:
     col_sel, col_period = st.columns([3, 1])
     with col_sel:
         selected_cmp = st.multiselect(
-            "Wybierz 2-4 spolek / indeksow do porownania",
+            tr("Wybierz 2-4 spolek / indeksow do porownania"),
             options=list(options_cmp.keys()),
             default=["WIG20", "PKO.WA"],
             format_func=lambda x: options_cmp[x],
@@ -325,14 +326,14 @@ with tab3:
             "10 lat": "10y",
             "Maksymalny": "max",
         }
-        cmp_period_label = st.selectbox("Okres", list(cmp_period_map.keys()), index=0, key="gpw_cmp_period")
+        cmp_period_label = st.selectbox(tr("Okres"), list(cmp_period_map.keys()), index=0, key="gpw_cmp_period", format_func=tr)
         cmp_period = cmp_period_map[cmp_period_label]
         cmp_is_strategy = cmp_period_label == "Strategia 12-1"
 
     if len(selected_cmp) < 2:
-        st.info("Wybierz co najmniej 2 spolki / indeksy.")
+        st.info(tr("Wybierz co najmniej 2 spolki / indeksy."))
     else:
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             cmp_prices = pd.DataFrame()
             cmp_stale = []
             for t in selected_cmp:
@@ -356,13 +357,13 @@ with tab3:
         if cmp_is_strategy and len(cmp_prices) > 273:
             cmp_prices = cmp_prices.iloc[-273:-21]
         elif cmp_is_strategy:
-            st.warning("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane.")
+            st.warning(tr("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane."))
 
         if cmp_prices.empty:
-            st.error("Brak danych.")
+            st.error(tr("Brak danych."))
         else:
             # Karty ze stopami zwrotu
-            st.markdown("#### Stopy zwrotu")
+            st.markdown(tr("#### Stopy zwrotu"))
             rets = latest_returns(cmp_prices)
 
             cols = st.columns(len(selected_cmp))
@@ -378,14 +379,14 @@ with tab3:
             st.divider()
 
             # Overlay cenowy
-            st.markdown("#### Cena znormalizowana (baza = 100)")
-            fig = price_chart(cmp_prices, title=f"Porownanie cenowe — {cmp_period_label}")
+            st.markdown(tr("#### Cena znormalizowana (baza = 100)"))
+            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=cmp_period_label))
             st.plotly_chart(fig, width="stretch")
 
             st.divider()
 
             # Statystyki
-            st.markdown("#### Statystyki")
+            st.markdown(tr("#### Statystyki"))
             rf = get_risk_free()
             rf_decimal = rf / 100.0
             cmp_stats = {}
@@ -398,7 +399,7 @@ with tab3:
             st.divider()
 
             # Macierz korelacji
-            st.markdown("#### Macierz korelacji (252 dni)")
+            st.markdown(tr("#### Macierz korelacji (252 dni)"))
             corr = correlation_matrix(cmp_prices, period=252)
             fig = correlation_heatmap(corr)
             st.plotly_chart(fig, width="stretch")
@@ -407,63 +408,63 @@ with tab3:
 with tab4:
     @st.fragment
     def _backtest_fragment():
-        st.markdown("### Backtest rotacji momentum — GPW")
-        st.caption("Co miesiac kupuj top N spolek wg wyniku kompozytowego. Porownanie z equal-weight buy & hold.")
+        st.markdown(tr("### Backtest rotacji momentum — GPW"))
+        st.caption(tr("Co miesiac kupuj top N spolek wg wyniku kompozytowego. Porownanie z equal-weight buy & hold."))
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            bt_index = st.selectbox("Indeks", INDEX_OPTIONS, key="bt_idx")
+            bt_index = st.selectbox(tr("Indeks"), INDEX_OPTIONS, key="bt_idx", format_func=tr)
         with col2:
-            top_n = st.selectbox("Top N spolek", [1, 3, 5], index=1, key="bt_topn")
+            top_n = st.selectbox(tr("Top N spolek"), [1, 3, 5], index=1, key="bt_topn")
         with col3:
             bt_period_map = {"2 lata": "2y", "5 lat": "5y", "10 lat": "10y", "Maksymalny": "max"}
-            bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="bt_period")
+            bt_period_label = st.selectbox(tr("Okres"), list(bt_period_map.keys()), index=1, key="bt_period", format_func=tr)
             bt_period = bt_period_map[bt_period_label]
         with col4:
-            start_capital = st.number_input("Kapital (PLN)", value=10000, step=1000, min_value=100, key="bt_cap")
+            start_capital = st.number_input(tr("Kapital (PLN)"), value=10000, step=1000, min_value=100, key="bt_cap")
 
-        with st.expander("⚙️ Metoda scoringu + koszty", expanded=False):
+        with st.expander(tr("⚙️ Metoda scoringu + koszty"), expanded=False):
             rank_based = st.checkbox(
-                "Rank-based score (percentyle + anty-1M)",
+                tr("Rank-based score (percentyle + anty-1M)"),
                 value=False,
                 key="gpw_bt_rank",
-                help="Zamiast wazonej sumy surowych zwrotow, rankuje tickery per okres "
+                help=tr("Zamiast wazonej sumy surowych zwrotow, rankuje tickery per okres "
                      "(0-1). 1M flipowany jako anti-signal (short-term reversal). "
-                     "Odporny na outliery i skew miedzy aktywami.",
+                     "Odporny na outliery i skew miedzy aktywami."),
             )
             costs_on_gpw = st.checkbox(
-                "Koszty i podatki (realistycznie)",
+                tr("Koszty i podatki (realistycznie)"),
                 value=False,
                 key="gpw_bt_costs",
-                help="Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow.",
+                help=tr("Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow."),
             )
             col_gpw_tc, col_gpw_belka = st.columns(2)
             with col_gpw_tc:
                 tc_gpw_pct = st.slider(
-                    "Koszt roundtrip (%)", 0.0, 0.5, 0.2, 0.01,
+                    tr("Koszt roundtrip (%)"), 0.0, 0.5, 0.2, 0.01,
                     disabled=not costs_on_gpw,
                     key="gpw_bt_tc",
-                    help="GPW: prowizja Bossa/XTB ~0.1-0.2%, spread dla mid-capow 0.2-0.5%. Default 0.2%.",
+                    help=tr("GPW: prowizja Bossa/XTB ~0.1-0.2%, spread dla mid-capow 0.2-0.5%. Default 0.2%."),
                 ) / 100.0
             with col_gpw_belka:
                 belka_on_gpw = st.checkbox(
-                    "Belka 19%",
+                    tr("Belka 19%"),
                     value=False,
                     disabled=not costs_on_gpw,
                     key="gpw_bt_belka",
-                    help="Podatek rozliczany od frakcji portfela rotowanej przy rebalansie.",
+                    help=tr("Podatek rozliczany od frakcji portfela rotowanej przy rebalansie."),
                 )
             tc_gpw = tc_gpw_pct if costs_on_gpw else 0.0
             tax_gpw = 0.19 if (costs_on_gpw and belka_on_gpw) else 0.0
             regime_on_gpw = st.checkbox(
-                "Filtr breadth (regime)",
+                tr("Filtr breadth (regime)"),
                 value=False,
                 key="gpw_bt_regime",
-                help="Gdy mniej niz X% spolek w indeksie jest powyzej SMA200 → strategia "
-                     "przechodzi do cash. Chroni GPW przed trendami spadkowymi (2008, 2022).",
+                help=tr("Gdy mniej niz X% spolek w indeksie jest powyzej SMA200 → strategia "
+                     "przechodzi do cash. Chroni GPW przed trendami spadkowymi (2008, 2022)."),
             )
             breadth_gpw_pct = st.slider(
-                "Prog breadth (% > SMA200)", 20, 70, 40, 5,
+                tr("Prog breadth (% > SMA200)"), 20, 70, 40, 5,
                 disabled=not regime_on_gpw,
                 key="gpw_bt_breadth",
             ) / 100.0
@@ -472,13 +473,13 @@ with tab4:
         bt_tickers = _tickers_for_index(bt_index)
         _tab4_ok = len(bt_tickers) >= top_n
         if not _tab4_ok:
-            st.warning(f"Za malo spolek ({len(bt_tickers)}) dla top {top_n}.")
+            st.warning(tr('Za malo spolek ({v0}) dla top {top_n}.', v0=len(bt_tickers), top_n=top_n))
         else:
-            with st.spinner("Pobieram dane i licze backtest..."):
+            with st.spinner(tr("Pobieram dane i licze backtest...")):
                 bt_prices = download_prices(bt_tickers, period=bt_period)
 
             if bt_prices.empty or len(bt_prices) < 273:
-                st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+                st.error(tr("Za malo danych do backtestu. Sprobuj dluzszy okres."))
                 _tab4_ok = False
 
         if _tab4_ok:
@@ -493,10 +494,10 @@ with tab4:
             )
 
             if result is None:
-                st.error("Za malo danych do backtestu.")
+                st.error(tr("Za malo danych do backtestu."))
             else:
                 # Krzywa kapitalu
-                st.markdown("#### Krzywa kapitalu")
+                st.markdown(tr("#### Krzywa kapitalu"))
                 fig = equity_chart(result["equity_curves"])
                 st.plotly_chart(fig, width="stretch")
 
@@ -507,7 +508,7 @@ with tab4:
                 for name, eq in result["equity_curves"].items():
                     bt_stats[name] = calc_stats(eq, 252, rf_decimal)
 
-                st.markdown("#### Statystyki")
+                st.markdown(tr("#### Statystyki"))
                 stats_table(bt_stats)
 
                 # Wartosci koncowe
@@ -522,12 +523,12 @@ with tab4:
 
 # ========================== TAB 5: RELATIVE STRENGTH ==========================
 with tab5:
-    st.markdown("### Relative Strength vs WIG20")
-    st.caption("RS > 100 = spolka outperformuje WIG20 (benchmark: ETF Beta WIG20TR)")
+    st.markdown(tr("### Relative Strength vs WIG20"))
+    st.caption(tr("RS > 100 = spolka outperformuje WIG20 (benchmark: ETF Beta WIG20TR)"))
 
     rs_options_gpw = {t: f"{t} — {GPW_NAMES.get(t, t)}" for t in ALL_GPW_TICKERS}
     rs_selected_gpw = st.multiselect(
-        "Wybierz spolki (maks. 5)",
+        tr("Wybierz spolki (maks. 5)"),
         options=list(rs_options_gpw.keys()),
         default=["PKO.WA", "CDR.WA"],
         format_func=lambda x: rs_options_gpw[x],
@@ -538,13 +539,13 @@ with tab5:
     rs_period_map = {
         "1 rok": "1y", "2 lata": "2y", "5 lat": "5y", "Maksymalny": "max",
     }
-    rs_period_label = st.selectbox("Okres", list(rs_period_map.keys()), index=1, key="gpw_rs_period")
+    rs_period_label = st.selectbox(tr("Okres"), list(rs_period_map.keys()), index=1, key="gpw_rs_period", format_func=tr)
     rs_period = rs_period_map[rs_period_label]
 
     if rs_selected_gpw:
         # Benchmark WIG20: ETF Beta przez yfinance (stooq nie oddaje juz CSV)
         wig20_data = download_stooq("WIG20", period=rs_period)
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             rs_prices_gpw = {}
             for t in rs_selected_gpw:
                 s = download_single(t, period=rs_period)
@@ -554,9 +555,7 @@ with tab5:
         _wig_state = benchmark_status(wig20_data)
         if _wig_state["stale"] and _wig_state["last_date"]:
             st.warning(
-                f"WIG20 ma ostatnie notowanie z {_wig_state['last_date']} "
-                f"({_wig_state['age_days']} dni temu). Sila wzgledna liczona "
-                "wobec nieaktualnego benchmarku jest mylaca."
+                tr('WIG20 ma ostatnie notowanie z {v0} ({v1} dni temu). Sila wzgledna liczona wobec nieaktualnego benchmarku jest mylaca.', v0=_wig_state['last_date'], v1=_wig_state['age_days'])
             )
 
         if wig20_data is not None and len(wig20_data) > 20:
@@ -567,9 +566,9 @@ with tab5:
                         fig = rs_chart(rs_data, t.replace(".WA", ""), "WIG20")
                         st.plotly_chart(fig, width="stretch")
         else:
-            st.warning("Nie udalo sie pobrac danych WIG20.")
+            st.warning(tr("Nie udalo sie pobrac danych WIG20."))
     else:
-        st.info("Wybierz co najmniej 1 spolke.")
+        st.info(tr("Wybierz co najmniej 1 spolke."))
 
 # ========================== TAB 6: SCREENING ==========================
 with tab6:
@@ -578,49 +577,48 @@ with tab6:
         from data.financials import bulk_fetch_universe, to_screener_df
         from data.gpw_universe import GPW_CATEGORIES
 
-        st.markdown("### Screening fundamentalny — WIG20 + mWIG40")
+        st.markdown(tr("### Screening fundamentalny — WIG20 + mWIG40"))
         st.caption(
-            "Pelna tabela 11 wskaznikow. Banki (PKO, PEO, SPL, MBK, BHW, BNP, "
+            tr("Pelna tabela 11 wskaznikow. Banki (PKO, PEO, SPL, MBK, BHW, BNP, "
             "MIL, ING, ALR) pokazuja „N/A bank” w EV/EBITDA — nie raportuja "
-            "klasycznego EBITDA. Dane z yfinance, cache 24h."
+            "klasycznego EBITDA. Dane z yfinance, cache 24h.")
         )
 
         gpw_universe = list(GPW_CATEGORIES["WIG20"].keys()) + list(GPW_CATEGORIES["mWIG40"].keys())
 
-        with st.spinner("Pobieram dane fundamentalne universe..."):
+        with st.spinner(tr("Pobieram dane fundamentalne universe...")):
             bulk = bulk_fetch_universe(tuple(gpw_universe))
         df_full = to_screener_df(bulk)
         if df_full.empty:
-            st.error("Nie udalo sie pobrac danych z yfinance. Sprobuj odswiezyc strone.")
+            st.error(tr("Nie udalo sie pobrac danych z yfinance. Sprobuj odswiezyc strone."))
             return
 
         if len(bulk) < len(gpw_universe) * 0.7:
             st.warning(
-                f"⚠️ Pobrano dane dla {len(bulk)}/{len(gpw_universe)} spolek. "
-                f"yfinance ma dziury w pokryciu GPW — to normalne dla mniejszych spolek."
+                tr('⚠️ Pobrano dane dla {v0}/{v1} spolek. yfinance ma dziury w pokryciu GPW — to normalne dla mniejszych spolek.', v0=len(bulk), v1=len(gpw_universe))
             )
 
         # Filtry glowne (6) z PLN i innymi defaultami niz SP500
-        st.markdown("**Filtry glowne**")
+        st.markdown(tr("**Filtry glowne**"))
         col1, col2, col3 = st.columns(3)
-        pe_max = col1.slider("P/E max", 5.0, 100.0, 25.0, step=1.0, key="gpw_scr_pe")
-        roe_min = col2.slider("ROE min (%)", 0, 50, 10, key="gpw_scr_roe")
-        ev_ebitda_max = col3.slider("EV/EBITDA max", 1.0, 60.0, 20.0, step=1.0, key="gpw_scr_ev")
+        pe_max = col1.slider(tr("P/E max"), 5.0, 100.0, 25.0, step=1.0, key="gpw_scr_pe")
+        roe_min = col2.slider(tr("ROE min (%)"), 0, 50, 10, key="gpw_scr_roe")
+        ev_ebitda_max = col3.slider(tr("EV/EBITDA max"), 1.0, 60.0, 20.0, step=1.0, key="gpw_scr_ev")
 
         col4, col5, col6 = st.columns(3)
         available_sectors = sorted([s for s in df_full["sector"].dropna().unique() if s])
-        sectors_sel = col4.multiselect("Sektory", available_sectors, default=available_sectors, key="gpw_scr_sec")
-        cap_min_pln = col5.number_input("Market cap min (mld zl)", 0.0, 500.0, 1.0, step=1.0, key="gpw_scr_cap")
-        buy_only = col6.checkbox("Tylko BUY", value=False, key="gpw_scr_buy")
+        sectors_sel = col4.multiselect(tr("Sektory"), available_sectors, default=available_sectors, key="gpw_scr_sec")
+        cap_min_pln = col5.number_input(tr("Market cap min (mld zl)"), 0.0, 500.0, 1.0, step=1.0, key="gpw_scr_cap")
+        buy_only = col6.checkbox(tr("Tylko BUY"), value=False, key="gpw_scr_buy")
 
-        with st.expander("Zaawansowane filtry", expanded=False):
+        with st.expander(tr("Zaawansowane filtry"), expanded=False):
             a1, a2, a3 = st.columns(3)
-            div_yld_min = a1.slider("Div Yield min (%)", 0.0, 15.0, 0.0, key="gpw_scr_div")
-            rev_growth_min = a2.slider("Revenue Growth min (%)", -20, 100, -20, key="gpw_scr_rev")
-            debt_eq_max = a3.slider("Debt/E max", 0, 500, 500, key="gpw_scr_de")
+            div_yld_min = a1.slider(tr("Div Yield min (%)"), 0.0, 15.0, 0.0, key="gpw_scr_div")
+            rev_growth_min = a2.slider(tr("Revenue Growth min (%)"), -20, 100, -20, key="gpw_scr_rev")
+            debt_eq_max = a3.slider(tr("Debt/E max"), 0, 500, 500, key="gpw_scr_de")
             a4, a5 = st.columns(2)
-            profit_margin_min = a4.slider("Profit Margin min (%)", -20, 50, -20, key="gpw_scr_pm")
-            pb_max = a5.slider("P/B max", 0.0, 30.0, 30.0, step=0.5, key="gpw_scr_pb")
+            profit_margin_min = a4.slider(tr("Profit Margin min (%)"), -20, 50, -20, key="gpw_scr_pm")
+            pb_max = a5.slider(tr("P/B max"), 0.0, 30.0, 30.0, step=0.5, key="gpw_scr_pb")
 
         df_filtered = _apply_screener_filters(
             df_full,
@@ -631,7 +629,7 @@ with tab6:
         )
 
         if df_filtered.empty:
-            st.info("Brak wynikow po zastosowaniu filtrow. Sprobuj rozluznic kryteria.")
+            st.info(tr("Brak wynikow po zastosowaniu filtrow. Sprobuj rozluznic kryteria."))
             return
 
         sort_options = {
@@ -646,10 +644,10 @@ with tab6:
             "Market Cap (desc)": ("market_cap", False),
         }
         s1, s2, s3 = st.columns([2, 1, 1])
-        sort_label = s1.selectbox("Sortuj wg", list(sort_options.keys()), key="gpw_scr_sort")
+        sort_label = s1.selectbox(tr("Sortuj wg"), list(sort_options.keys()), key="gpw_scr_sort")
         sort_col, ascending = sort_options[sort_label]
-        top_n_label = s2.selectbox("Top N", ["5", "10", "15", "25", "Wszystkie"], index=2, key="gpw_scr_topn")
-        s3.markdown(f"**Wynikow:** {len(df_filtered)}/{len(df_full)}")
+        top_n_label = s2.selectbox(tr("Top N"), ["5", "10", "15", "25", "Wszystkie"], index=2, key="gpw_scr_topn", format_func=tr)
+        s3.markdown(tr('**Wynikow:** {v0}/{v1}', v0=len(df_filtered), v1=len(df_full)))
 
         df_sorted = df_filtered.sort_values(sort_col, ascending=ascending, na_position="last")
         if top_n_label != "Wszystkie":
@@ -662,7 +660,7 @@ with tab6:
         ls = LocalStorage()
         watchlist = get_watchlist(ls)
         only_watchlist = st.checkbox(
-            "⭐ Tylko watchlist",
+            tr("⭐ Tylko watchlist"),
             value=False,
             disabled=len(watchlist) == 0,
             help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
@@ -695,14 +693,14 @@ with tab6:
         col_sel, col_btn = st.columns([3, 1])
         with col_sel:
             selected = st.selectbox(
-                "Wybierz spółkę:",
+                tr("Wybierz spółkę:"),
                 options=[""] + df_sorted.index.tolist(),
                 key="gpw_screening_card_select",
             )
         with col_btn:
             st.write("")  # spacer
             open_btn = st.button(
-                "Otwórz kartę spółki",
+                tr("Otwórz kartę spółki"),
                 key="gpw_screening_card_btn",
                 disabled=not selected,
             )
@@ -712,14 +710,14 @@ with tab6:
         export_df = df_sorted.copy()
         export_df.index.name = "ticker"
         csv = export_df.to_csv()
-        st.download_button("📥 Eksport CSV", csv, "gpw_screener.csv", "text/csv", key="gpw_scr_csv")
+        st.download_button(tr("📥 Eksport CSV"), csv, "gpw_screener.csv", "text/csv", key="gpw_scr_csv")
 
         st.caption(
-            "💡 Spolki z brakujacym wskaznikiem sa odfiltrowane gdy filtr aktywny."
+            tr("💡 Spolki z brakujacym wskaznikiem sa odfiltrowane gdy filtr aktywny.")
         )
         st.caption(
-            "🏦 Banki nie raportuja klasycznego EBITDA — kolumna EV/EBITDA pokazuje "
-            "„N/A bank”. Filtr EV/EBITDA max wyklucza banki z tabeli."
+            tr("🏦 Banki nie raportuja klasycznego EBITDA — kolumna EV/EBITDA pokazuje "
+            "„N/A bank”. Filtr EV/EBITDA max wyklucza banki z tabeli.")
         )
 
     _screener_fragment_gpw()
@@ -729,8 +727,8 @@ with tab6:
 with tab7:
     @st.fragment
     def _sprawozdania_fragment_gpw():
-        st.markdown("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus")
-        st.caption("⚠️ Czesc spolek GPW (small-cap) nie ma pelnych danych w yfinance — gaps to oczekiwane.")
+        st.markdown(tr("### 📈 Sprawozdania finansowe — kwartalne + beat/miss vs consensus"))
+        st.caption(tr("⚠️ Czesc spolek GPW (small-cap) nie ma pelnych danych w yfinance — gaps to oczekiwane."))
 
         # Przycisk "Otwórz kartę spółki" w screenerze przechodzi na Karte spolki.
         render_sprawozdania_screener(ALL_GPW_TICKERS, market="GPW")

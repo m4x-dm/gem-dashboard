@@ -13,13 +13,14 @@ from data.downloader import download_prices
 from data.momentum import backtest_gem_extended
 from components.cards import stats_table
 from components.charts import equity_chart
+from components.i18n import tr, tr_doc
 
 
-st.markdown("# GEM Extended — backtest rozszerzonego universe")
+st.markdown(tr("# GEM Extended — backtest rozszerzonego universe"))
 st.caption(
-    "Klasyczny GEM (Antonacci 2014) trzyma 100% w jednym aktywie z 5 ETF (QQQ/VEA/EEM/ACWI/AGG). "
+    tr("Klasyczny GEM (Antonacci 2014) trzyma 100% w jednym aktywie z 5 ETF (QQQ/VEA/EEM/ACWI/AGG). "
     "GEM Extended pozwala dodac wiecej kandydatow (GLD, TLT, VNQ, IWM, BTC) i trzymac top N "
-    "equal-weight — wiekszy CAGR za cene wiekszego drawdownu."
+    "equal-weight — wiekszy CAGR za cene wiekszego drawdownu.")
 )
 
 # ====== Presets ======
@@ -68,17 +69,17 @@ AVAILABLE_SAFE = ["AGG", "TLT", "IEF", "BIL", "SHV", "BND"]
 col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
     preset_label = st.selectbox(
-        "Preset universe",
+        tr("Preset universe"),
         list(PRESETS.keys()),
         index=2,
-        help="Wybierz gotowy zestaw albo Custom dla wlasnej konfiguracji.",
+        help=tr("Wybierz gotowy zestaw albo Custom dla wlasnej konfiguracji."),
     )
 with col2:
     period_options = ["5y", "7y", "10y", "15y", "max"]
-    period = st.selectbox("Okres backtestu", period_options, index=3)
+    period = st.selectbox(tr("Okres backtestu"), period_options, index=3, format_func=tr)
 with col3:
     start_capital = st.number_input(
-        "Kapital poczatkowy ($)", min_value=1000, value=10000, step=1000
+        tr("Kapital poczatkowy ($)"), min_value=1000, value=10000, step=1000
     )
 
 if preset_label == "Custom":
@@ -94,21 +95,21 @@ else:
 col4, col5, col6 = st.columns([3, 1, 1])
 with col4:
     risk_assets = st.multiselect(
-        "Risk assets (aktywa ryzykowne — kandydaci do top N)",
+        tr("Risk assets (aktywa ryzykowne — kandydaci do top N)"),
         AVAILABLE_RISK,
         default=risk_default,
-        help="Z tych aktywow strategia wybiera top N po momentum 12M.",
+        help=tr("Z tych aktywow strategia wybiera top N po momentum 12M."),
     )
 with col5:
     safe_asset = st.selectbox(
-        "Safe asset (fallback)",
+        tr("Safe asset (fallback)"),
         AVAILABLE_SAFE,
         index=AVAILABLE_SAFE.index(safe_default) if safe_default in AVAILABLE_SAFE else 0,
-        help="Gdy zaden risk asset nie ma momentum > rf, portfel idzie tu.",
+        help=tr("Gdy zaden risk asset nie ma momentum > rf, portfel idzie tu."),
     )
 with col6:
     top_n = st.selectbox(
-        "Top N (ile aktywow equal-weight)",
+        tr("Top N (ile aktywow equal-weight)"),
         [1, 2, 3, 5],
         index=[1, 2, 3, 5].index(top_n_default) if top_n_default in [1, 2, 3, 5] else 1,
     )
@@ -116,36 +117,37 @@ with col6:
 col7, col8, col9 = st.columns(3)
 with col7:
     lookback = st.selectbox(
-        "Lookback momentum (dni)",
+        tr("Lookback momentum (dni)"),
         [126, 189, 252, 273],
         index=2,
         format_func=lambda x: {126: "6M", 189: "9M", 252: "12M (default)", 273: "13M"}[x],
     )
 with col8:
     skip = st.selectbox(
-        "Skip (dni od konca)",
+        tr("Skip (dni od konca)"),
         [0, 21],
         index=0,
-        format_func=lambda x: "0 (no skip — default dla ETF)" if x == 0 else "21 (skip-month — klasyczny Jegadeesh)",
+        format_func=lambda x: tr("0 (no skip — default dla ETF)") if x == 0 else tr("21 (skip-month — klasyczny Jegadeesh)"),
     )
 with col9:
     benchmark_choice = st.selectbox(
-        "Benchmark B&H",
+        tr("Benchmark B&H"),
         ["SPY", "QQQ", "VWCE", "ACWI", "Brak"],
         index=0,
+        format_func=tr,
     )
 
-with st.expander("Koszty transakcji i podatek Belki"):
+with st.expander(tr("Koszty transakcji i podatek Belki")):
     cc1, cc2 = st.columns(2)
     with cc1:
         transaction_cost = st.slider(
-            "Koszt transakcji (%)", 0.0, 0.5, 0.0, 0.05,
-            help="Roundtrip cost, skalowany frakcja zmienionych aktywow (turnover).",
+            tr("Koszt transakcji (%)"), 0.0, 0.5, 0.0, 0.05,
+            help=tr("Roundtrip cost, skalowany frakcja zmienionych aktywow (turnover)."),
         )
     with cc2:
         tax_belka = st.slider(
-            "Podatek Belki (%)", 0.0, 19.0, 0.0, 1.0,
-            help="Pobierany od zysku segmentu przy zmianie holdings (uproszczenie — brak rolowania strat).",
+            tr("Podatek Belki (%)"), 0.0, 19.0, 0.0, 1.0,
+            help=tr("Pobierany od zysku segmentu przy zmianie holdings (uproszczenie — brak rolowania strat)."),
         )
 
 st.divider()
@@ -153,11 +155,11 @@ st.divider()
 # ====== Walidacja ======
 if len(risk_assets) < top_n:
     st.error(
-        f"❌ Musisz wybrac co najmniej {top_n} risk asset (obecnie wybrane: {len(risk_assets)})."
+        tr('❌ Musisz wybrac co najmniej {top_n} risk asset (obecnie wybrane: {v1}).', top_n=top_n, v1=len(risk_assets))
     )
     st.stop()
 if not risk_assets:
-    st.error("❌ Wybierz przynajmniej 1 risk asset.")
+    st.error(tr("❌ Wybierz przynajmniej 1 risk asset."))
     st.stop()
 
 # ====== Pobierz dane + uruchom backtest ======
@@ -166,27 +168,27 @@ needed_tickers = list(set(risk_assets + [safe_asset]))
 if benchmark_choice != "Brak" and benchmark_choice not in needed_tickers:
     needed_tickers.append(benchmark_choice)
 
-with st.spinner(f"Pobieram dane ({len(needed_tickers)} aktywow, {period})..."):
+with st.spinner(tr('Pobieram dane ({v0} aktywow, {period})...', v0=len(needed_tickers), period=period)):
     prices = download_prices(needed_tickers, period=period)
 
 if prices is None or prices.empty:
-    st.error("❌ Nie udalo sie pobrac danych. Sprobuj odswiezyc strone.")
+    st.error(tr("❌ Nie udalo sie pobrac danych. Sprobuj odswiezyc strone."))
     st.stop()
 
 # Sprawdz dostepnosc
 available_in_prices = list(prices.columns)
 missing = [t for t in needed_tickers if t not in available_in_prices]
 if missing:
-    st.warning(f"⚠️ Brakuje danych dla: {', '.join(missing)}. Pomijam te aktywa.")
+    st.warning(tr('⚠️ Brakuje danych dla: {v0}. Pomijam te aktywa.', v0=', '.join(missing)))
     risk_assets = [r for r in risk_assets if r in available_in_prices]
     if safe_asset not in available_in_prices:
-        st.error(f"❌ Brak danych dla safe asset {safe_asset}. Wybierz inny.")
+        st.error(tr('❌ Brak danych dla safe asset {safe_asset}. Wybierz inny.', safe_asset=safe_asset))
         st.stop()
     if len(risk_assets) < top_n:
-        st.error(f"❌ Po pominieciu brakujacych aktywow zostalo {len(risk_assets)} < top_n={top_n}.")
+        st.error(tr('❌ Po pominieciu brakujacych aktywow zostalo {v0} < top_n={top_n}.', v0=len(risk_assets), top_n=top_n))
         st.stop()
 
-with st.spinner("Licze backtest..."):
+with st.spinner(tr("Licze backtest...")):
     res = backtest_gem_extended(
         prices=prices,
         risk_free_annual=rf,
@@ -203,23 +205,19 @@ with st.spinner("Licze backtest..."):
 
 if res is None:
     st.error(
-        f"❌ Za malo danych. Wybrany okres ({period}) ma mniej niz {lookback + 10} sesji "
-        "dla wszystkich wybranych aktywow. Wybierz dluzszy okres lub usun aktywa z krotka historia "
-        "(np. BTC-USD od 2014, ETH-USD od 2017)."
+        tr('❌ Za malo danych. Wybrany okres ({period}) ma mniej niz {v1} sesji dla wszystkich wybranych aktywow. Wybierz dluzszy okres lub usun aktywa z krotka historia (np. BTC-USD od 2014, ETH-USD od 2017).', period=period, v1=lookback + 10)
     )
     st.stop()
 
 st.success(
-    f"✅ Backtest gotowy — {len(res['equity'])} dni handlowych, "
-    f"od {res['equity'].index[0].date()} do {res['equity'].index[-1].date()} "
-    f"(~{len(res['equity'])/252:.1f} lat)"
+    tr('✅ Backtest gotowy — {v0} dni handlowych, od {v1} do {v2} (~{v3} lat)', v0=len(res['equity']), v1=res['equity'].index[0].date(), v2=res['equity'].index[-1].date(), v3=f"{len(res['equity']) / 252:.1f}")
 )
 
 # ====== Wyniki ======
-st.markdown(f"## 📊 Statystyki ({len(risk_assets)} risk + {safe_asset}, Top-{top_n}, momentum {lookback}d skip={skip})")
+st.markdown(tr('## 📊 Statystyki ({v0} risk + {safe_asset}, Top-{top_n}, momentum {lookback}d skip={skip})', v0=len(risk_assets), safe_asset=safe_asset, top_n=top_n, lookback=lookback, skip=skip))
 stats_table(res["stats"])
 
-st.markdown("## 📈 Equity curve")
+st.markdown(tr("## 📈 Equity curve"))
 equity_dict = {f"GEM Ext Top-{top_n}": res["equity"]}
 if "equity_benchmark" in res:
     equity_dict[f"{benchmark_choice} B&H"] = res["equity_benchmark"]
@@ -227,20 +225,19 @@ equity_dict[f"{safe_asset} B&H"] = res["equity_safe"]
 st.plotly_chart(equity_chart(equity_dict), width="stretch")
 
 # ====== Historia trzymanych pozycji ======
-st.markdown("## 🔄 Historia rotacji (kazda zmiana holdings)")
+st.markdown(tr("## 🔄 Historia rotacji (kazda zmiana holdings)"))
 hist = res["holdings_history"]
 if hist:
     hist_df = pd.DataFrame([
         {"Data": d.date(), "Holdings": " + ".join(h)} for d, h in hist
     ])
     st.dataframe(hist_df, hide_index=True, width="stretch")
-    st.caption(f"Lacznie {len(hist)} zmian holdings w {len(res['equity'])/252:.1f}-letnim oknie "
-               f"(~{len(hist)/(len(res['equity'])/252):.1f} zmian/rok).")
+    st.caption(tr('Lacznie {v0} zmian holdings w {v1}-letnim oknie (~{v2} zmian/rok).', v0=len(hist), v1=f"{len(res['equity']) / 252:.1f}", v2=f"{len(hist) / (len(res['equity']) / 252):.1f}"))
 
 # ====== Disclaimer ======
 st.divider()
-with st.expander("⚠️ Wazne ostrzezenia (kliknij)"):
-    st.markdown("""
+with st.expander(tr("⚠️ Wazne ostrzezenia (kliknij)")):
+    st.markdown(tr_doc("gem_extended_warning", """
     **GEM Extended to NIE jest klasyczny GEM Antonacciego.** Klasyczny GEM trzyma 100% w jednym
     z 5 ETF — to filozofia "dual momentum" testowana akademicko. Dodanie kandydatow (BTC, sektory,
     REIT, gold) i top N equal-weight to **trend-following na multi-asset**, ktore historycznie
@@ -261,6 +258,6 @@ with st.expander("⚠️ Wazne ostrzezenia (kliknij)"):
     **Praktyczna rekomendacja:** zacznij od **5-ETF baseline** (klasyczny GEM). Jesli akceptujesz
     wiekszy drawdown za wieksze CAGR, sprobuj **8-ETF z gold/REIT/TLT (no crypto)**. Krypto dodawaj
     DOPIERO gdy rozumiesz risk i masz maksymalnie 5-10% portfela w tej alokacji.
-    """)
+    """))
 
 render_footer()

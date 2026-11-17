@@ -10,22 +10,23 @@ from data.momentum import monte_carlo_simulation, backtest_gem
 from components.charts import fan_chart, _base_layout, GOLD
 from components.formatting import fmt_number, MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, SHADOW
+from components.i18n import tr
 
 
-st.markdown("# Monte Carlo")
-st.caption("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?")
+st.markdown(tr("# Monte Carlo"))
+st.caption(tr("Symulacja przyszlych zwrotow — ile mozesz miec za N lat?"))
 
 # --- Config ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    source = st.selectbox("Zrodlo danych", ["Strategia GEM", "Pojedynczy ETF"], key="mc_source")
+    source = st.selectbox(tr("Zrodlo danych"), ["Strategia GEM", "Pojedynczy ETF"], key="mc_source")
 with col2:
-    years = st.slider("Horyzont (lata)", 1, 30, 10, key="mc_years")
+    years = st.slider(tr("Horyzont (lata)"), 1, 30, 10, key="mc_years")
 with col3:
-    n_sims = st.select_slider("Liczba symulacji", [100, 500, 1000, 2000, 5000], value=1000, key="mc_nsims")
+    n_sims = st.select_slider(tr("Liczba symulacji"), [100, 500, 1000, 2000, 5000], value=1000, key="mc_nsims")
 
-start_capital = st.number_input("Kapital poczatkowy (USD)", 1000, 10_000_000, 10000, step=1000, key="mc_capital")
+start_capital = st.number_input(tr("Kapital poczatkowy (USD)"), 1000, 10_000_000, 10000, step=1000, key="mc_capital")
 
 rf = get_risk_free()
 
@@ -34,7 +35,7 @@ equity = None
 equity_label = ""
 
 if source == "Strategia GEM":
-    with st.spinner("Obliczam krzywa kapitalu GEM..."):
+    with st.spinner(tr("Obliczam krzywa kapitalu GEM...")):
         required = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
         prices = download_prices(required, period="max")
         result = backtest_gem(prices, rf, start_capital=start_capital)
@@ -42,15 +43,15 @@ if source == "Strategia GEM":
             equity = result["equity_gem"]
             equity_label = "GEM"
         else:
-            st.error("Brak danych do backtestu GEM.")
+            st.error(tr("Brak danych do backtestu GEM."))
 else:
     custom = st.session_state.get("custom_tickers", [])
     all_available = ALL_TICKERS + custom
-    ticker = st.selectbox("Wybierz ETF", all_available,
+    ticker = st.selectbox(tr("Wybierz ETF"), all_available,
                            index=all_available.index("QQQ") if "QQQ" in all_available else 0,
                            format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}",
                            key="mc_ticker")
-    with st.spinner(f"Pobieram dane {ticker}..."):
+    with st.spinner(tr('Pobieram dane {ticker}...', ticker=ticker)):
         _series = download_single(ticker, period="max")
     if _series is not None and len(_series) > 0:
         series = _series.dropna()
@@ -58,15 +59,15 @@ else:
         equity = series / series.iloc[0] * start_capital
         equity_label = ticker
     else:
-        st.error(f"Brak danych dla {ticker}")
+        st.error(tr('Brak danych dla {ticker}', ticker=ticker))
 
 if equity is None or len(equity) < 252:
-    st.warning("Za malo danych historycznych do symulacji (min. 1 rok).")
+    st.warning(tr("Za malo danych historycznych do symulacji (min. 1 rok)."))
     render_footer()
     st.stop()
 
 # --- Run simulation ---
-with st.spinner(f"Uruchamiam Monte Carlo ({n_sims} symulacji, {years} lat)..."):
+with st.spinner(tr('Uruchamiam Monte Carlo ({n_sims} symulacji, {years} lat)...', n_sims=n_sims, years=years)):
     sims = monte_carlo_simulation(equity, years=years, n_sims=n_sims)
 
 # Scale simulations to start from start_capital
@@ -74,17 +75,17 @@ scale = start_capital / equity.iloc[-1]
 sims = sims * scale
 
 # --- Tabs ---
-tab1, tab2, tab3 = st.tabs(["📈 Fan Chart", "📊 Rozklad koncowy", "🎯 Prawdopodobienstwa"])
+tab1, tab2, tab3 = st.tabs([tr("📈 Fan Chart"), tr("📊 Rozklad koncowy"), tr("🎯 Prawdopodobienstwa")])
 
 with tab1:
     st.plotly_chart(
-        fan_chart(sims, title=f"Monte Carlo — {equity_label} ({n_sims} symulacji, {years} lat)"),
+        fan_chart(sims, title=tr('Monte Carlo — {equity_label} ({n_sims} symulacji, {years} lat)', equity_label=equity_label, n_sims=n_sims, years=years)),
         width="stretch",
     )
-    st.caption("Ciemniejszy pas = P25-P75 (50% sciezek). Jasniejszy = P5-P95 (90% sciezek). Linia = mediana.")
+    st.caption(tr("Ciemniejszy pas = P25-P75 (50% sciezek). Jasniejszy = P5-P95 (90% sciezek). Linia = mediana."))
 
 with tab2:
-    st.subheader("Rozklad wartosci koncowej")
+    st.subheader(tr("Rozklad wartosci koncowej"))
     final_values = sims.iloc[-1].values
 
     fig = go.Figure()
@@ -99,9 +100,9 @@ with tab2:
         fig.add_vline(x=pval, line_dash=dash, line_color="rgba(255,255,255,0.5)", line_width=1,
                       annotation_text=f"P{p}: {fmt_number(pval, 0)}", annotation_position="top")
 
-    fig.update_layout(**_base_layout(f"Rozklad wartosci koncowej po {years} latach", height=450))
-    fig.update_xaxes(title_text="Wartosc portfela (USD)")
-    fig.update_yaxes(title_text="Liczba symulacji")
+    fig.update_layout(**_base_layout(tr('Rozklad wartosci koncowej po {years} latach', years=years), height=450))
+    fig.update_xaxes(title_text=tr("Wartosc portfela (USD)"))
+    fig.update_yaxes(title_text=tr("Liczba symulacji"))
     st.plotly_chart(fig, width="stretch")
 
     # Stats
@@ -113,7 +114,7 @@ with tab2:
         cols[i].metric(label, f"{fmt_number(val, 0)} USD")
 
 with tab3:
-    st.subheader("Prawdopodobienstwa")
+    st.subheader(tr("Prawdopodobienstwa"))
     final_values = sims.iloc[-1].values
 
     p_positive = (final_values > start_capital).mean() * 100
@@ -154,20 +155,7 @@ with tab3:
         f'</div>'
     )
 
-    with st.expander("📖 Jak interpretowac wyniki Monte Carlo?"):
-        st.markdown(f"""
-**Metodologia:** Bootstrap dziennych zwrotow historycznych. Kazda symulacja losuje dzienne zwroty
-z rozkladem historycznym i buduje sciezke ceny do przodu na {years} lat.
-
-**Ograniczenia:**
-- Zaklada, ze przyszlosc bedzie "podobna" do historii
-- Nie uwzglednia zmian rezimu rynkowego
-- Nie uwzglednia kosztow transakcyjnych ani podatkow
-- Rozklad zwrotow moze byc niestacjonarny
-
-**Kapital poczatkowy:** {fmt_number(start_capital, 0)} USD
-**Medianowa wartosc koncowa:** {fmt_number(np.median(final_values), 0)} USD
-**Medianowy calkowity zwrot:** {median_ret:.1f}%
-        """)
+    with st.expander(tr("📖 Jak interpretowac wyniki Monte Carlo?")):
+        st.markdown(tr('\n**Metodologia:** Bootstrap dziennych zwrotow historycznych. Kazda symulacja losuje dzienne zwroty\nz rozkladem historycznym i buduje sciezke ceny do przodu na {years} lat.\n\n**Ograniczenia:**\n- Zaklada, ze przyszlosc bedzie "podobna" do historii\n- Nie uwzglednia zmian rezimu rynkowego\n- Nie uwzglednia kosztow transakcyjnych ani podatkow\n- Rozklad zwrotow moze byc niestacjonarny\n\n**Kapital poczatkowy:** {v1} USD\n**Medianowa wartosc koncowa:** {v2} USD\n**Medianowy calkowity zwrot:** {v3}%\n        ', years=years, v1=fmt_number(start_capital, 0), v2=fmt_number(np.median(final_values), 0), v3=f'{median_ret:.1f}'))
 
 render_footer()

@@ -8,7 +8,7 @@ import streamlit as st
 from components.charts import (
     growth_chart, picks_return_bar, rolling_returns_chart, yearly_returns_heatmap,
 )
-from components.formatting import fmt_pct
+from components.formatting import fmt_number, fmt_pct
 from components.sidebar import get_risk_free, render_footer
 from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.long_returns import (
@@ -18,6 +18,7 @@ from data.long_returns import (
     period_label, period_returns, rolling_cagr, rolling_summary,
 )
 from data.momentum import calc_stats
+from components.i18n import tr
 
 
 
@@ -42,10 +43,10 @@ def _cagr_monthly(s: pd.Series) -> float:
     return float((s.iloc[-1] / s.iloc[0]) ** (1 / yrs) - 1)
 
 
-st.markdown("# Stopy zwrotu dlugoterminowe")
+st.markdown(tr("# Stopy zwrotu dlugoterminowe"))
 st.caption(
-    "Porownanie ETF-ow na horyzoncie do 30 lat: stopy skumulowane i srednioroczne (CAGR), "
-    "lata kalendarzowe, okna kroczace oraz wzrost kapitalu z miarami ryzyka. Dane miesieczne."
+    tr("Porownanie ETF-ow na horyzoncie do 30 lat: stopy skumulowane i srednioroczne (CAGR), "
+    "lata kalendarzowe, okna kroczace oraz wzrost kapitalu z miarami ryzyka. Dane miesieczne.")
 )
 
 DEFAULT = [t for t in ["SPY", "VEA", "EEM", "AGG", "GLD"] if t in ALL_TICKERS]
@@ -53,15 +54,15 @@ DEFAULT = [t for t in ["SPY", "VEA", "EEM", "AGG", "GLD"] if t in ALL_TICKERS]
 c1, c2, c3 = st.columns([3, 1.4, 1])
 with c1:
     selected = st.multiselect(
-        "ETF-y (2-8)", options=ALL_TICKERS, default=DEFAULT, max_selections=8,
+        tr("ETF-y (2-8)"), options=ALL_TICKERS, default=DEFAULT, max_selections=8,
         format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}", key="lr_selected",
     )
 with c2:
-    use_proxy = st.toggle("Wydluz historie o fundusze proxy", value=False, key="lr_proxy",
-                          help="Przed startem ETF-u stopy zwrotu starego funduszu indeksowego "
-                               "na ten sam rynek (np. SPY ← VFINX od 1980).")
+    use_proxy = st.toggle(tr("Wydluz historie o fundusze proxy"), value=False, key="lr_proxy",
+                          help=tr("Przed startem ETF-u stopy zwrotu starego funduszu indeksowego "
+                               "na ten sam rynek (np. SPY ← VFINX od 1980)."))
 with c3:
-    currency = st.radio("Waluta", ["USD", "PLN"], horizontal=True, key="lr_ccy")
+    currency = st.radio(tr("Waluta"), ["USD", "PLN"], horizontal=True, key="lr_ccy")
 
 # --- Dane --------------------------------------------------------------------------
 series: dict[str, pd.Series] = {}
@@ -69,25 +70,25 @@ proxy_info: dict[str, tuple[str | None, pd.Timestamp | None]] = {}
 for t in selected:
     s, proxy_t, proxy_end = load_monthly(t, use_proxy)
     if s is None or len(s) < 13:
-        st.warning(f"Brak wystarczajacych danych dla {t} — pomijam.")
+        st.warning(tr('Brak wystarczajacych danych dla {t} — pomijam.', t=t))
         continue
     if use_proxy and t in PROXY_MAP and proxy_t is None:
-        st.caption(f"{t}: nie udalo sie doloczyc proxy {PROXY_MAP[t]} — pokazuje prawdziwa historie ETF-u.")
+        st.caption(tr('{t}: nie udalo sie doloczyc proxy {v1} — pokazuje prawdziwa historie ETF-u.', t=t, v1=PROXY_MAP[t]))
     series[t] = s
     proxy_info[t] = (proxy_t, proxy_end)
 
 if currency == "PLN" and series:
     fx, fx_source = fetch_usdpln_monthly()
     if fx is None:
-        st.warning("Nie udalo sie pobrac kursu USD/PLN — pokazuje wyniki w USD.")
+        st.warning(tr("Nie udalo sie pobrac kursu USD/PLN — pokazuje wyniki w USD."))
         currency = "USD"
     else:
         if fx_source == "yfinance":
-            st.info("Kurs USD/PLN z FRED niedostepny — tryb PLN obejmuje dane od grudnia 2003.")
+            st.info(tr("Kurs USD/PLN z FRED niedostepny — tryb PLN obejmuje dane od grudnia 2003."))
         converted = {t: convert_to_pln(s, fx) for t, s in series.items()}
         for t, s in converted.items():
             if len(s) < 13:
-                st.warning(f"{t}: za malo danych po przeliczeniu na PLN — pominiety.")
+                st.warning(tr('{t}: za malo danych po przeliczeniu na PLN — pominiety.', t=t))
         series = {t: s for t, s in converted.items() if len(s) >= 13}
         # Kurs PLN moze uciac caly odcinek proxy (np. kurs z yfinance od 12.2003) — wtedy bez etykiety proxy.
         for t, s in series.items():
@@ -99,17 +100,17 @@ before_align = list(series)
 series = align_end(series)
 for t in before_align:
     if t not in series:
-        st.warning(f"{t}: brak danych we wspolnym okresie — pominiety.")
+        st.warning(tr('{t}: brak danych we wspolnym okresie — pominiety.', t=t))
 
 if len(series) < 2:
-    st.info("Wybierz co najmniej 2 ETF-y z dostepnymi danymi.")
+    st.info(tr("Wybierz co najmniej 2 ETF-y z dostepnymi danymi."))
 else:
     end_month = next(iter(series.values())).index[-1]
-    st.caption(f"Okresy koncza sie na {end_month:%m.%Y} (ostatni pelny miesiac). Waluta: {currency}.")
+    st.caption(tr('Okresy koncza sie na {v0} (ostatni pelny miesiac). Waluta: {currency}.', v0=f'{end_month:%m.%Y}', currency=currency))
     proxy_end_map = {t: proxy_info[t][1] for t in series}
 
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Tabela okresow", "🗓️ Stopy roczne",
-                                      "🔁 Stopy kroczace", "📈 Wzrost i ryzyko"])
+    tab1, tab2, tab3, tab4 = st.tabs([tr("📋 Tabela okresow"), tr("🗓️ Stopy roczne"),
+                                      tr("🔁 Stopy kroczace"), tr("📈 Wzrost i ryzyko")])
 
     # --- 1. Tabela okresow ---------------------------------------------------------
     with tab1:
@@ -126,7 +127,7 @@ else:
                 rows.append(row)
             return pd.DataFrame(rows).set_index("ETF")
 
-        st.markdown("#### Srednioroczna stopa zwrotu (CAGR)")
+        st.markdown(tr("#### Srednioroczna stopa zwrotu (CAGR)"))
         st.dataframe(_period_table("cagr"), width="stretch")
 
         # Wykres CAGR dla wybranego okresu — tylko okresy, ktore ma co najmniej jeden ETF
@@ -134,19 +135,19 @@ else:
                      if any(pd.notna(pr.loc[p, "cagr"]) for pr in pr_all.values())]
         if available:
             default_p = "10 lat" if "10 lat" in available else available[-1]
-            bar_period = st.selectbox("Okres do wykresu CAGR", available,
-                                      index=available.index(default_p), key="lr_bar_period")
+            bar_period = st.selectbox(tr("Okres do wykresu CAGR"), available,
+                                      index=available.index(default_p), key="lr_bar_period", format_func=tr)
             tickers = list(pr_all)
             values = [pr_all[t].loc[bar_period, "cagr"] for t in tickers]
-            st.plotly_chart(picks_return_bar(tickers, values, title=f"CAGR — {bar_period}"),
+            st.plotly_chart(picks_return_bar(tickers, values, title=tr('CAGR — {bar_period}', bar_period=bar_period)),
                             width="stretch")
             missing = [t for t, v in zip(tickers, values) if pd.isna(v)]
             if missing:
-                st.caption(f"Bez danych dla okresu {bar_period}: {', '.join(missing)}.")
+                st.caption(tr('Bez danych dla okresu {bar_period}: {v1}.', bar_period=bar_period, v1=', '.join(missing)))
 
-        st.markdown("#### Skumulowana stopa zwrotu")
+        st.markdown(tr("#### Skumulowana stopa zwrotu"))
         st.dataframe(_period_table("total"), width="stretch")
-        st.caption("„—” = historia krotsza niz okres. CAGR „Od startu” liczony dla historii od 1 roku.")
+        st.caption(tr("„—” = historia krotsza niz okres. CAGR „Od startu” liczony dla historii od 1 roku."))
 
     # --- 2. Stopy roczne -----------------------------------------------------------
     with tab2:
@@ -158,7 +159,7 @@ else:
                 ytd_years.add(ytd)
         ydf = pd.DataFrame(yearly).sort_index().dropna(how="all")
         if ydf.empty:
-            st.info("Zaden z wybranych ETF-ow nie ma jeszcze pelnego roku kalendarzowego.")
+            st.info(tr("Zaden z wybranych ETF-ow nie ma jeszcze pelnego roku kalendarzowego."))
         else:
             ytd_year = max(ytd_years) if ytd_years else None
             st.plotly_chart(yearly_returns_heatmap(ydf, ytd_year=ytd_year), width="stretch")
@@ -177,11 +178,11 @@ else:
                 })
             if summary:
                 st.dataframe(pd.DataFrame(summary).set_index("ETF"), width="stretch")
-            st.caption("Pierwszy niepelny rok historii pominiety. Podsumowanie bez roku YTD.")
+            st.caption(tr("Pierwszy niepelny rok historii pominiety. Podsumowanie bez roku YTD."))
 
     # --- 3. Stopy kroczace ---------------------------------------------------------
     with tab3:
-        win = st.select_slider("Okno (lata)", options=[1, 3, 5, 10, 15, 20], value=10, key="lr_win")
+        win = st.select_slider(tr("Okno (lata)"), options=[1, 3, 5, 10, 15, 20], value=10, key="lr_win")
         rolling, rsum = {}, []
         for t, s in series.items():
             r = rolling_cagr(s, win)
@@ -202,22 +203,19 @@ else:
         if rolling:
             st.plotly_chart(rolling_returns_chart(rolling, win), width="stretch")
         else:
-            st.info(f"Zaden z wybranych ETF-ow nie ma historii dluzszej niz {period_label(win)}.")
+            st.info(tr('Zaden z wybranych ETF-ow nie ma historii dluzszej niz {v0}.', v0=period_label(win)))
         st.dataframe(pd.DataFrame(rsum).set_index("ETF"), width="stretch")
-        st.caption(f"Kazdy punkt to CAGR z {period_label(win)} konczacych sie w danym miesiacu. "
-                   "Okna nakladaja sie, wiec nie sa niezalezne. "
-                   "Liczba okien zalezy od dlugosci historii — przy porownaniu % okien ze strata "
-                   "zwroc uwage na kolumne 'Liczba okien'.")
+        st.caption(tr("Kazdy punkt to CAGR z {v0} konczacych sie w danym miesiacu. Okna nakladaja sie, wiec nie sa niezalezne. Liczba okien zalezy od dlugosci historii — przy porownaniu % okien ze strata zwroc uwage na kolumne 'Liczba okien'.", v0=period_label(win)))
 
     # --- 4. Wzrost i ryzyko --------------------------------------------------------
     with tab4:
-        same = st.toggle("Wspolny okres", value=True, key="lr_common",
-                         help="Przycina wszystkie ETF-y do najpozniejszego startu, zeby porownanie bylo uczciwe.")
+        same = st.toggle(tr("Wspolny okres"), value=True, key="lr_common",
+                         help=tr("Przycina wszystkie ETF-y do najpozniejszego startu, zeby porownanie bylo uczciwe."))
         view = common_window(series) if same else series
         view = {t: s for t, s in view.items() if len(s) >= 2}
         if not view:
-            st.info("Wybrane ETF-y nie maja wspolnego okresu notowan. "
-                    "Wylacz „Wspolny okres”, aby zobaczyc pelna historie kazdego z nich.")
+            st.info(tr("Wybrane ETF-y nie maja wspolnego okresu notowan. "
+                    "Wylacz „Wspolny okres”, aby zobaczyc pelna historie kazdego z nich."))
         else:
             rf_decimal = get_risk_free() / 100.0
             st.plotly_chart(growth_chart(view, proxy_end_map, start_value=10_000,
@@ -239,17 +237,17 @@ else:
                     "Calmar": _fmt_ratio(calmar),
                 })
             st.dataframe(pd.DataFrame(risk).set_index("ETF"), width="stretch")
-            rf_txt = f"{rf_decimal * 100:.2f}".replace(".", ",")
-            st.caption("Max drawdown liczony z zamkniec miesiecznych — glebokosc spadkow wewnatrz miesiaca "
-                       "jest wieksza. Linia przerywana = odcinek z funduszu proxy. "
-                       f"Sharpe/Sortino ze stopa wolna USD (biezaca) {rf_txt}%"
-                       + ("; w trybie PLN Sharpe/Sortino tylko orientacyjnie." if currency == "PLN" else "."))
+            rf_txt = fmt_number(rf_decimal * 100, 2)
+            st.caption(tr("Max drawdown liczony z zamkniec miesiecznych — glebokosc spadkow wewnatrz miesiaca "
+                          "jest wieksza. Linia przerywana = odcinek z funduszu proxy. "
+                          "Sharpe/Sortino ze stopa wolna USD (biezaca) {rf}%", rf=rf_txt)
+                       + (tr("; w trybie PLN Sharpe/Sortino tylko orientacyjnie.") if currency == "PLN" else "."))
 
 st.caption(
-    "Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna; "
+    tr("Zrodla: Yahoo Finance (ceny skorygowane o dywidendy), FRED/OECD (kurs USD/PLN — srednia miesieczna; "
     "w trybie PLN dane od 1996 (po denominacji i stabilizacji zlotego)). "
     "Fundusze proxy maja wyzsze oplaty niz ETF-y, wiec odcinek z proxy jest lekko zanizony. "
-    "Wyniki historyczne nie gwarantuja przyszlych."
+    "Wyniki historyczne nie gwarantuja przyszlych.")
 )
 
 render_footer()

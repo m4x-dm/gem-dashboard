@@ -403,7 +403,7 @@ def _finance_empty(message: str = "Brak danych ze zrodla yfinance") -> None:
     """Wspolny pusty stan dla 4 finance cards."""
     st.html(
         card_html(
-            message, pad="32px",
+            tr(message), pad="32px",
             extra=f"text-align:center;color:{MUTED};font-size:0.9rem;min-height:140px;"
                   "display:flex;align-items:center;justify-content:center;",
         )
@@ -427,21 +427,21 @@ def ratios_card(snapshot: dict, is_bank: bool = False) -> None:
     Pusty snapshot -> info "Brak danych".
     """
     if not snapshot:
-        _finance_empty("Brak danych finansowych dla tej spolki")
+        _finance_empty(tr("Brak danych finansowych dla tej spolki"))
         return
 
     name = snapshot.get("name") or ""
     sector = snapshot.get("sector") or ""
     price = snapshot.get("current_price")
-    currency_sym = "zl" if str(snapshot.get("currency", "")).upper() == "PLN" else "$"
+    currency_sym = tr("zl") if str(snapshot.get("currency", "")).upper() == "PLN" else "$"
 
     # Header
     header_html = (
         f'<div style="margin-bottom:12px">'
-        f'<div style="color:{MUTED};font-size:0.78rem;margin-bottom:4px">Wskaźniki spółki</div>'
+        f'<div style="color:{MUTED};font-size:0.78rem;margin-bottom:4px">{tr("Wskaźniki spółki")}</div>'
         f'<div style="font-size:0.95rem;color:{TEXT};font-weight:600">{name}</div>'
         f'<div style="font-size:0.75rem;color:{MUTED}">'
-        f'{sector or "—"}'
+        f'{tr(sector) if sector else "—"}'
         + (f' · {currency_sym}{price:,.2f}' if price else "")
         + (f' · cap {format_large_number(snapshot.get("market_cap"))}' if snapshot.get("market_cap") else "")
         + '</div></div>'
@@ -501,7 +501,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
     Slupek = avg, error bars = low/high, hover = num_analysts + growth %.
     """
     if df is None or df.empty:
-        _finance_empty("Brak konsensusu analitykow dla tej spolki")
+        _finance_empty(tr("Brak konsensusu analitykow dla tej spolki"))
         return
 
     periods = df.index.tolist()
@@ -513,7 +513,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
 
     hover = [
         f"<b>{p}</b><br>Avg: {a:.2f}<br>Low: {l:.2f}<br>High: {h:.2f}<br>"
-        f"Analitykow: {n}<br>Growth: {g*100:+.1f}%"
+        f"{tr('Analitykow')}: {n}<br>Growth: {g*100:+.1f}%"
         for p, a, l, h, n, g in zip(periods, avg, low, high, n_analysts, growth)
     ]
 
@@ -534,7 +534,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
         textfont=dict(color=TEXT, size=11),
         hovertext=hover,
         hoverinfo="text",
-        name="EPS estimate",
+        name=tr("EPS estimate"),
     ))
 
     fig.update_layout(
@@ -544,7 +544,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
         title=dict(text="Forward konsensus EPS", font=dict(size=13, color=TEXT)),
         font=dict(color=MUTED, size=11),
         xaxis=dict(showgrid=False, color=MUTED),
-        yaxis=dict(gridcolor=BORDER, showgrid=True, color=MUTED, title="EPS estimate"),
+        yaxis=dict(gridcolor=BORDER, showgrid=True, color=MUTED, title=tr("EPS estimate")),
         height=300,
         margin=dict(l=50, r=20, t=50, b=40),
         showlegend=False,
@@ -556,7 +556,7 @@ def forward_consensus_card(df: pd.DataFrame | None) -> None:
 def earnings_history_card(df: pd.DataFrame | None) -> None:
     """Tabela ostatnich N kwartalow: Estimate / Actual / Surprise%."""
     if df is None or df.empty:
-        _finance_empty("Brak historii earnings dla tej spolki")
+        _finance_empty(tr("Brak historii earnings dla tej spolki"))
         return
 
     if "surprise_pct" in df.columns:
@@ -576,7 +576,7 @@ def earnings_history_card(df: pd.DataFrame | None) -> None:
 
     header_html = (
         f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-        f'<div style="color:{MUTED};font-size:0.78rem">Historia wyników</div>{avg_label}</div>'
+        f'<div style="color:{MUTED};font-size:0.78rem">{tr("Historia wyników")}</div>{avg_label}</div>'
     )
 
     rows_html = ""
@@ -624,7 +624,7 @@ def analyst_recos_card(recos: dict) -> None:
     Pusty dict -> "Brak rekomendacji".
     """
     if not recos or (recos.get("target_mean") is None and (recos.get("num_analysts") or 0) == 0):
-        _finance_empty("Brak rekomendacji analitykow dla tej spolki")
+        _finance_empty(tr("Brak rekomendacji analitykow dla tej spolki"))
         return
 
     target_mean = recos.get("target_mean")
@@ -635,7 +635,7 @@ def analyst_recos_card(recos: dict) -> None:
     reco_key = (recos.get("recommendation_key") or "").lower()
     num_analysts = recos.get("num_analysts") or 0
     # Waluta z yfinance.info — PLN dla GPW, USD dla SP500
-    currency_sym = "zl" if str(recos.get("currency", "")).upper() == "PLN" else "$"
+    currency_sym = tr("zl") if str(recos.get("currency", "")).upper() == "PLN" else "$"
 
     reco_map = {
         "strong_buy":   ("STRONG BUY",   GREEN),
@@ -674,12 +674,12 @@ def analyst_recos_card(recos: dict) -> None:
         f'padding:10px;text-align:center;margin-top:12px">'
         f'<div style="color:{reco_color};font-size:0.95rem;font-weight:650">{reco_label}</div>'
         f'<div style="color:{MUTED};font-size:0.65rem;margin-top:4px">'
-        f'Recommendation key (yfinance) · {num_analysts} analitykow</div></div>'
+        f'Recommendation key (yfinance) · {tr("{n} analitykow", n=num_analysts)}</div></div>'
     )
 
     st.html(
         f'<div style="background:{BG_CARD};border-radius:14px;padding:18px;box-shadow:{SHADOW}">'
-        f'<div style="color:{MUTED};font-size:0.78rem;margin-bottom:12px">Rekomendacje analityków</div>'
+        f'<div style="color:{MUTED};font-size:0.78rem;margin-bottom:12px">{tr("Rekomendacje analityków")}</div>'
         f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">'
         f'<div>'
         f'<div style="color:{MUTED};font-size:0.7rem">Target mean</div>'
@@ -770,7 +770,7 @@ def top_pick_cards(picks: list[dict], currency: str) -> None:
         name = pick.get("name") or ""
         if len(name) > 26:
             name = name[:25].rstrip() + "…"
-        sector = pick.get("sector") or "—"
+        sector = tr(pick.get("sector") or "—")
 
         score = pick.get("score")
         score_str = pick.get("score_text") or (
@@ -818,13 +818,13 @@ def section_band(icon: str, title: str, subtitle: str = "") -> None:
 
     Parametr icon zachowany dla zgodnosci; ikony dekoracyjne nie sa renderowane."""
     sub = (
-        f'<span style="font-size:0.7rem;color:{MUTED};white-space:nowrap">{subtitle}</span>'
+        f'<span style="font-size:0.7rem;color:{MUTED};white-space:nowrap">{tr(subtitle)}</span>'
         if subtitle else ""
     )
     st.html(
         f'<div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">'
         f'<span style="font-size:1.05rem;font-weight:650;color:{TEXT};white-space:nowrap">'
-        f'{title}</span>'
+        f'{tr(title)}</span>'
         f'<span style="flex:1;height:1px;background:{BORDER}"></span>'
         f'{sub}'
         f'</div>'
@@ -836,10 +836,10 @@ def kpi_card(col, title: str, value: str, subtitle: str = "",
     """Karta KPI z dowolna (juz sformatowana) wartoscia — dla metryk nie-procentowych."""
     col.html(
         card_html(
-            f'<div style="font-size:0.78rem;color:{MUTED};margin-bottom:6px">{title}</div>'
+            f'<div style="font-size:0.78rem;color:{MUTED};margin-bottom:6px">{tr(title)}</div>'
             f'<div style="font-size:clamp(1rem,3.6vw,1.5rem);font-weight:650;color:{color};'
-            f'font-variant-numeric:tabular-nums">{value}</div>'
-            f'<div style="font-size:0.68rem;color:{MUTED};margin-top:4px">{subtitle}</div>',
+            f'font-variant-numeric:tabular-nums">{tr(value)}</div>'
+            f'<div style="font-size:0.68rem;color:{MUTED};margin-top:4px">{tr(subtitle)}</div>',
             pad="clamp(10px,2vw,16px)", extra="text-align:center;height:100%;",
         )
     )

@@ -96,6 +96,65 @@ def tr_doc(doc_id: str, pl_text: str) -> str:
     return _docs(lang).get(doc_id, pl_text)
 
 
+def translate_frame(data):
+    """Kopia DataFrame z przetlumaczonymi nazwami kolumn/indeksu i komorkami tekstowymi.
+
+    Tlumaczy tylko teksty, ktore sa w katalogu (tickery, liczby i nazwy wlasne zostaja).
+    Inne typy (Styler, listy, dict) wracaja bez zmian.
+    """
+    import pandas as pd
+
+    lang = get_lang()
+    if lang == DEFAULT_LANG or not isinstance(data, pd.DataFrame):
+        return data
+    cat = _catalog(lang)
+
+    def _t(x):
+        return cat.get(x, x) if isinstance(x, str) else x
+
+    out = data.rename(columns=_t)
+    if isinstance(out.index, pd.Index) and not isinstance(out.index, pd.MultiIndex):
+        out.index = out.index.map(_t) if out.index.dtype == object else out.index
+        out.index.name = _t(out.index.name)
+    for col in out.columns:
+        if out[col].dtype == object:
+            out[col] = out[col].map(_t)
+    return out
+
+
+def install_table_translation() -> None:
+    """st.dataframe (takze col.dataframe) tlumaczy tabele w jezyku innym niz PL.
+
+    Tylko tabele tylko-do-odczytu: data_editor celowo NIE (kod czyta edytowane kolumny
+    po polskich nazwach). column_config: klucze tlumaczone tak samo jak kolumny.
+    Idempotentne — bezpieczne przy kazdym przebiegu skryptu.
+    """
+    from streamlit.delta_generator import DeltaGenerator
+
+    if getattr(DeltaGenerator.dataframe, "_i18n", False):
+        return
+    original = DeltaGenerator.dataframe
+
+    def dataframe(self, data=None, *args, column_config=None, **kwargs):
+        if get_lang() != DEFAULT_LANG:
+            data = translate_frame(data)
+            if isinstance(column_config, dict):
+                cat = _catalog(get_lang())
+                column_config = {cat.get(k, k) if isinstance(k, str) else k: v
+                                 for k, v in column_config.items()}
+        return original(self, data, *args, column_config=column_config, **kwargs)
+
+    dataframe._i18n = True
+    DeltaGenerator.dataframe = dataframe
+    # st.dataframe to metoda zwiazana z glownym kontenerem przy imporcie — podmieniamy tez ja.
+    # API wewnetrzne Streamlita (1.55): gdy sie zmieni, tlumacza sie tylko tabele w kolumnach/zakladkach.
+    try:
+        from streamlit.delta_generator_singletons import get_dg_singleton_instance
+        st.dataframe = get_dg_singleton_instance().main_dg.dataframe
+    except Exception:
+        pass
+
+
 def render_lang_switch() -> None:
     """Przelacznik jezyka (sidebar). Zmiana od razu przeladowuje strone."""
     codes = list(LANGS)

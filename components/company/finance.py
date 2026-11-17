@@ -8,22 +8,23 @@ from data.financials import (
     get_ratios_snapshot, get_forward_consensus, get_earnings_history, get_analyst_recos,
 )
 from data.gpw_universe import GPW_BANKS
+from components.i18n import tr
 
 
 def render(ticker, market):
     is_bank = market == "GPW" and ticker in GPW_BANKS
-    st.markdown("### Wskaźniki finansowe i konsensus analityków")
+    st.markdown(tr("### Wskaźniki finansowe i konsensus analityków"))
     if market == "GPW":
         st.info(
-            "Część wskaźników jest niedostępna dla mniejszych spółek lub sektora bankowego "
+            tr("Część wskaźników jest niedostępna dla mniejszych spółek lub sektora bankowego "
             "(EBITDA / EV-EBITDA / FCF). Konsensus analityków jest typowo dostępny dla WIG20 "
-            "i większych spółek mWIG40."
+            "i większych spółek mWIG40.")
         )
     if is_bank:
-        st.caption("Bank — EBITDA, EV/EBITDA i FCF ukryte.")
-    st.caption("Dane z yfinance, cache 24h. Brakujące wskaźniki oznaczone „—”.")
+        st.caption(tr("Bank — EBITDA, EV/EBITDA i FCF ukryte."))
+    st.caption(tr("Dane z yfinance, cache 24h. Brakujące wskaźniki oznaczone „—”."))
 
-    with st.spinner(f"Pobieram dane finansowe dla {ticker}..."):
+    with st.spinner(tr("Pobieram dane finansowe dla {ticker}...", ticker=ticker)):
         snap = get_ratios_snapshot(ticker)
         cons = get_forward_consensus(ticker)
         hist = get_earnings_history(ticker)

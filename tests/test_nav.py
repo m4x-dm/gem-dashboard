@@ -123,9 +123,12 @@ def test_icons_are_material():
 def test_page_titles_have_no_emoji():
     import re
     for f in (ROOT / "views").rglob("*.py"):
-        m = re.search(r'st\.markdown\(f?"# ([^"]*)"', f.read_text(encoding="utf-8"))
+        # Naglowek strony: st.markdown("# Tytul"), st.markdown(tr("# Tytul")) albo st.markdown("# " + tr("Tytul"))
+        m = re.search(r'st\.markdown\((?:tr\()?f?"# ([^"]*)"|st\.markdown\("# " \+ tr\("([^"]*)"\)',
+                      f.read_text(encoding="utf-8"))
         assert m, f
-        assert not any(ord(ch) > 0x2FFF for ch in m.group(1)), f
+        title = m.group(1) if m.group(1) is not None else m.group(2)
+        assert not any(ord(ch) > 0x2FFF for ch in title), f
 
 
 def test_karta_first_in_spolki_and_free():

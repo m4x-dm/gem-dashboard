@@ -12,10 +12,11 @@ from components.charts import (
 )
 from components.formatting import fmt_pct
 from components.constants import GREEN, RED, PERIOD_MAP_FULL
+from components.i18n import tr
 
 
-st.markdown("# Rotacja Sektorowa")
-st.caption("Momentum 11 sektorow GICS — ktory sektor prowadzi?")
+st.markdown(tr("# Rotacja Sektorowa"))
+st.caption(tr("Momentum 11 sektorow GICS — ktory sektor prowadzi?"))
 
 # Sector ETFs (SPDR Select Sector)
 SECTOR_ETFS = {
@@ -33,30 +34,30 @@ SECTOR_ETFS = {
 }
 SECTOR_TICKERS = list(SECTOR_ETFS.keys())
 
-period = st.selectbox("Okres danych", list(PERIOD_MAP_FULL.keys())[3:], index=4, key="sektory_period")
+period = st.selectbox(tr("Okres danych"), list(PERIOD_MAP_FULL.keys())[3:], index=4, key="sektory_period", format_func=tr)
 yf_period = PERIOD_MAP_FULL[period]
 
-with st.spinner("Pobieram dane sektorowe..."):
+with st.spinner(tr("Pobieram dane sektorowe...")):
     prices = download_prices(SECTOR_TICKERS, period=yf_period)
 
 available = [t for t in SECTOR_TICKERS if t in prices.columns]
 if len(available) < 3:
-    st.error("Za malo danych sektorowych.")
+    st.error(tr("Za malo danych sektorowych."))
     render_footer()
     st.stop()
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Heatmapa", "📊 Ranking", "📖 Cykl koniunkturalny", "📈 Porownanie"])
+tab1, tab2, tab3, tab4 = st.tabs([tr("🗺️ Heatmapa"), tr("📊 Ranking"), tr("📖 Cykl koniunkturalny"), tr("📈 Porownanie")])
 
 with tab1:
-    st.subheader("Heatmapa momentum sektorow")
+    st.subheader(tr("Heatmapa momentum sektorow"))
 
     # Rolling 3M momentum per sector per month
     monthly_prices = prices[available].resample("ME").last()
     rolling_mom = monthly_prices.pct_change(periods=3) * 100  # 3M rolling
 
     if len(rolling_mom.dropna()) < 2:
-        st.warning("Za malo danych do heatmapy.")
+        st.warning(tr("Za malo danych do heatmapy."))
     else:
         mom_clean = rolling_mom.dropna()
         # Rename columns to sector names
@@ -74,15 +75,15 @@ with tab1:
             colorscale=[[0, "#EF4444"], [0.5, BG2], [1, "#22C55E"]],
             zmid=0,
             text=labels, texttemplate="%{text}", textfont=dict(size=9),
-            hovertemplate="Sektor: %{y}<br>Okres: %{x}<br>Mom 3M: %{text}<extra></extra>",
+            hovertemplate=tr("Sektor") + ": %{y}<br>" + tr("Okres") + ": %{x}<br>Mom 3M: %{text}<extra></extra>",
         ))
         h = max(400, len(y_labels) * 35)
-        fig.update_layout(**_base_layout("Momentum 3M sektorow w czasie (%)", height=h))
+        fig.update_layout(**_base_layout(tr("Momentum 3M sektorow w czasie (%)"), height=h))
         fig.update_xaxes(side="top", tickangle=-45)
         st.plotly_chart(fig, width="stretch")
 
 with tab2:
-    st.subheader("Ranking biezacy sektorow")
+    st.subheader(tr("Ranking biezacy sektorow"))
 
     rets = latest_returns(prices[available])
     rets["Nazwa"] = rets.index.map(SECTOR_ETFS)
@@ -115,8 +116,8 @@ with tab2:
             text=[f"{v*100:.1f}%" for v in df_bar_sorted["Wynik"]],
             textposition="outside", textfont=dict(size=11),
         ))
-        fig.update_layout(**_base_layout("Ranking sektorow — wynik momentum", height=max(350, len(df_bar) * 35)))
-        fig.update_xaxes(title_text="Wynik kompozytowy (%)")
+        fig.update_layout(**_base_layout(tr("Ranking sektorow — wynik momentum"), height=max(350, len(df_bar) * 35)))
+        fig.update_xaxes(title_text=tr("Wynik kompozytowy (%)"))
         st.plotly_chart(fig, width="stretch")
 
     # Table
@@ -126,8 +127,8 @@ with tab2:
     st.dataframe(display, width="stretch")
 
 with tab3:
-    st.subheader("Cykl koniunkturalny a rotacja sektorowa")
-    st.markdown("""
+    st.subheader(tr("Cykl koniunkturalny a rotacja sektorowa"))
+    st.markdown(tr("""
 **Wczesna ekspansja** (po recesji):
 - Liderzy: **Technologia** (XLK), **Konsumpcja cykliczna** (XLY), **Finanse** (XLF)
 - Niska inflacja, obnizki stop, odbudowa zaufania
@@ -150,20 +151,20 @@ with tab3:
 - Gdy GEM wskazuje AGG (obligacje), rynek czesto jest w poznej ekspansji lub recesji
 - Sektory defensywne (XLU, XLV, XLP) potwierdzaja trend spadkowy
 - Powrot QQQ/VEA w GEM czesto pokrywa sie z rotacja do sektorow cyklicznych
-    """)
+    """))
 
 with tab4:
-    st.subheader("Porownanie sektorow")
-    compare = st.multiselect("Wybierz 2-4 sektory", available,
+    st.subheader(tr("Porownanie sektorow"))
+    compare = st.multiselect(tr("Wybierz 2-4 sektory"), available,
                               default=available[:3],
                               max_selections=4, key="sektory_compare",
                               format_func=lambda t: f"{t} ({SECTOR_ETFS.get(t, t)})")
     if len(compare) >= 2:
         st.plotly_chart(
-            price_chart(prices[compare], title="Porownanie sektorow (baza=100)"),
+            price_chart(prices[compare], title=tr("Porownanie sektorow (baza=100)")),
             width="stretch",
         )
     else:
-        st.info("Wybierz co najmniej 2 sektory.")
+        st.info(tr("Wybierz co najmniej 2 sektory."))
 
 render_footer()

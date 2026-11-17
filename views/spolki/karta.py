@@ -7,6 +7,7 @@ from components.sidebar import render_footer
 from data.financials import _detect_market
 from data.gpw_universe import GPW_NAMES
 from data.sp500_universe import SP500_NAMES
+from components.i18n import tr
 
 TABS = ["Przegląd", "Finanse", "Wyniki", "Akcjonariat", "Dywidendy", "Konkurencja"]
 TEASERS = {
@@ -32,9 +33,9 @@ def _search(current: str | None) -> None:
     options = [""] + sorted(NAMES, key=lambda t: NAMES[t])
     if st.session_state.get("karta_search") != (current or ""):
         st.session_state["karta_search"] = current if current in options else ""
-    st.selectbox("Szukaj spółki (S&P 500 i GPW)", options,
+    st.selectbox(tr("Szukaj spółki (S&P 500 i GPW)"), options,
                  key="karta_search", on_change=_on_pick,
-                 format_func=lambda t: "Wpisz nazwę lub ticker…" if not t else f"{t} — {NAMES[t]}")
+                 format_func=lambda t: tr("Wpisz nazwę lub ticker…") if not t else f"{t} — {NAMES[t]}")
 
 
 def _on_tab():
@@ -51,8 +52,8 @@ def _section() -> str:
     want = BY_SLUG.get((st.query_params.get("tab") or "").lower().strip(), "Przegląd")
     if st.session_state.get("karta_tab") != want:
         st.session_state["karta_tab"] = want
-    sel = st.segmented_control("Sekcja", TABS, key="karta_tab", on_change=_on_tab,
-                               label_visibility="collapsed")
+    sel = st.segmented_control(tr("Sekcja"), TABS, key="karta_tab", on_change=_on_tab,
+                               format_func=tr, label_visibility="collapsed")
     return sel or "Przegląd"
 
 
@@ -63,19 +64,19 @@ def _render_tab(name: str, ticker: str, market: str) -> None:
     try:
         mod.render(ticker, market)
     except Exception:
-        st.caption(f"{name}: dane chwilowo niedostępne")
+        st.caption(f"{tr(name)}: " + tr("dane chwilowo niedostępne"))
 
 
 ticker = (st.query_params.get("t") or "").upper().strip() or None
 if ticker and ticker not in NAMES and f"{ticker}.WA" in NAMES:
     ticker = f"{ticker}.WA"
-st.markdown("# Karta spółki")
+st.markdown(tr("# Karta spółki"))
 _search(ticker)
 
 if ticker is None:
-    st.caption("Wybierz spółkę, aby zobaczyć jej kartę.")
+    st.caption(tr("Wybierz spółkę, aby zobaczyć jej kartę."))
 elif ticker not in NAMES:
-    st.warning(f"Nie znaleziono spółki {ticker} w S&P 500 ani na GPW.")
+    st.warning(tr("Nie znaleziono spółki {ticker} w S&P 500 ani na GPW.", ticker=ticker))
 else:
     market = _detect_market(ticker)
     header.render(ticker, market)
@@ -83,6 +84,6 @@ else:
     if name == "Przegląd" or is_premium():
         _render_tab(name, ticker, market)
     else:
-        premium_teaser(name, TEASERS[name])
+        premium_teaser(tr(name), tr(TEASERS[name]))
 
 render_footer()

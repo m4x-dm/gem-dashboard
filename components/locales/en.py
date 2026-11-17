@@ -380,6 +380,12 @@ EN: dict[str, str] = {
 }
 
 
+# Strony Premium (etap 2) — osobny plik, zeby en.py nie rosl w nieskonczonosc
+from components.locales.en_premium import PREMIUM  # noqa: E402
+
+EN.update(PREMIUM)
+
+
 DOCS: dict[str, str] = {
     "sygnal_jak_czytac": """
         **Classic GEM** looks at 5 assets:
@@ -501,3 +507,8 @@ The weights favour the **long-term trend** (12M = 50%) but also take shorter per
 > Consult a licensed financial adviser before making investment decisions.
 """,
 }
+
+# Dlugie opisy na stronach Premium (etap 2)
+from components.locales.en_docs_premium import DOCS_PREMIUM  # noqa: E402
+
+DOCS.update(DOCS_PREMIUM)

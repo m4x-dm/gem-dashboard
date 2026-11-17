@@ -26,7 +26,8 @@ POLISH = re.compile(
 )
 # Nazwy wlasne, ktore wolno zostawic (marka portalu w linku)
 ALLOWED = ("inwestowanie.edu.pl",)
-TICKER_OPTION = re.compile(r"^[A-Z0-9.^=-]+ — ")
+PROPER_NAME_COLS = {"Name", "Nazwa", "Company", "Holder", "Spółka", "Spolka"}
+TICKER_OPTION = re.compile(r"^(?:\[[A-Z]+\] )?[A-Z0-9.^=-]+ — ")
 
 TEXT_TYPES = ("markdown", "caption", "html", "button", "expander", "tab", "selectbox", "checkbox",
               "text_input", "number_input", "info", "warning", "error", "success", "subheader",
@@ -69,6 +70,19 @@ def _texts(at) -> list[str]:
     # napisy spod kluczy z trescia (tytuly, osie, etykiety, hover), bez kolorow/typow.
     for e in at.get("plotly_chart"):
         _collect_chart_text(json.loads(e.proto.spec), out)
+    # Tabele: naglowki, nazwa indeksu i komorki tekstowe (bez kolumn z nazwami wlasnymi)
+    for e in at.dataframe:
+        try:
+            df = e.value
+        except Exception:
+            continue
+        out.extend(str(c) for c in df.columns)
+        if df.index.name:
+            out.append(str(df.index.name))
+        for c in df.columns:
+            if str(c) in PROPER_NAME_COLS or df[c].dtype != object:
+                continue
+            out.extend(v for v in df[c].dropna().unique()[:50] if isinstance(v, str))
     return out
 
 

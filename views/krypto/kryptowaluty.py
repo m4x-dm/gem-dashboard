@@ -25,9 +25,10 @@ from components.charts import (
     _base_layout, ta_overview_chart, macd_chart, rsi_chart, rs_chart,
 )
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
+from components.i18n import tr
 
 
-st.markdown("# Kryptowaluty — Top 200")
+st.markdown(tr("# Kryptowaluty — Top 200"))
 
 # ---------------------------------------------------------------------------
 # Wspolne: wybor kategorii
@@ -83,39 +84,39 @@ def _flexible_score(ret_row: pd.Series) -> float:
 # TABY
 # ---------------------------------------------------------------------------
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 Ranking momentum",
-    "₿ Alt/BTC — sila vs Bitcoin",
-    "📉 Wykresy",
-    "⚖️ Porownanie",
-    "🧪 Backtest momentum",
-    "🔔 Sygnaly TA",
-    "💪 Relative Strength",
+    tr("📊 Ranking momentum"),
+    tr("₿ Alt/BTC — sila vs Bitcoin"),
+    tr("📉 Wykresy"),
+    tr("⚖️ Porownanie"),
+    tr("🧪 Backtest momentum"),
+    tr("🔔 Sygnaly TA"),
+    tr("💪 Relative Strength"),
 ])
 
 # ========================== TAB 1: RANKING ==========================
 with tab1:
     @st.fragment
     def _ranking_fragment():
-        st.markdown("### Ranking momentum — kryptowaluty")
+        st.markdown(tr("### Ranking momentum — kryptowaluty"))
 
         col1, col2 = st.columns(2)
         with col1:
-            cat_filter = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_rank_cat")
+            cat_filter = st.selectbox(tr("Kategoria"), CATEGORY_OPTIONS, key="cr_rank_cat", format_func=tr)
         with col2:
-            mom_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"], key="cr_rank_mom")
+            mom_filter = st.selectbox(tr("Momentum absolutny"), ["Wszystkie", "TAK", "NIE"], key="cr_rank_mom", format_func=tr)
 
         tickers = _tickers_for_category(cat_filter)
         if not tickers:
-            st.warning("Brak tickerow dla wybranej kategorii.")
+            st.warning(tr("Brak tickerow dla wybranej kategorii."))
         else:
             if cat_filter == "Wszystkie":
-                st.info("Pobieranie danych dla ~200 kryptowalut moze potrwac dluzej. Mozesz wybrac konkretna kategorie.")
+                st.info(tr("Pobieranie danych dla ~200 kryptowalut moze potrwac dluzej. Mozesz wybrac konkretna kategorie."))
 
-            with st.spinner("Pobieram dane kryptowalut..."):
+            with st.spinner(tr("Pobieram dane kryptowalut...")):
                 prices = download_prices(tickers, period="2y")
 
             if prices.empty:
-                st.error("Nie udalo sie pobrac danych.")
+                st.error(tr("Nie udalo sie pobrac danych."))
             else:
                 rf = get_risk_free()
                 ranking = build_ranking(prices, rf)
@@ -131,7 +132,7 @@ with tab1:
                 if mom_filter != "Wszystkie":
                     filtered = filtered[filtered["Momentum_abs"] == mom_filter]
 
-                st.markdown(f"**{len(filtered)}** kryptowalut | Stopa wolna: **{rf:.2f}%**")
+                st.markdown(tr('**{v0}** kryptowalut | Stopa wolna: **{v1}%**', v0=len(filtered), v1=f'{rf:.2f}'))
 
                 display_df = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
                 display_df.index.name = "Ticker"
@@ -144,33 +145,33 @@ with tab1:
                 # Eksport CSV
                 csv = filtered[["Nazwa", "Kategoria", "1M", "3M", "6M", "12M", "Wynik", "Momentum_abs"]].copy()
                 csv.index.name = "Ticker"
-                st.download_button("📥 Eksportuj CSV", csv.to_csv(), "crypto_ranking.csv", "text/csv")
+                st.download_button(tr("📥 Eksportuj CSV"), csv.to_csv(), "crypto_ranking.csv", "text/csv")
 
                 st.divider()
 
                 # Wykres slupkowy top 15
                 valid = filtered.dropna(subset=["Wynik"])
                 if not valid.empty:
-                    fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title="Top 15 — wynik momentum kryptowalut")
+                    fig = ranking_bar_chart(valid, top_n=min(15, len(valid)), title=tr("Top 15 — wynik momentum kryptowalut"))
                     st.plotly_chart(fig, width="stretch")
 
     _ranking_fragment()
 
 # ========================== TAB 2: ALT/BTC ==========================
 with tab2:
-    st.markdown("### Alt/BTC — sila altcoinow wzgledem Bitcoina")
-    st.caption("Ktore altcoiny najlepiej performuja w relacji do BTC? Ratio alt/BTC rosnie = altcoin bije Bitcoina.")
+    st.markdown(tr("### Alt/BTC — sila altcoinow wzgledem Bitcoina"))
+    st.caption(tr("Ktore altcoiny najlepiej performuja w relacji do BTC? Ratio alt/BTC rosnie = altcoin bije Bitcoina."))
 
     col1, col2 = st.columns(2)
     with col1:
-        altbtc_cat = st.selectbox("Filtr", ALTBTC_CATEGORY_OPTIONS, index=1, key="altbtc_cat")
+        altbtc_cat = st.selectbox(tr("Filtr"), ALTBTC_CATEGORY_OPTIONS, index=1, key="altbtc_cat", format_func=tr)
     with col2:
         altbtc_display_map = {
             "Strategia 12-1": 273,
             "1 miesiac": 21, "2 miesiace": 42, "3 miesiace": 63,
             "6 miesiecy": 126, "9 miesiecy": 189, "1 rok": 252, "2 lata": 504,
         }
-        altbtc_display_label = st.selectbox("Okres wykresu", list(altbtc_display_map.keys()), index=0, key="altbtc_period")
+        altbtc_display_label = st.selectbox(tr("Okres wykresu"), list(altbtc_display_map.keys()), index=0, key="altbtc_period", format_func=tr)
         altbtc_display_days = altbtc_display_map[altbtc_display_label]
         altbtc_is_strategy = altbtc_display_label == "Strategia 12-1"
 
@@ -181,20 +182,20 @@ with tab2:
 
     _altbtc_ok = True
     if not alt_tickers_clean:
-        st.warning("Brak altcoinow do analizy (wybrana kategoria zawiera tylko BTC).")
+        st.warning(tr("Brak altcoinow do analizy (wybrana kategoria zawiera tylko BTC)."))
         _altbtc_ok = False
 
     if _altbtc_ok:
         all_needed = list(set(alt_tickers_clean + ["BTC-USD"]))
 
         if altbtc_cat == "Wszystkie" or altbtc_cat in ("Top 100", "Top 200"):
-            st.info(f"Pobieranie danych dla {len(all_needed)} kryptowalut moze potrwac dluzej. Wybierz mniejszy filtr, aby przyspieszyc.")
+            st.info(tr('Pobieranie danych dla {v0} kryptowalut moze potrwac dluzej. Wybierz mniejszy filtr, aby przyspieszyc.', v0=len(all_needed)))
 
-        with st.spinner("Pobieram dane kryptowalut i BTC..."):
+        with st.spinner(tr("Pobieram dane kryptowalut i BTC...")):
             altbtc_prices = download_prices(all_needed, period="2y")
 
         if altbtc_prices.empty or "BTC-USD" not in altbtc_prices.columns:
-            st.error("Nie udalo sie pobrac danych BTC.")
+            st.error(tr("Nie udalo sie pobrac danych BTC."))
             _altbtc_ok = False
 
     if _altbtc_ok:
@@ -202,7 +203,7 @@ with tab2:
         available_alts = [t for t in alt_tickers_clean if t in altbtc_prices.columns]
 
         if not available_alts:
-            st.error("Brak danych altcoinow.")
+            st.error(tr("Brak danych altcoinow."))
             _altbtc_ok = False
 
     if _altbtc_ok:
@@ -217,7 +218,7 @@ with tab2:
         ratio_df = ratio_df.dropna(axis=1, how="all")
 
         if ratio_df.empty or len(ratio_df) < 22:
-            st.error("Za malo danych do obliczenia ratio alt/BTC.")
+            st.error(tr("Za malo danych do obliczenia ratio alt/BTC."))
             _altbtc_ok = False
 
     if _altbtc_ok:
@@ -232,11 +233,11 @@ with tab2:
         ratio_rets["Kategoria"] = ratio_rets.index.map(lambda t: CRYPTO_CATEGORY_MAP.get(t, "—"))
 
         if ratio_rets.empty:
-            st.warning("Brak wystarczajacych danych do obliczenia ratio. Sprobuj inna kategorie.")
+            st.warning(tr("Brak wystarczajacych danych do obliczenia ratio. Sprobuj inna kategorie."))
         else:
             # Top 20 tabela
             top20 = ratio_rets.head(20)
-            st.markdown(f"#### Top 20 altcoinow vs BTC (ratio momentum) — {len(ratio_rets)} altcoinow z danymi")
+            st.markdown(tr('#### Top 20 altcoinow vs BTC (ratio momentum) — {v0} altcoinow z danymi', v0=len(ratio_rets)))
 
             display_cols = ["Nazwa", "Kategoria"]
             for p in ["1M", "3M", "6M", "12M"]:
@@ -254,7 +255,7 @@ with tab2:
             st.divider()
 
             # Wykres slupkowy zmian ratio top 20
-            st.markdown("#### Wynik kompozytowy ratio alt/BTC — top 20")
+            st.markdown(tr("#### Wynik kompozytowy ratio alt/BTC — top 20"))
             bar_data_valid = top20.dropna(subset=["Wynik"])
             if not bar_data_valid.empty:
                 bar_sorted = bar_data_valid.head(20).sort_values("Wynik", ascending=True)
@@ -268,14 +269,14 @@ with tab2:
                     textposition="outside",
                     textfont=dict(size=10),
                 ))
-                fig_bar.update_layout(**_base_layout("Ratio alt/BTC — wynik kompozytowy (%)", height=max(400, len(bar_sorted) * 30)))
-                fig_bar.update_xaxes(title_text="Zmiana ratio (%)")
+                fig_bar.update_layout(**_base_layout(tr("Ratio alt/BTC — wynik kompozytowy (%)"), height=max(400, len(bar_sorted) * 30)))
+                fig_bar.update_xaxes(title_text=tr("Zmiana ratio (%)"))
                 st.plotly_chart(fig_bar, width="stretch")
 
             st.divider()
 
             # Wykres liniowy ratio alt/BTC dla top 5 (znormalizowany do bazy 100)
-            st.markdown("#### Ratio alt/BTC — top 5 (baza = 100)")
+            st.markdown(tr("#### Ratio alt/BTC — top 5 (baza = 100)"))
             top5_tickers = [t for t in ratio_rets.head(5).index.tolist() if t in ratio_df.columns]
             if top5_tickers:
                 top5_ratio = ratio_df[top5_tickers].dropna(how="all")
@@ -287,17 +288,17 @@ with tab2:
 
                 if not top5_ratio.empty and len(top5_ratio) > 1:
                     renamed = top5_ratio.rename(columns={t: f"{t.replace('-USD','')} / BTC" for t in top5_tickers})
-                    fig_ratio = price_chart(renamed, title=f"Ratio alt/BTC (baza = 100) — {altbtc_display_label}", normalize=True)
+                    fig_ratio = price_chart(renamed, title=tr('Ratio alt/BTC (baza = 100) — {altbtc_display_label}', altbtc_display_label=altbtc_display_label), normalize=True)
                     st.plotly_chart(fig_ratio, width="stretch")
 
 # ========================== TAB 3: WYKRESY ==========================
 with tab3:
-    st.markdown("### Wykresy — kryptowaluty")
+    st.markdown(tr("### Wykresy — kryptowaluty"))
 
     options_map = {t: f"{t.replace('-USD','')} — {CRYPTO_NAMES.get(t, t)}" for t in ALL_CRYPTO_TICKERS}
 
     selected_charts = st.multiselect(
-        "Wybierz kryptowaluty (maks. 5)",
+        tr("Wybierz kryptowaluty (maks. 5)"),
         options=list(options_map.keys()),
         default=["BTC-USD", "ETH-USD", "SOL-USD"],
         format_func=lambda x: options_map[x],
@@ -309,29 +310,29 @@ with tab3:
         "1 miesiac": "1mo", "3 miesiace": "3mo", "6 miesiecy": "6mo",
         "1 rok": "1y", "2 lata": "2y", "5 lat": "5y", "Maksymalny": "max",
     }
-    period_label = st.selectbox("Okres", list(period_map.keys()), index=4, key="cr_chart_period")
+    period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=4, key="cr_chart_period", format_func=tr)
     period = period_map[period_label]
 
     if not selected_charts:
-        st.info("Wybierz co najmniej 1 kryptowalute.")
+        st.info(tr("Wybierz co najmniej 1 kryptowalute."))
     else:
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             chart_prices = download_prices(selected_charts, period=period)
 
         if chart_prices.empty:
-            st.error("Nie udalo sie pobrac danych.")
+            st.error(tr("Nie udalo sie pobrac danych."))
         else:
-            sub1, sub2, sub3 = st.tabs(["📈 Cena", "🚀 Momentum", "📉 Drawdown"])
+            sub1, sub2, sub3 = st.tabs([tr("📈 Cena"), tr("🚀 Momentum"), tr("📉 Drawdown")])
 
             with sub1:
-                normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="cr_norm")
+                normalize = st.checkbox(tr("Normalizuj (baza = 100)"), value=True, key="cr_norm")
                 title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (USD)"
                 fig = price_chart(chart_prices, title=title, normalize=normalize)
                 st.plotly_chart(fig, width="stretch")
 
             with sub2:
-                window = st.slider("Okno momentum (dni)", 21, 504, 252, step=21, key="cr_mom_win")
-                fig = momentum_chart(chart_prices, window=window, title=f"Momentum {window}D (rolling)")
+                window = st.slider(tr("Okno momentum (dni)"), 21, 504, 252, step=21, key="cr_mom_win")
+                fig = momentum_chart(chart_prices, window=window, title=tr('Momentum {window}D (rolling)', window=window))
                 st.plotly_chart(fig, width="stretch")
 
             with sub3:
@@ -340,14 +341,14 @@ with tab3:
 
 # ========================== TAB 4: POROWNANIE ==========================
 with tab4:
-    st.markdown("### Porownanie kryptowalut")
+    st.markdown(tr("### Porownanie kryptowalut"))
 
     options_cmp = {t: f"{t.replace('-USD','')} — {CRYPTO_NAMES.get(t, t)}" for t in ALL_CRYPTO_TICKERS}
 
     col_sel, col_period = st.columns([3, 1])
     with col_sel:
         selected_cmp = st.multiselect(
-            "Wybierz 2-4 kryptowaluty do porownania",
+            tr("Wybierz 2-4 kryptowaluty do porownania"),
             options=list(options_cmp.keys()),
             default=["BTC-USD", "ETH-USD"],
             format_func=lambda x: options_cmp[x],
@@ -366,26 +367,26 @@ with tab4:
             "10 lat": "10y",
             "Maksymalny": "max",
         }
-        cmp_period_label = st.selectbox("Okres", list(cmp_period_map.keys()), index=0, key="cr_cmp_period")
+        cmp_period_label = st.selectbox(tr("Okres"), list(cmp_period_map.keys()), index=0, key="cr_cmp_period", format_func=tr)
         cmp_period = cmp_period_map[cmp_period_label]
         cmp_is_strategy = cmp_period_label == "Strategia 12-1"
 
     if len(selected_cmp) < 2:
-        st.info("Wybierz co najmniej 2 kryptowaluty.")
+        st.info(tr("Wybierz co najmniej 2 kryptowaluty."))
     else:
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             cmp_prices = download_prices(selected_cmp, period=cmp_period)
 
         if cmp_is_strategy and len(cmp_prices) > 273:
             cmp_prices = cmp_prices.iloc[-273:-21]
         elif cmp_is_strategy:
-            st.warning("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane.")
+            st.warning(tr("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane."))
 
         if cmp_prices.empty:
-            st.error("Brak danych.")
+            st.error(tr("Brak danych."))
         else:
             # Karty ze stopami zwrotu
-            st.markdown("#### Stopy zwrotu")
+            st.markdown(tr("#### Stopy zwrotu"))
             rets = latest_returns(cmp_prices)
 
             cols = st.columns(len(selected_cmp))
@@ -401,14 +402,14 @@ with tab4:
             st.divider()
 
             # Overlay cenowy
-            st.markdown("#### Cena znormalizowana (baza = 100)")
-            fig = price_chart(cmp_prices, title=f"Porownanie cenowe — {cmp_period_label}")
+            st.markdown(tr("#### Cena znormalizowana (baza = 100)"))
+            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=cmp_period_label))
             st.plotly_chart(fig, width="stretch")
 
             st.divider()
 
             # Statystyki
-            st.markdown("#### Statystyki")
+            st.markdown(tr("#### Statystyki"))
             rf = get_risk_free()
             rf_decimal = rf / 100.0
             cmp_stats = {}
@@ -421,7 +422,7 @@ with tab4:
             st.divider()
 
             # Macierz korelacji
-            st.markdown("#### Macierz korelacji (252 dni)")
+            st.markdown(tr("#### Macierz korelacji (252 dni)"))
             corr = correlation_matrix(cmp_prices, period=252)
             fig = correlation_heatmap(corr)
             st.plotly_chart(fig, width="stretch")
@@ -430,63 +431,63 @@ with tab4:
 with tab5:
     @st.fragment
     def _backtest_fragment():
-        st.markdown("### Backtest rotacji momentum — kryptowaluty")
-        st.caption("Co miesiac kupuj top N krypto wg wyniku kompozytowego. Porownanie z BTC buy & hold i equal-weight B&H.")
+        st.markdown(tr("### Backtest rotacji momentum — kryptowaluty"))
+        st.caption(tr("Co miesiac kupuj top N krypto wg wyniku kompozytowego. Porownanie z BTC buy & hold i equal-weight B&H."))
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            bt_cat = st.selectbox("Kategoria", CATEGORY_OPTIONS, key="cr_bt_cat")
+            bt_cat = st.selectbox(tr("Kategoria"), CATEGORY_OPTIONS, key="cr_bt_cat", format_func=tr)
         with col2:
-            top_n = st.selectbox("Top N kryptowalut", [1, 3, 5, 10], index=1, key="cr_bt_topn")
+            top_n = st.selectbox(tr("Top N kryptowalut"), [1, 3, 5, 10], index=1, key="cr_bt_topn")
         with col3:
             bt_period_map = {"1 rok": "1y", "2 lata": "2y", "5 lat": "5y"}
-            bt_period_label = st.selectbox("Okres", list(bt_period_map.keys()), index=1, key="cr_bt_period")
+            bt_period_label = st.selectbox(tr("Okres"), list(bt_period_map.keys()), index=1, key="cr_bt_period", format_func=tr)
             bt_period = bt_period_map[bt_period_label]
         with col4:
-            start_capital = st.number_input("Kapital (USD)", value=10000, step=1000, min_value=100, key="cr_bt_cap")
+            start_capital = st.number_input(tr("Kapital (USD)"), value=10000, step=1000, min_value=100, key="cr_bt_cap")
 
-        with st.expander("⚙️ Metoda scoringu + koszty", expanded=False):
+        with st.expander(tr("⚙️ Metoda scoringu + koszty"), expanded=False):
             rank_based = st.checkbox(
-                "Rank-based score (percentyle + anty-1M)",
+                tr("Rank-based score (percentyle + anty-1M)"),
                 value=False,
                 key="cr_bt_rank",
-                help="Zamiast wazonej sumy surowych zwrotow (_flexible_score), rankuje "
+                help=tr("Zamiast wazonej sumy surowych zwrotow (_flexible_score), rankuje "
                      "tickery per okres (0-1). 1M flipowany jako anti-signal. Szczegolnie "
-                     "odporny dla krypto — duze wahania 1M nie dominuja juz scoringu.",
+                     "odporny dla krypto — duze wahania 1M nie dominuja juz scoringu."),
             )
             costs_on_cr = st.checkbox(
-                "Koszty i podatki (realistycznie)",
+                tr("Koszty i podatki (realistycznie)"),
                 value=False,
                 key="cr_bt_costs",
-                help="Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow.",
+                help=tr("Koszt transakcji skalowany turnoverem + Belka 19% od zyskownych segmentow."),
             )
             col_cr_tc, col_cr_belka = st.columns(2)
             with col_cr_tc:
                 tc_cr_pct = st.slider(
-                    "Koszt roundtrip (%)", 0.0, 1.0, 0.3, 0.01,
+                    tr("Koszt roundtrip (%)"), 0.0, 1.0, 0.3, 0.01,
                     disabled=not costs_on_cr,
                     key="cr_bt_tc",
-                    help="Krypto: Binance/Zonda 0.1-0.25% per stronie, spread altcoinow 0.1-0.5%. Default 0.3%.",
+                    help=tr("Krypto: Binance/Zonda 0.1-0.25% per stronie, spread altcoinow 0.1-0.5%. Default 0.3%."),
                 ) / 100.0
             with col_cr_belka:
                 belka_on_cr = st.checkbox(
-                    "Belka 19%",
+                    tr("Belka 19%"),
                     value=False,
                     disabled=not costs_on_cr,
                     key="cr_bt_belka",
-                    help="PIT-38 rozliczany rocznie. Model liczy od frakcji rotowanej przy rebalansie.",
+                    help=tr("PIT-38 rozliczany rocznie. Model liczy od frakcji rotowanej przy rebalansie."),
                 )
             tc_cr = tc_cr_pct if costs_on_cr else 0.0
             tax_cr = 0.19 if (costs_on_cr and belka_on_cr) else 0.0
             regime_on_cr = st.checkbox(
-                "Filtr breadth (regime)",
+                tr("Filtr breadth (regime)"),
                 value=False,
                 key="cr_bt_regime",
-                help="Gdy mniej niz X% coinow jest powyzej SMA100 → strategia przechodzi "
-                     "do cash. Krypto ma czeste bessy >70%, filtr regime ratuje kapital.",
+                help=tr("Gdy mniej niz X% coinow jest powyzej SMA100 → strategia przechodzi "
+                     "do cash. Krypto ma czeste bessy >70%, filtr regime ratuje kapital."),
             )
             breadth_cr_pct = st.slider(
-                "Prog breadth (% > SMA100)", 20, 70, 40, 5,
+                tr("Prog breadth (% > SMA100)"), 20, 70, 40, 5,
                 disabled=not regime_on_cr,
                 key="cr_bt_breadth",
             ) / 100.0
@@ -499,15 +500,15 @@ with tab5:
 
         _bt_ok = True
         if len(bt_tickers) < top_n + 1:
-            st.warning(f"Za malo kryptowalut ({len(bt_tickers)}) dla top {top_n}.")
+            st.warning(tr('Za malo kryptowalut ({v0}) dla top {top_n}.', v0=len(bt_tickers), top_n=top_n))
             _bt_ok = False
 
         if _bt_ok:
-            with st.spinner("Pobieram dane i licze backtest..."):
+            with st.spinner(tr("Pobieram dane i licze backtest...")):
                 bt_prices = download_prices(bt_tickers, period=bt_period)
 
             if bt_prices.empty or len(bt_prices) < 91:
-                st.error("Za malo danych do backtestu. Sprobuj dluzszy okres.")
+                st.error(tr("Za malo danych do backtestu. Sprobuj dluzszy okres."))
                 _bt_ok = False
 
         if _bt_ok:
@@ -515,13 +516,13 @@ with tab5:
             # Krypto: krotszy lookback niz akcje (90 dni ~ 3M)
             lookback = min(273, len(bt_prices) - 30)
             if lookback < 63:
-                st.error("Za malo danych do backtestu (potrzeba min. 63 dni historii).")
+                st.error(tr("Za malo danych do backtestu (potrzeba min. 63 dni historii)."))
                 _bt_ok = False
 
         if _bt_ok:
             available_cols = [c for c in bt_prices.columns if bt_prices[c].dropna().shape[0] > lookback]
             if len(available_cols) < top_n:
-                st.error(f"Tylko {len(available_cols)} kryptowalut ma wystarczajaco dlugie dane. Potrzeba min. {top_n}.")
+                st.error(tr('Tylko {v0} kryptowalut ma wystarczajaco dlugie dane. Potrzeba min. {top_n}.', v0=len(available_cols), top_n=top_n))
                 _bt_ok = False
 
         if _bt_ok:
@@ -541,10 +542,10 @@ with tab5:
             )
 
             if result is None:
-                st.error("Za malo danych do backtestu.")
+                st.error(tr("Za malo danych do backtestu."))
             else:
                 # Krzywa kapitalu
-                st.markdown("#### Krzywa kapitalu")
+                st.markdown(tr("#### Krzywa kapitalu"))
                 fig = equity_chart(result["equity_curves"])
                 st.plotly_chart(fig, width="stretch")
 
@@ -555,7 +556,7 @@ with tab5:
                 for name, eq in result["equity_curves"].items():
                     bt_stats[name] = calc_stats(eq, 365, rf_decimal)
 
-                st.markdown("#### Statystyki")
+                st.markdown(tr("#### Statystyki"))
                 stats_table(bt_stats)
 
                 # Wartosci koncowe
@@ -570,47 +571,47 @@ with tab5:
 
 # ========================== TAB 6: SYGNALY TA ==========================
 with tab6:
-    st.markdown("### Sygnaly analizy technicznej")
-    st.caption("Trend-following: 5 wskaznikow z filtrem trendu EMA 200. Sygnaly generowane tylko w kierunku trendu.")
+    st.markdown(tr("### Sygnaly analizy technicznej"))
+    st.caption(tr("Trend-following: 5 wskaznikow z filtrem trendu EMA 200. Sygnaly generowane tylko w kierunku trendu."))
 
     col_ta1, col_ta2 = st.columns(2)
     with col_ta1:
         ta_options = {t: f"{t.replace('-USD','')} — {CRYPTO_NAMES.get(t, t)}" for t in ALL_CRYPTO_TICKERS}
-        ta_ticker = st.selectbox("Kryptowaluta", options=list(ta_options.keys()),
+        ta_ticker = st.selectbox(tr("Kryptowaluta"), options=list(ta_options.keys()),
                                   format_func=lambda x: ta_options[x], key="ta_ticker")
     with col_ta2:
         ta_period_map = {"3 miesiace": "3mo", "6 miesiecy": "6mo",
                          "1 rok": "1y", "2 lata": "2y"}
-        ta_period_label = st.selectbox("Okres", list(ta_period_map.keys()), index=1, key="ta_period")
+        ta_period_label = st.selectbox(tr("Okres"), list(ta_period_map.keys()), index=1, key="ta_period", format_func=tr)
         ta_period = ta_period_map[ta_period_label]
 
-    with st.expander("Parametry wskaznikow"):
+    with st.expander(tr("Parametry wskaznikow")):
         pc1, pc2, pc3, pc4 = st.columns(4)
         with pc1:
-            ema_short = st.number_input("EMA krotka", value=20, min_value=5, max_value=100, key="ta_ema_s")
-            ema_long = st.number_input("EMA dluga", value=50, min_value=10, max_value=300, key="ta_ema_l")
+            ema_short = st.number_input(tr("EMA krotka"), value=20, min_value=5, max_value=100, key="ta_ema_s")
+            ema_long = st.number_input(tr("EMA dluga"), value=50, min_value=10, max_value=300, key="ta_ema_l")
         with pc2:
-            rsi_period = st.number_input("RSI okres", value=14, min_value=5, max_value=50, key="ta_rsi")
+            rsi_period = st.number_input(tr("RSI okres"), value=14, min_value=5, max_value=50, key="ta_rsi")
         with pc3:
-            macd_fast = st.number_input("MACD fast", value=12, min_value=5, max_value=50, key="ta_macd_f")
-            macd_slow = st.number_input("MACD slow", value=26, min_value=10, max_value=100, key="ta_macd_s")
-            macd_signal = st.number_input("MACD signal", value=9, min_value=3, max_value=30, key="ta_macd_sig")
+            macd_fast = st.number_input(tr("MACD fast"), value=12, min_value=5, max_value=50, key="ta_macd_f")
+            macd_slow = st.number_input(tr("MACD slow"), value=26, min_value=10, max_value=100, key="ta_macd_s")
+            macd_signal = st.number_input(tr("MACD signal"), value=9, min_value=3, max_value=30, key="ta_macd_sig")
         with pc4:
-            bb_period = st.number_input("BB okres", value=20, min_value=5, max_value=100, key="ta_bb_p")
-            bb_std = st.number_input("BB odch. std.", value=2.0, min_value=0.5, max_value=4.0, step=0.5, key="ta_bb_std")
+            bb_period = st.number_input(tr("BB okres"), value=20, min_value=5, max_value=100, key="ta_bb_p")
+            bb_std = st.number_input(tr("BB odch. std."), value=2.0, min_value=0.5, max_value=4.0, step=0.5, key="ta_bb_std")
 
     _ta_ok = True
-    with st.spinner("Pobieram dane..."):
+    with st.spinner(tr("Pobieram dane...")):
         _ta_series = download_single(ta_ticker, period=ta_period)
 
     if _ta_series is None or len(_ta_series) == 0:
-        st.error("Nie udalo sie pobrac danych.")
+        st.error(tr("Nie udalo sie pobrac danych."))
         _ta_ok = False
 
     if _ta_ok:
         ta_close = _ta_series.dropna()
         if len(ta_close) < 50:
-            st.error("Za malo danych do analizy technicznej (min. 50 sesji).")
+            st.error(tr("Za malo danych do analizy technicznej (min. 50 sesji)."))
             _ta_ok = False
 
     if _ta_ok:
@@ -635,7 +636,7 @@ with tab6:
             trend_detail = f"({last_price:,.0f} vs {ema200_val:,.0f})"
         else:
             trend_val = 0
-            trend_detail = "(brak danych EMA200)"
+            trend_detail = tr("(brak danych EMA200)")
 
         # --- 2. EMA CROSSOVER: EMA krotka vs dluga ---
         ema_s_now = ema_df[ema_short_col].iloc[-1]
@@ -651,13 +652,13 @@ with tab6:
 
         if last_macd["MACD"] > last_macd["Signal"] and hist_growing:
             macd_signal_val = 1
-            macd_detail = "(cross+ hist rosnacy)"
+            macd_detail = tr("(cross+ hist rosnacy)")
         elif last_macd["MACD"] < last_macd["Signal"] and not hist_growing:
             macd_signal_val = -1
-            macd_detail = "(cross- hist malejacy)"
+            macd_detail = tr("(cross- hist malejacy)")
         else:
             macd_signal_val = 0
-            macd_detail = "(brak potwierdzenia)"
+            macd_detail = tr("(brak potwierdzenia)")
 
         # --- 4. RSI: > 50 z momentum = bull, < 50 z momentum = bear ---
         last_rsi = rsi_series.iloc[-1]
@@ -666,13 +667,13 @@ with tab6:
 
         if last_rsi > 50 and rsi_rising:
             rsi_signal_val = 1
-            rsi_detail = f"({last_rsi:.0f}, rosnacy)"
+            rsi_detail = tr("({v}, rosnacy)", v=f"{last_rsi:.0f}")
         elif last_rsi < 50 and not rsi_rising:
             rsi_signal_val = -1
-            rsi_detail = f"({last_rsi:.0f}, malejacy)"
+            rsi_detail = tr("({v}, malejacy)", v=f"{last_rsi:.0f}")
         else:
             rsi_signal_val = 0
-            rsi_detail = f"({last_rsi:.0f}, brak potw.)"
+            rsi_detail = tr("({v}, brak potw.)", v=f"{last_rsi:.0f}")
 
         # --- 5. BOLLINGER %B: pozycja w wstedze ---
         last_bb = bb_df.iloc[-1]
@@ -752,23 +753,23 @@ with tab6:
         signals_df = pd.DataFrame(signal_records) if signal_records else pd.DataFrame()
 
         # Wykresy
-        st.markdown("#### Wykres cenowy + wskazniki")
+        st.markdown(tr("#### Wykres cenowy + wskazniki"))
         fig_main = ta_overview_chart(ta_close, ema_df, bb_df, signals_df,
-                                      title=f"{ta_ticker.replace('-USD','')} — analiza techniczna ({ta_period_label})")
+                                      title=tr('{v0} — analiza techniczna ({ta_period_label})', v0=ta_ticker.replace('-USD',''), ta_period_label=ta_period_label))
         st.plotly_chart(fig_main, width="stretch")
 
         col_m, col_r = st.columns(2)
         with col_m:
-            fig_macd = macd_chart(macd_df, title="MACD")
+            fig_macd = macd_chart(macd_df, title=tr("MACD"))
             st.plotly_chart(fig_macd, width="stretch")
         with col_r:
-            fig_rsi = rsi_chart(rsi_series, title=f"RSI ({rsi_period})")
+            fig_rsi = rsi_chart(rsi_series, title=tr('RSI ({rsi_period})', rsi_period=rsi_period))
             st.plotly_chart(fig_rsi, width="stretch")
 
         # Tabela ostatnich sygnalow
         if not signals_df.empty:
             st.divider()
-            st.markdown("#### Historia sygnalow")
+            st.markdown(tr("#### Historia sygnalow"))
             display_signals = signals_df.copy()
             display_signals["date"] = pd.to_datetime(display_signals["date"]).dt.strftime("%Y-%m-%d")
             display_signals["price"] = display_signals["price"].apply(lambda x: f"${x:,.2f}")
@@ -779,38 +780,20 @@ with tab6:
             display_signals.index = display_signals.index + 1
             st.dataframe(display_signals, width="stretch")
         else:
-            st.info("Brak sygnalow kupna/sprzedazy w wybranym okresie — rynek neutralny wg wybranych parametrow.")
+            st.info(tr("Brak sygnalow kupna/sprzedazy w wybranym okresie — rynek neutralny wg wybranych parametrow."))
 
         # Info o wskaznikach
-        with st.expander("Jak interpretowac sygnaly?"):
-            st.markdown(f"""
-**5 wskaznikow trend-following (kazdy -1 / 0 / +1):**
-
-1. **Trend (EMA 200):** Cena > EMA(200) = bullish, ponizej = bearish. Glowny filtr kierunku — nie kupuj w downtrend.
-2. **EMA crossover:** EMA({ema_short}) > EMA({ema_long}) = bullish momentum, ponizej = bearish.
-3. **MACD + histogram:** Crossover MACD/Signal potwierdzony kierunkiem histogramu. Wymaga zgodnosci obu — eliminuje falszywe crossovery.
-4. **RSI momentum:** RSI > 50 i rosnacy = byki kontroluja, RSI < 50 i malejacy = niedzwiedzie. Nie uzywamy ekstremalnych poziomow 30/70 (lapanie spadajacych nozy).
-5. **Bollinger %B:** Pozycja ceny w wstedze. %B > 0.5 (powyzej srodka) = trend up, < 0.5 = trend down.
-
-**Agregat:** Suma {n_indicators} sygnalow. >= {threshold} = **KUP**, <= -{threshold} = **SPRZEDAJ**, reszta = **NEUTRALNY**
-
-**Roznice vs prosta analiza:**
-- Filtr trendu EMA(200) zapobiega kupowaniu w downtrend
-- MACD wymaga potwierdzenia histogramem (mniej falszywych sygnalow)
-- RSI oparty o momentum, nie o extreme levels (unikamy lapania spadajacych nozy)
-- Bollinger mierzy pozycje w wstedze, nie dotkniecia band
-
-*Sygnaly TA maja charakter informacyjny i nie stanowia rekomendacji inwestycyjnej.*
-""")
+        with st.expander(tr("Jak interpretowac sygnaly?")):
+            st.markdown(tr('\n**5 wskaznikow trend-following (kazdy -1 / 0 / +1):**\n\n1. **Trend (EMA 200):** Cena > EMA(200) = bullish, ponizej = bearish. Glowny filtr kierunku — nie kupuj w downtrend.\n2. **EMA crossover:** EMA({ema_short}) > EMA({ema_long}) = bullish momentum, ponizej = bearish.\n3. **MACD + histogram:** Crossover MACD/Signal potwierdzony kierunkiem histogramu. Wymaga zgodnosci obu — eliminuje falszywe crossovery.\n4. **RSI momentum:** RSI > 50 i rosnacy = byki kontroluja, RSI < 50 i malejacy = niedzwiedzie. Nie uzywamy ekstremalnych poziomow 30/70 (lapanie spadajacych nozy).\n5. **Bollinger %B:** Pozycja ceny w wstedze. %B > 0.5 (powyzej srodka) = trend up, < 0.5 = trend down.\n\n**Agregat:** Suma {n_indicators} sygnalow. >= {threshold} = **KUP**, <= -{threshold} = **SPRZEDAJ**, reszta = **NEUTRALNY**\n\n**Roznice vs prosta analiza:**\n- Filtr trendu EMA(200) zapobiega kupowaniu w downtrend\n- MACD wymaga potwierdzenia histogramem (mniej falszywych sygnalow)\n- RSI oparty o momentum, nie o extreme levels (unikamy lapania spadajacych nozy)\n- Bollinger mierzy pozycje w wstedze, nie dotkniecia band\n\n*Sygnaly TA maja charakter informacyjny i nie stanowia rekomendacji inwestycyjnej.*\n', ema_short=ema_short, ema_long=ema_long, n_indicators=n_indicators, threshold=threshold))
 
 # ========================== TAB 7: RELATIVE STRENGTH ==========================
 with tab7:
-    st.markdown("### Relative Strength vs BTC")
-    st.caption("RS > 100 = kryptowaluta outperformuje Bitcoin")
+    st.markdown(tr("### Relative Strength vs BTC"))
+    st.caption(tr("RS > 100 = kryptowaluta outperformuje Bitcoin"))
 
     rs_options_cr = {t: f"{t.replace('-USD','')} — {CRYPTO_NAMES.get(t, t)}" for t in CRYPTO_BY_MCAP[:50]}
     rs_selected_cr = st.multiselect(
-        "Wybierz krypto (maks. 5)",
+        tr("Wybierz krypto (maks. 5)"),
         options=list(rs_options_cr.keys()),
         default=["ETH-USD", "SOL-USD"],
         format_func=lambda x: rs_options_cr[x],
@@ -821,12 +804,12 @@ with tab7:
     rs_period_map = {
         "6 miesiecy": "6mo", "1 rok": "1y", "2 lata": "2y", "Maksymalny": "max",
     }
-    rs_period_label = st.selectbox("Okres", list(rs_period_map.keys()), index=1, key="cr_rs_period")
+    rs_period_label = st.selectbox(tr("Okres"), list(rs_period_map.keys()), index=1, key="cr_rs_period", format_func=tr)
     rs_period = rs_period_map[rs_period_label]
 
     if rs_selected_cr:
         rs_tickers_cr = list(set(rs_selected_cr + ["BTC-USD"]))
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             rs_prices_cr = download_prices(rs_tickers_cr, period=rs_period)
 
         if "BTC-USD" in rs_prices_cr.columns:
@@ -837,8 +820,8 @@ with tab7:
                         fig = rs_chart(rs_data, t.replace("-USD", ""), "BTC")
                         st.plotly_chart(fig, width="stretch")
         else:
-            st.warning("Nie udalo sie pobrac danych BTC.")
+            st.warning(tr("Nie udalo sie pobrac danych BTC."))
     else:
-        st.info("Wybierz co najmniej 1 kryptowalute.")
+        st.info(tr("Wybierz co najmniej 1 kryptowalute."))
 
 render_footer()

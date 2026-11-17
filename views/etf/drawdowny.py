@@ -9,10 +9,11 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import top_drawdowns, drawdown_series
 from components.charts import drawdown_chart, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL, RED
+from components.i18n import tr
 
 
-st.markdown("# Analiza Drawdownow")
-st.caption("Top spadki od szczytu, czas trwania, czas odbudowy")
+st.markdown(tr("# Analiza Drawdownow"))
+st.caption(tr("Top spadki od szczytu, czas trwania, czas odbudowy"))
 
 # --- Config ---
 custom = st.session_state.get("custom_tickers", [])
@@ -20,20 +21,20 @@ all_available = ALL_TICKERS + custom
 
 col1, col2 = st.columns([2, 1])
 with col1:
-    ticker = st.selectbox("Ticker", all_available,
+    ticker = st.selectbox(tr("Ticker"), all_available,
                            index=all_available.index("QQQ") if "QQQ" in all_available else 0,
                            format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}",
                            key="dd_ticker")
 with col2:
-    period = st.selectbox("Okres", list(PERIOD_MAP_FULL.keys())[3:], index=4, key="dd_period")
+    period = st.selectbox(tr("Okres"), list(PERIOD_MAP_FULL.keys())[3:], index=4, key="dd_period", format_func=tr)
 
 yf_period = PERIOD_MAP_FULL[period]
 
-with st.spinner("Pobieram dane..."):
+with st.spinner(tr("Pobieram dane...")):
     _series = download_single(ticker, period=yf_period)
 
 if _series is None or len(_series) == 0:
-    st.error(f"Brak danych dla {ticker}")
+    st.error(tr('Brak danych dla {ticker}', ticker=ticker))
     render_footer()
     st.stop()
 
@@ -42,16 +43,16 @@ dd = drawdown_series(series)
 top_dd = top_drawdowns(series, n=10)
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["📉 Underwater", "📋 Tabela", "⚖️ Porownanie", "📊 Histogram"])
+tab1, tab2, tab3, tab4 = st.tabs([tr("📉 Underwater"), tr("📋 Tabela"), tr("⚖️ Porownanie"), tr("📊 Histogram")])
 
 with tab1:
-    st.subheader(f"Drawdown — {ticker}")
+    st.subheader(tr('Drawdown — {ticker}', ticker=ticker))
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=dd.index, y=dd.values * 100, mode="lines",
         fill="tozeroy", line=dict(color=RED, width=1),
-        fillcolor="rgba(239,68,68,0.2)", name="Drawdown",
+        fillcolor="rgba(239,68,68,0.2)", name=tr("Drawdown"),
         hovertemplate="%{x|%Y-%m-%d}<br>Drawdown: %{y:.1f}%<extra></extra>",
     ))
 
@@ -68,21 +69,21 @@ with tab1:
                 arrowcolor=GOLD,
             )
 
-    fig.update_layout(**_base_layout(f"{ticker} — spadki od szczytu", height=450))
+    fig.update_layout(**_base_layout(tr('{ticker} — spadki od szczytu', ticker=ticker), height=450))
     fig.update_yaxes(title_text="%")
     st.plotly_chart(fig, width="stretch")
 
     # Current drawdown
     current_dd = dd.iloc[-1]
     if current_dd < 0:
-        st.warning(f"Aktualny drawdown: **{current_dd*100:.1f}%**")
+        st.warning(tr('Aktualny drawdown: **{v0}%**', v0=f'{current_dd * 100:.1f}'))
     else:
-        st.success("Aktualnie na szczycie (brak drawdownu)")
+        st.success(tr("Aktualnie na szczycie (brak drawdownu)"))
 
 with tab2:
-    st.subheader(f"Top 10 drawdownow — {ticker}")
+    st.subheader(tr('Top 10 drawdownow — {ticker}', ticker=ticker))
     if top_dd.empty:
-        st.info("Brak drawdownow w wybranym okresie.")
+        st.info(tr("Brak drawdownow w wybranym okresie."))
     else:
         # Format table
         display_df = top_dd.copy()
@@ -96,17 +97,17 @@ with tab2:
         st.dataframe(display_df, width="stretch")
 
 with tab3:
-    st.subheader("Porownanie drawdownow")
-    compare_tickers = st.multiselect("Wybierz 2-4 tickery", all_available,
+    st.subheader(tr("Porownanie drawdownow"))
+    compare_tickers = st.multiselect(tr("Wybierz 2-4 tickery"), all_available,
                                       default=["QQQ", "VEA", "AGG"],
                                       max_selections=4, key="dd_compare")
     if len(compare_tickers) >= 2:
-        with st.spinner("Pobieram dane..."):
+        with st.spinner(tr("Pobieram dane...")):
             compare_prices = download_prices(compare_tickers, period=yf_period)
 
         if not compare_prices.empty:
             st.plotly_chart(
-                drawdown_chart(compare_prices, title="Porownanie drawdownow"),
+                drawdown_chart(compare_prices, title=tr("Porownanie drawdownow")),
                 width="stretch",
             )
 
@@ -117,14 +118,14 @@ with tab3:
                     s = compare_prices[t].dropna()
                     dd_s = drawdown_series(s)
                     max_dd = dd_s.min()
-                    cols[i].metric(f"Max DD {t}", f"{max_dd*100:.1f}%")
+                    cols[i].metric(tr('Max DD {t}', t=t), f"{max_dd*100:.1f}%")
         else:
-            st.warning("Brak danych dla wybranych tickerow.")
+            st.warning(tr("Brak danych dla wybranych tickerow."))
     else:
-        st.info("Wybierz co najmniej 2 tickery.")
+        st.info(tr("Wybierz co najmniej 2 tickery."))
 
 with tab4:
-    st.subheader(f"Rozklad drawdownow — {ticker}")
+    st.subheader(tr('Rozklad drawdownow — {ticker}', ticker=ticker))
     if not top_dd.empty and len(top_dd) >= 3:
         col1, col2 = st.columns(2)
 
@@ -134,11 +135,11 @@ with tab4:
             fig.add_trace(go.Histogram(
                 x=depths, nbinsx=15,
                 marker_color=RED, opacity=0.75,
-                name="Glebia drawdownu",
+                name=tr("Glebia drawdownu"),
             ))
-            fig.update_layout(**_base_layout("Rozklad glebokosci drawdownow (%)", height=350))
-            fig.update_xaxes(title_text="Glebia (%)")
-            fig.update_yaxes(title_text="Liczba")
+            fig.update_layout(**_base_layout(tr("Rozklad glebokosci drawdownow (%)"), height=350))
+            fig.update_xaxes(title_text=tr("Glebia (%)"))
+            fig.update_yaxes(title_text=tr("Liczba"))
             st.plotly_chart(fig, width="stretch")
 
         with col2:
@@ -147,13 +148,13 @@ with tab4:
             fig.add_trace(go.Histogram(
                 x=durations, nbinsx=15,
                 marker_color="#F59E0B", opacity=0.75,
-                name="Czas trwania",
+                name=tr("Czas trwania"),
             ))
-            fig.update_layout(**_base_layout("Rozklad dlugosci spadkow (dni)", height=350))
-            fig.update_xaxes(title_text="Dni")
-            fig.update_yaxes(title_text="Liczba")
+            fig.update_layout(**_base_layout(tr("Rozklad dlugosci spadkow (dni)"), height=350))
+            fig.update_xaxes(title_text=tr("Dni"))
+            fig.update_yaxes(title_text=tr("Liczba"))
             st.plotly_chart(fig, width="stretch")
     else:
-        st.info("Za malo drawdownow do wyswietlenia histogramu.")
+        st.info(tr("Za malo drawdownow do wyswietlenia histogramu."))
 
 render_footer()
