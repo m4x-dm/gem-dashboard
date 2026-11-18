@@ -99,7 +99,7 @@ with tab2:
             # Add mean line
             mean_val = ratio.mean()
             fig.add_hline(y=mean_val, line_dash="dash", line_color="rgba(255,255,255,0.4)",
-                          line_width=1, annotation_text=f"Srednia: {mean_val:.2f}")
+                          line_width=1, annotation_text=f"{tr('Srednia:')} {mean_val:.2f}")
             fig.update_layout(**_base_layout(tr('Ratio {name1} / {name2}', name1=name1, name2=name2), height=450))
             fig.update_yaxes(title_text=tr("Ratio"))
             st.plotly_chart(fig, width="stretch")
@@ -230,7 +230,7 @@ with tab5:
 
     st.html(
         f'<div style="background:{BG_CARD};border-left:3px solid {regime_color};box-shadow:{SHADOW};border-radius:16px;padding:32px;text-align:center;margin-bottom:24px">'
-        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">Biezacy regime</div>'
+        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">{tr("Biezacy regime")}</div>'
         f'<div style="font-size:2rem;font-weight:800;color:{regime_color}">{tr(regime_label)}</div>'
         f'<div style="font-size:1rem;color:{MUTED};margin-top:8px">{tr(regime_desc)}</div>'
         f'<div style="font-size:0.85rem;color:{MUTED};margin-top:16px">Risk-On score: {risk_on_pct:.0f}%</div>'
@@ -333,7 +333,7 @@ with tab6:
                 f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:16px;text-align:center">'
                 f'<div style="font-size:0.7rem;color:{MUTED};margin-bottom:4px">{col}</div>'
                 f'<div style="font-size:1.4rem;font-weight:700;color:{c_color}">{val:.2f}</div>'
-                f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px">{c_label}</div>'
+                f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px">{tr(c_label)}</div>'
                 f'</div>'
             )
 

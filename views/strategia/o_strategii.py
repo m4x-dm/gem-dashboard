@@ -17,7 +17,7 @@ opisana w ksiazce *"Dual Momentum Investing"* (2014). Laczy dwa rodzaje momentum
 - Porownuje zwrot aktywa z **bezpieczna stopa wolna od ryzyka** (np. T-bill)
 - Jesli zwrot 12M > stopa wolna → **trend wzrostowy**, warto inwestowac
 - Jesli zwrot 12M < stopa wolna → **trend spadkowy**, lepiej przeniesc sie do obligacji
-- **Okno 12M (no skip):** zwrot liczony jako `price(t) / price(t-252) - 1` — pelne 12 miesiecy wstecz. **Zmiana 2026-05-23:** poprzednio uzywalismy skip-month (12-1) — `price(t-21)/price(t-273)-1`, ale backtest 14-letni na koszyku ETF (QQQ/VEA/EEM/ACWI/AGG) wykazal +4,6 p.p. CAGR/rok dla czystego 12M (skip-month dziala dla pojedynczych akcji, ale na ETF indeksowych opoznienie sygnalu szkodzi). Dla rankingu **akcji** (S&P 500, GPW, krypto) nadal uzywamy skip-month (Jegadeesh & Titman 1993).
+- **Okno 12M (no skip):** zwrot liczony jako `price(t) / price(t-252) - 1` — pelne 12 miesiecy wstecz. **Zmiana 2026-05-23:** poprzednio uzywalismy skip-month (12-1) — `price(t-21)/price(t-273)-1`, a od 2026-05-23 czyste 12M. Ponowny test z pazdziernika 2026 (QQQ/VEA/EEM/ACWI/AGG, 2012–2026) nie potwierdzil jednak przewagi czystego 12M: w calym okresie lepiej wypadal skip-month, a w ostatniej dekadzie roznica miesci sie w granicach szumu. Zostajemy przy 12M, dopoki wyniki live nie pozwola tego rozstrzygnac. Dla rankingu **akcji** (S&P 500, GPW, krypto) nadal uzywamy skip-month (Jegadeesh & Titman 1993).
 
 ### 2. Momentum relatywny (Relative Momentum)
 - Porownuje zwroty **dwoch (lub wiecej) aktywow** miedzy soba

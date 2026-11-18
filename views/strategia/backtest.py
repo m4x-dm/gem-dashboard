@@ -180,9 +180,9 @@ relatywnym (porownanie rynkow).
 | 2 | QQQ 12M > stopa wolna | → Porownaj QQQ vs VEA vs EEM vs ACWI, kup najlepszy |
 
 **Rebalans miesięczny** (co 21 dni roboczych). Zawsze 100% w jednym aktywie.
-**Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1), ale backtest
-14y na koszyku ETF wykazal +4,6 p.p. CAGR/rok dla czystego 12M (skip-month dziala
-dla pojedynczych akcji, nie dla ETF indeksowych).
+**Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1). Ponowny test
+z pazdziernika 2026 nie potwierdzil przewagi czystego 12M (w latach 2012–2026 lepiej
+wypadal skip-month, w ostatniej dekadzie roznica w granicach szumu).
 
 ### Zalety
 - **Prosta** — jedna decyzja raz w miesiacu, 5 aktywow

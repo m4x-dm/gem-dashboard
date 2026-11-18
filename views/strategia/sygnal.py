@@ -69,10 +69,10 @@ def render_now(rf: float) -> None:
         2. Jesli momentum dodatni → **kup najlepszy z QQQ / VEA / EEM / ACWI** (porownanie relatywne)
 
         **Momentum 12M (no skip) dla ETF — od 2026-05-23:** zwrot liczony jako
-        `price(t) / price(t-252) - 1` (pelne 12 miesiecy). Backtest 14y na koszyku
-        QQQ/VEA/EEM/ACWI/AGG wykazal +4,6 p.p. CAGR/rok vs poprzedni skip-month (12-1).
-        Skip-month dziala dla pojedynczych akcji, ale na ETF indeksowych opoznienie
-        sygnalu o miesiac szkodzi.
+        `price(t) / price(t-252) - 1` (pelne 12 miesiecy). Ponowny test z pazdziernika 2026 na koszyku
+        QQQ/VEA/EEM/ACWI/AGG nie potwierdzil przewagi nad poprzednim skip-month (12-1):
+        w latach 2012–2026 lepiej wypadal skip-month, a w ostatniej dekadzie roznica
+        miesci sie w granicach szumu.
 
         **Rozszerzony ranking** oblicza wynik kompozytowy:
         `12M × 50% + 6M × 25% + 3M × 15% + 1M × 10%`

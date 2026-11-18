@@ -13,9 +13,9 @@ momentum (comparing markets).
 | 2 | QQQ 12M > risk-free rate | → Compare QQQ vs VEA vs EEM vs ACWI, buy the best |
 
 **Monthly rebalance** (every 21 trading days). Always 100% in one asset.
-**12M momentum (no skip) — since 2026-05-23.** Previously skip-month (12-1), but a 14-year
-backtest on the ETF basket showed +4.6 pp CAGR per year for plain 12M (skip-month works
-for individual stocks, not for index ETFs).
+**12M momentum (no skip) — since 2026-05-23.** Previously skip-month (12-1). A re-test in
+October 2026 did not confirm an edge for plain 12M (skip-month did better over 2012–2026,
+and over the last decade the difference is within the noise).
 
 ### Advantages
 - **Simple** — one decision a month, 5 assets

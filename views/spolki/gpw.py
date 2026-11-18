@@ -296,7 +296,7 @@ with tab3:
     st.markdown(tr("### Porownanie spolek GPW"))
 
     # Indeksy GPW (ETF-y Beta przez yfinance, sklejone z cache)
-    GPW_INDEX_NAMES = {"WIG20": "WIG20 (indeks)", "mWIG40": "mWIG40 (indeks)", "sWIG80": "sWIG80 (indeks)"}
+    GPW_INDEX_NAMES = {"WIG20": tr("WIG20 (indeks)"), "mWIG40": tr("mWIG40 (indeks)"), "sWIG80": tr("sWIG80 (indeks)")}
     GPW_INDEX_CAT = {t: "Indeksy GPW" for t in GPW_INDEX_NAMES}
 
     cmp_all_names = {**GPW_NAMES, **GPW_INDEX_NAMES}
@@ -380,7 +380,7 @@ with tab3:
 
             # Overlay cenowy
             st.markdown(tr("#### Cena znormalizowana (baza = 100)"))
-            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=cmp_period_label))
+            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=tr(cmp_period_label)))
             st.plotly_chart(fig, width="stretch")
 
             st.divider()

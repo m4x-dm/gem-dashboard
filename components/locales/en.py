@@ -393,10 +393,10 @@ DOCS: dict[str, str] = {
         2. If momentum is positive → **buy the best of QQQ / VEA / EEM / ACWI** (relative comparison)
 
         **12M momentum (no skip) for ETFs — since 2026-05-23:** the return is calculated as
-        `price(t) / price(t-252) - 1` (a full 12 months). A 14-year backtest on the
-        QQQ/VEA/EEM/ACWI/AGG basket showed +4.6 pp CAGR per year vs the previous skip-month (12-1).
-        Skip-month works for individual stocks, but on index ETFs delaying the signal
-        by a month hurts.
+        `price(t) / price(t-252) - 1` (a full 12 months). A re-test in October 2026 on the
+        QQQ/VEA/EEM/ACWI/AGG basket did not confirm an edge over the previous skip-month (12-1):
+        over 2012–2026 skip-month did better, and over the last decade the difference
+        is within the noise.
 
         **The extended ranking** calculates a composite score:
         `12M × 50% + 6M × 25% + 3M × 15% + 1M × 10%`
@@ -417,7 +417,7 @@ and described in his book *"Dual Momentum Investing"* (2014). It combines two ki
 - Compares an asset's return with the **risk-free rate** (e.g. T-bills)
 - If the 12M return > the risk-free rate → **uptrend**, worth investing
 - If the 12M return < the risk-free rate → **downtrend**, better to move into bonds
-- **12M window (no skip):** the return is calculated as `price(t) / price(t-252) - 1` — a full 12 months back. **Change on 2026-05-23:** we previously used skip-month (12-1) — `price(t-21)/price(t-273)-1`, but a 14-year backtest on an ETF basket (QQQ/VEA/EEM/ACWI/AGG) showed +4.6 pp CAGR per year for plain 12M (skip-month works for individual stocks, but on index ETFs the delayed signal hurts). **Stock** rankings (S&P 500, Warsaw, crypto) still use skip-month (Jegadeesh & Titman 1993).
+- **12M window (no skip):** the return is calculated as `price(t) / price(t-252) - 1` — a full 12 months back. **Change on 2026-05-23:** we previously used skip-month (12-1) — `price(t-21)/price(t-273)-1`, and plain 12M since 2026-05-23. A re-test in October 2026 (QQQ/VEA/EEM/ACWI/AGG, 2012–2026) did not confirm an edge for plain 12M: skip-month did better over the full period, and over the last decade the difference is within the noise. We are staying with 12M until live results settle the question. **Stock** rankings (S&P 500, Warsaw, crypto) still use skip-month (Jegadeesh & Titman 1993).
 
 ### 2. Relative momentum
 - Compares the returns of **two (or more) assets** with each other

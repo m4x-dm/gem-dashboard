@@ -59,6 +59,21 @@ DYNAMIC: dict[str, str] = {
     "Srodowisko awersji do ryzyka. Rozwazyc obligacje lub zloto.": "A risk-averse environment. Consider bonds or gold.",
     "Mieszane sygnaly. Brak wyraznego kierunku miedzy klasami aktywow.": "Mixed signals. No clear direction across asset classes.",
     "Srednia:": "Average:",
+    "Biezacy regime": "Current regime",
+    "Silna pozytywna": "Strong positive", "Slaba": "Weak",
+    "Umiarkowana negatywna": "Moderate negative", "Silna negatywna": "Strong negative",
+    # Waluta
+    "korzystny": "favourable", "niekorzystny": "unfavourable",
+    # GPW / Porownaj
+    "Indeksy GPW": "Warsaw indices", "WIG20 (indeks)": "WIG20 (index)",
+    "mWIG40 (indeks)": "mWIG40 (index)", "sWIG80 (indeks)": "sWIG80 (index)",
+    # Sektory
+    "Konsumpcja cykliczna": "Consumer discretionary", "Konsumpcja podstawowa": "Consumer staples",
+    "Uzytecznosc publ.": "Utilities", "Materialy": "Materials",
+    # Sezonowosc
+    "Mediana (%)": "Median (%)", "% dodatnich": "% positive",
+    # Krypto: analiza techniczna, sila relatywna
+    "powyzej": "above", "ponizej": "below", "Agregat": "Aggregate", "Baza": "Base",
     # Makro
     "Brak danych": "No data", "Ekstremum": "Extreme", "Powyzej 200MA": "Above 200MA", "Ponizej 200MA": "Below 200MA",
     "Inwersja": "Inverted", "Plaszczenie": "Flattening", "Normalna": "Normal",

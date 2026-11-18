@@ -367,7 +367,7 @@ with tab3:
 
             # Overlay cenowy
             st.markdown(tr("#### Cena znormalizowana (baza = 100)"))
-            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=cmp_period_label))
+            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=tr(cmp_period_label)))
             st.plotly_chart(fig, width="stretch")
 
             st.divider()

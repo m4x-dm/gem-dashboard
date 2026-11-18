@@ -20,17 +20,17 @@ st.caption(tr("Momentum 11 sektorow GICS — ktory sektor prowadzi?"))
 
 # Sector ETFs (SPDR Select Sector)
 SECTOR_ETFS = {
-    "XLK": "Technologia",
-    "XLF": "Finanse",
-    "XLE": "Energia",
-    "XLV": "Ochrona zdrowia",
-    "XLI": "Przemysl",
-    "XLY": "Konsumpcja cykliczna",
-    "XLP": "Konsumpcja podstawowa",
-    "XLC": "Komunikacja",
-    "XLRE": "Nieruchomosci",
-    "XLU": "Uzytecznosc publ.",
-    "XLB": "Materialy",
+    "XLK": tr("Technologia"),
+    "XLF": tr("Finanse"),
+    "XLE": tr("Energia"),
+    "XLV": tr("Ochrona zdrowia"),
+    "XLI": tr("Przemysl"),
+    "XLY": tr("Konsumpcja cykliczna"),
+    "XLP": tr("Konsumpcja podstawowa"),
+    "XLC": tr("Komunikacja"),
+    "XLRE": tr("Nieruchomosci"),
+    "XLU": tr("Uzytecznosc publ."),
+    "XLB": tr("Materialy"),
 }
 SECTOR_TICKERS = list(SECTOR_ETFS.keys())
 

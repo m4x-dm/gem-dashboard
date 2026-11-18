@@ -146,7 +146,7 @@ with tab2:
                 fx_12m = combined["USDPLN"].iloc[-1] / combined["USDPLN"].iloc[-253] - 1
                 sign = "+" if fx_12m > 0 else ""
                 impact = "korzystny" if fx_12m > 0 else "niekorzystny"
-                st.info(tr('Zmiana kursu USD/PLN (12M): **{sign}{v1}%** — wplyw {impact} dla polskiego inwestora', sign=sign, v1=f'{fx_12m * 100:.2f}', impact=impact))
+                st.info(tr('Zmiana kursu USD/PLN (12M): **{sign}{v1}%** — wplyw {impact} dla polskiego inwestora', sign=sign, v1=f'{fx_12m * 100:.2f}', impact=tr(impact)))
 
 with tab3:
     st.subheader(tr("Overlay: ETF vs USD/PLN"))

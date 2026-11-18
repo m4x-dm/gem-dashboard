@@ -200,7 +200,7 @@ def seasonality_heatmap(matrix: pd.DataFrame,
     labels = np.where(np.isnan(vals), "", np.vectorize(lambda v: f"{v:.1f}%")(vals))
 
     cols_present = matrix.columns.tolist()
-    x_labels = [MONTH_NAMES_PL[m - 1] if m <= 12 else str(m) for m in cols_present]
+    x_labels = [tr(MONTH_NAMES_PL[m - 1]) if m <= 12 else str(m) for m in cols_present]
 
     fig = go.Figure(go.Heatmap(
         z=vals,
@@ -419,7 +419,7 @@ def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
 
     # Linia referencyjna 100
     fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1,
-                  annotation_text="Baza", annotation_position="bottom right")
+                  annotation_text=tr("Baza"), annotation_position="bottom right")
 
     # Adnotacje outperformance/underperformance
     if "RS" in rs_df.columns and len(rs_df) > 0:

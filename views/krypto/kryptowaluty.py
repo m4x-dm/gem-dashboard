@@ -288,7 +288,7 @@ with tab2:
 
                 if not top5_ratio.empty and len(top5_ratio) > 1:
                     renamed = top5_ratio.rename(columns={t: f"{t.replace('-USD','')} / BTC" for t in top5_tickers})
-                    fig_ratio = price_chart(renamed, title=tr('Ratio alt/BTC (baza = 100) — {altbtc_display_label}', altbtc_display_label=altbtc_display_label), normalize=True)
+                    fig_ratio = price_chart(renamed, title=tr('Ratio alt/BTC (baza = 100) — {altbtc_display_label}', altbtc_display_label=tr(altbtc_display_label)), normalize=True)
                     st.plotly_chart(fig_ratio, width="stretch")
 
 # ========================== TAB 3: WYKRESY ==========================
@@ -403,7 +403,7 @@ with tab4:
 
             # Overlay cenowy
             st.markdown(tr("#### Cena znormalizowana (baza = 100)"))
-            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=cmp_period_label))
+            fig = price_chart(cmp_prices, title=tr('Porownanie cenowe — {cmp_period_label}', cmp_period_label=tr(cmp_period_label)))
             st.plotly_chart(fig, width="stretch")
 
             st.divider()
@@ -685,10 +685,10 @@ with tab6:
 
         if pct_b > 0.5:
             bb_signal_val = 1
-            bb_detail = f"(%B={pct_b:.2f}, powyzej)"
+            bb_detail = f"(%B={pct_b:.2f}, {tr('powyzej')})"
         elif pct_b < 0.5:
             bb_signal_val = -1
-            bb_detail = f"(%B={pct_b:.2f}, ponizej)"
+            bb_detail = f"(%B={pct_b:.2f}, {tr('ponizej')})"
         else:
             bb_signal_val = 0
             bb_detail = f"(%B={pct_b:.2f})"
@@ -755,7 +755,7 @@ with tab6:
         # Wykresy
         st.markdown(tr("#### Wykres cenowy + wskazniki"))
         fig_main = ta_overview_chart(ta_close, ema_df, bb_df, signals_df,
-                                      title=tr('{v0} — analiza techniczna ({ta_period_label})', v0=ta_ticker.replace('-USD',''), ta_period_label=ta_period_label))
+                                      title=tr('{v0} — analiza techniczna ({ta_period_label})', v0=ta_ticker.replace('-USD',''), ta_period_label=tr(ta_period_label)))
         st.plotly_chart(fig_main, width="stretch")
 
         col_m, col_r = st.columns(2)

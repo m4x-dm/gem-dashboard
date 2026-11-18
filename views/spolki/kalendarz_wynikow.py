@@ -242,6 +242,17 @@ ls = LocalStorage()
 watchlist = get_watchlist(ls)
 
 # ---------------------------------------------------------------------------
+# BULK FETCH (cache 24h) — przed filtrami, bo lista sektorow pochodzi z danych
+# ---------------------------------------------------------------------------
+
+df = bulk_fetch_earnings_calendar(universe)
+
+if df.empty:
+    st.warning(tr("Brak danych earnings w wybranym oknie ±28 dni."))
+    render_footer()
+    st.stop()
+
+# ---------------------------------------------------------------------------
 # FILTRY (expander)
 # ---------------------------------------------------------------------------
 
@@ -265,8 +276,9 @@ with st.expander(tr("Filtry"), expanded=True):
     with col2:
         sector_filter = st.multiselect(
             tr("Sektor (multiselect)"),
-            options=[],  # populated po fetch
+            options=sorted(df["sector"].dropna().loc[lambda s: s.astype(str).str.strip() != ""].unique()),
             default=[],
+            format_func=tr,
             key="calendar_sector",
         )
         only_watchlist = st.checkbox(
@@ -293,17 +305,6 @@ with st.expander(tr("Filtry"), expanded=True):
         if refresh:
             st.cache_data.clear()
             st.rerun()
-
-# ---------------------------------------------------------------------------
-# BULK FETCH (cache 24h)
-# ---------------------------------------------------------------------------
-
-df = bulk_fetch_earnings_calendar(universe)
-
-if df.empty:
-    st.warning(tr("Brak danych earnings w wybranym oknie ±28 dni."))
-    render_footer()
-    st.stop()
 
 # ---------------------------------------------------------------------------
 # APPLY FILTRY

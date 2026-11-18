@@ -63,7 +63,7 @@ with tab2:
     avg = matrix.mean() * 100
     median = matrix.median() * 100
     colors = ["#22C55E" if v > 0 else "#EF4444" for v in avg.values]
-    x_labels = [MONTH_NAMES_PL[m - 1] for m in avg.index]
+    x_labels = [tr(MONTH_NAMES_PL[m - 1]) for m in avg.index]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(

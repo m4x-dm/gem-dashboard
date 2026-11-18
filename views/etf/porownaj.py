@@ -204,7 +204,7 @@ def render_h2h_tab() -> None:
 
     # Overlay cenowy
     st.markdown(tr("### Cena znormalizowana (baza = 100)"))
-    fig = price_chart(prices, title=tr('Porownanie cenowe — {period_label}', period_label=period_label))
+    fig = price_chart(prices, title=tr('Porownanie cenowe — {period_label}', period_label=tr(period_label)))
     st.plotly_chart(fig, width="stretch", key="h2h_price")
 
     st.divider()
