@@ -398,3 +398,24 @@ def download_single(ticker: str, period: str = "15y") -> pd.Series | None:
 
     _track_failure(ticker)
     return None
+
+
+def clean_price_glitches(prices: pd.DataFrame, max_jump: float = 5.0, window: int = 5) -> pd.DataFrame:
+    """Usuwa bledne punkty cenowe z Yahoo (glownie mniejsze kryptowaluty) — dodane 2026-11-18.
+
+    - cena <= 0 -> brak danych (inaczej zwrot dzienny = inf),
+    - pojedynczy dzien odstajacy wiecej niz `max_jump` razy od mediany `window` sasiednich
+      dni (okno wycentrowane) -> brak danych. Trwaly skok nie jest usuwany, bo po nim
+      mediana tez rosnie; usuwany jest tylko punkt, ktory "wraca" (np. SXP x6000 na jeden dzien).
+    Luki w srodku szeregu wypelnia ostatnia znana cena; dni przed pierwsza notowana cena zostaja puste.
+    """
+    if prices is None or prices.empty:
+        return prices
+    p = prices.where(prices > 0)
+    med = p.rolling(window, center=True, min_periods=3).median()
+    ratio = p / med
+    p = p.where(~((ratio > max_jump) | (ratio < 1.0 / max_jump)))
+    filled = p.ffill()
+    # nie wypelniaj przed pierwsza prawdziwa cena (debiut coina)
+    started = prices.where(prices > 0).notna().cummax()
+    return filled.where(started)

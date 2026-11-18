@@ -174,14 +174,16 @@ Sektory USA (XLK, XLF, XLE, XLV, XLI, XLY, XLP, XLC, XLRE, XLU, XLB)
 - **sWIG80** (66 spolek): PLW, MBR, SNT, RBW, TOR, VOX, OPN, **MUR** (Murapol), **VOT** (Votum), etc.
 - All tickers use `.WA` suffix for Yahoo Finance
 
-## Crypto Universe (~194 tickers, 11 categories)
+## Crypto Universe (189 tickers, 11 categories)
 Layer 1 (BTC, ETH, SOL, ADA, XRP...), Layer 2/Skalowanie (MATIC, OP, ARB...),
 DeFi (UNI, LINK, AAVE, MKR...), Exchange Tokens (OKB, CRO, LEO...),
 Memecoiny (DOGE, SHIB, PEPE...), Gaming/Metaverse (AXS, SAND, MANA...),
 AI/Data (RNDR, FET, TAO...), Prywatnosc (XMR, ZEC...), Infrastruktura (QNT, ENS, CHZ...),
 RWA/Tokenizacja (ONDO, MNT...), Inne (LTC, BCH, ETC...)
 - All tickers use `-USD` suffix for Yahoo Finance
-- `CRYPTO_BY_MCAP` — ordered list ~195 tickers by approximate market cap (for Top N filters)
+- `CRYPTO_BY_MCAP` — ordered list 189 tickers by approximate market cap (for Top N filters)
+- 2026-11-18: usuniete AGIX, HT, JUP, SXP, ICX (martwe/bledne dane w Yahoo). Ceny krypto na stronie Krypto przechodza przez `downloader.clean_price_glitches` (zera, jednodniowe skoki >5x vs mediana 5 dni).
+- OTWARTE: ~28 tickerow bez danych w Yahoo to zywe projekty pod innymi symbolami (np. SUI20947-USD, POL zamiast MATIC, S zamiast FTM, RENDER zamiast RNDR) — do przemapowania. Zombie-coiny (np. POLY, BTG) z minimalnym obrotem psuja rotacje momentum — potrzebny filtr plynnosci po wolumenie.
 
 ## S&P 500 Universe (~456 tickers, 11 GICS sectors)
 Information Technology (AAPL, MSFT, NVDA, AVGO...), Health Care (LLY, UNH, JNJ, ABBV...),

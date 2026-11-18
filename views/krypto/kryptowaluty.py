@@ -9,7 +9,7 @@ from data.crypto_universe import (
     ALL_CRYPTO_TICKERS, CRYPTO_NAMES, CRYPTO_CATEGORY_MAP, CRYPTO_CATEGORIES,
     CRYPTO_BY_MCAP,
 )
-from data.downloader import download_prices, download_single
+from data.downloader import download_prices, download_single, clean_price_glitches
 from data.momentum import (
     latest_returns, build_ranking, backtest_rotation, calc_stats,
     correlation_matrix, relative_strength,
@@ -26,6 +26,12 @@ from components.charts import (
 )
 from components.cards import stats_table, comparison_card, final_value_card, ta_signal_card
 from components.i18n import tr
+
+
+def _crypto_prices(tickers, period="2y"):
+    """Ceny krypto po oczyszczeniu z bledow Yahoo (zera, jednodniowe skoki x1000)."""
+    return clean_price_glitches(download_prices(tickers, period=period))
+
 
 
 st.markdown(tr("# Kryptowaluty — Top 200"))
@@ -113,7 +119,7 @@ with tab1:
                 st.info(tr("Pobieranie danych dla ~200 kryptowalut moze potrwac dluzej. Mozesz wybrac konkretna kategorie."))
 
             with st.spinner(tr("Pobieram dane kryptowalut...")):
-                prices = download_prices(tickers, period="2y")
+                prices = _crypto_prices(tickers, period="2y")
 
             if prices.empty:
                 st.error(tr("Nie udalo sie pobrac danych."))
@@ -192,7 +198,7 @@ with tab2:
             st.info(tr('Pobieranie danych dla {v0} kryptowalut moze potrwac dluzej. Wybierz mniejszy filtr, aby przyspieszyc.', v0=len(all_needed)))
 
         with st.spinner(tr("Pobieram dane kryptowalut i BTC...")):
-            altbtc_prices = download_prices(all_needed, period="2y")
+            altbtc_prices = _crypto_prices(all_needed, period="2y")
 
         if altbtc_prices.empty or "BTC-USD" not in altbtc_prices.columns:
             st.error(tr("Nie udalo sie pobrac danych BTC."))
@@ -317,7 +323,7 @@ with tab3:
         st.info(tr("Wybierz co najmniej 1 kryptowalute."))
     else:
         with st.spinner(tr("Pobieram dane...")):
-            chart_prices = download_prices(selected_charts, period=period)
+            chart_prices = _crypto_prices(selected_charts, period=period)
 
         if chart_prices.empty:
             st.error(tr("Nie udalo sie pobrac danych."))
@@ -375,7 +381,7 @@ with tab4:
         st.info(tr("Wybierz co najmniej 2 kryptowaluty."))
     else:
         with st.spinner(tr("Pobieram dane...")):
-            cmp_prices = download_prices(selected_cmp, period=cmp_period)
+            cmp_prices = _crypto_prices(selected_cmp, period=cmp_period)
 
         if cmp_is_strategy and len(cmp_prices) > 273:
             cmp_prices = cmp_prices.iloc[-273:-21]
@@ -505,7 +511,7 @@ with tab5:
 
         if _bt_ok:
             with st.spinner(tr("Pobieram dane i licze backtest...")):
-                bt_prices = download_prices(bt_tickers, period=bt_period)
+                bt_prices = _crypto_prices(bt_tickers, period=bt_period)
 
             if bt_prices.empty or len(bt_prices) < 91:
                 st.error(tr("Za malo danych do backtestu. Sprobuj dluzszy okres."))
@@ -810,7 +816,7 @@ with tab7:
     if rs_selected_cr:
         rs_tickers_cr = list(set(rs_selected_cr + ["BTC-USD"]))
         with st.spinner(tr("Pobieram dane...")):
-            rs_prices_cr = download_prices(rs_tickers_cr, period=rs_period)
+            rs_prices_cr = _crypto_prices(rs_tickers_cr, period=rs_period)
 
         if "BTC-USD" in rs_prices_cr.columns:
             for t in rs_selected_cr:
