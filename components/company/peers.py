@@ -5,13 +5,14 @@ import numpy as np
 import streamlit as st
 
 from components.constants import TEXT, MUTED, GREEN, RED, BG_HOVER, BORDER
-from components.formatting import fmt_pct
+from components.formatting import fmt_pct, fmt_number
 from data import company as co
 from data import financials as fin
 from components.company.overview import _big
 from data.gpw_universe import ALL_GPW_TICKERS, GPW_NAMES
 from data.momentum import latest_returns
 from data.sp500_universe import ALL_SP500_TICKERS, SP500_NAMES
+from components.i18n import tr
 
 MEDIAN = "Mediana grupy"
 PCT_COLS = ("ROE", "Marża netto", "Wzrost przychodów", "Stopa dywidendy", "Momentum 12M")
@@ -47,7 +48,7 @@ def fmt_cell(col: str, v, ccy: str = "$") -> str:
     if col in PCT_COLS:
         s = fmt_pct(v, 1)
         return s if col in SIGNED_COLS else s.lstrip("+")
-    return f"{v:.1f}".replace(".", ",")
+    return fmt_number(v, 1)
 
 
 def cell_color(col: str, v, med) -> str:
@@ -63,8 +64,8 @@ def cell_color(col: str, v, med) -> str:
 def table_html(df, ticker: str, ccy: str = "$") -> str:
     pad = "padding:6px 7px;"
     th = f"{pad}text-align:right;color:{MUTED};font-weight:500;white-space:nowrap;border-bottom:1px solid {BORDER};"
-    head = f'<th style="{th}text-align:left">Spółka</th>' + "".join(
-        f'<th style="{th}" title="{_h.escape(c)}">{_h.escape(SHORT.get(c, c))}</th>' for c in df.columns)
+    head = f'<th style="{th}text-align:left">{tr("Spółka")}</th>' + "".join(
+        f'<th style="{th}" title="{_h.escape(tr(c))}">{_h.escape(tr(SHORT.get(c, c)))}</th>' for c in df.columns)
     med = df.loc[MEDIAN]
     body = ""
     for idx, r in df.iterrows():
@@ -72,7 +73,7 @@ def table_html(df, ticker: str, ccy: str = "$") -> str:
         bg = f"background:{BG_HOVER};" if is_t else ""
         wt = "font-weight:700;" if is_t else ""
         lbl_col = MUTED if is_m else TEXT
-        cells = f'<td style="{pad}white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(idx)}</td>'
+        cells = f'<td style="{pad}white-space:nowrap;color:{lbl_col};{wt}">{_h.escape(tr(idx) if is_m else idx)}</td>'
         for c in df.columns:
             v = r[c]
             col = MUTED if is_m else cell_color(c, v, med[c])
@@ -87,14 +88,14 @@ def render(ticker, market):
     try:
         sector = co.sector_of(ticker, market)
         if not sector:
-            st.caption("Brak przypisanego sektora")
+            st.caption(tr("Brak przypisanego sektora"))
             return
         names = SP500_NAMES if market == "SP500" else GPW_NAMES
-        with st.spinner("Pobieram kapitalizacje sektora…"):
+        with st.spinner(tr("Pobieram kapitalizacje sektora…")):
             caps = co.sector_caps(market, sector)
         default = co.sector_peers(ticker, caps, n=5)
         options = [t for t in co._sector_members(market, sector) if t != ticker]
-        chosen = st.multiselect("Porównaj z", options, default=[d for d in default if d in options],
+        chosen = st.multiselect(tr("Porównaj z"), options, default=[d for d in default if d in options],
                                 max_selections=8, key=f"kpe_sel_{ticker}",
                                 format_func=lambda t: f"{t} — {names.get(t, '')}".rstrip(" —"))
         universe = ALL_SP500_TICKERS if market == "SP500" else ALL_GPW_TICKERS
@@ -105,9 +106,9 @@ def render(ticker, market):
         tickers = [ticker, *chosen]
         snaps = {t: fin.get_ratios_snapshot(t) or {} for t in tickers}
         df = co.peer_table(build_rows(tickers, snaps, mom12))
-        st.html(table_html(df, ticker, "zł" if market == "GPW" else "$"))
-        st.caption("Mediana liczona dla całej wyświetlanej grupy (łącznie z wybraną spółką). "
+        st.html(table_html(df, ticker, tr("zł") if market == "GPW" else "$"))
+        st.caption(tr("Mediana liczona dla całej wyświetlanej grupy (łącznie z wybraną spółką). "
                    "Zielony = lepiej niż mediana, czerwony = gorzej (dla mnożników: niżej = lepiej). "
-                   "Ujemne mnożniki (strata) pomijane. Momentum 12M liczone bez ostatniego miesiąca.")
+                   "Ujemne mnożniki (strata) pomijane. Momentum 12M liczone bez ostatniego miesiąca."))
     except Exception:
-        st.caption("Porównanie z sektorem: dane chwilowo niedostępne")
+        st.caption(tr("Porównanie z sektorem: dane chwilowo niedostępne"))

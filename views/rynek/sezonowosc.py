@@ -10,10 +10,11 @@ from data.etf_universe import ALL_TICKERS, ETF_NAMES
 from data.momentum import monthly_returns_matrix
 from components.charts import seasonality_heatmap, _base_layout, GOLD
 from components.constants import PERIOD_MAP_FULL
+from components.i18n import tr
 
 
-st.markdown("# Sezonowosc")
-st.caption("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May")
+st.markdown(tr("# Sezonowosc"))
+st.caption(tr("Heatmapa miesięcznych zwrotow, wzorce sezonowe, analiza Sell in May"))
 
 # --- Ticker select ---
 MONTH_NAMES_PL = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze",
@@ -24,22 +25,22 @@ custom = st.session_state.get("custom_tickers", [])
 all_available = ALL_TICKERS + custom
 
 ticker = st.selectbox(
-    "Wybierz ticker",
+    tr("Wybierz ticker"),
     options=all_available,
     index=all_available.index("QQQ") if "QQQ" in all_available else 0,
     format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}",
 )
 
-period = st.selectbox("Okres danych", list(PERIOD_MAP_FULL.keys())[3:],
-                       index=4, key="sez_period")
+period = st.selectbox(tr("Okres danych"), list(PERIOD_MAP_FULL.keys())[3:],
+                       index=4, key="sez_period", format_func=tr)
 yf_period = PERIOD_MAP_FULL.get(period, "10y")
 
 # --- Download ---
-with st.spinner("Pobieram dane..."):
+with st.spinner(tr("Pobieram dane...")):
     _series = download_single(ticker, period=yf_period)
 
 if _series is None or len(_series) == 0:
-    st.error(f"Brak danych dla {ticker}")
+    st.error(tr('Brak danych dla {ticker}', ticker=ticker))
     render_footer()
     st.stop()
 
@@ -47,38 +48,38 @@ series = _series.dropna()
 matrix = monthly_returns_matrix(series)
 
 if matrix.empty:
-    st.warning("Za malo danych do analizy sezonowosci.")
+    st.warning(tr("Za malo danych do analizy sezonowosci."))
     render_footer()
     st.stop()
 
 # --- Tabs ---
-tab1, tab2, tab3 = st.tabs(["📊 Heatmapa", "📈 Sredni miesiac", "🏖️ Sell in May"])
+tab1, tab2, tab3 = st.tabs([tr("📊 Heatmapa"), tr("📈 Sredni miesiac"), tr("🏖️ Sell in May")])
 
 with tab1:
-    st.plotly_chart(seasonality_heatmap(matrix, title=f"Sezonowosc {ticker} — miesięczne zwroty (%)"),
+    st.plotly_chart(seasonality_heatmap(matrix, title=tr('Sezonowosc {ticker} — miesięczne zwroty (%)', ticker=ticker)),
                     width="stretch")
 
 with tab2:
     avg = matrix.mean() * 100
     median = matrix.median() * 100
     colors = ["#22C55E" if v > 0 else "#EF4444" for v in avg.values]
-    x_labels = [MONTH_NAMES_PL[m - 1] for m in avg.index]
+    x_labels = [tr(MONTH_NAMES_PL[m - 1]) for m in avg.index]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=x_labels, y=avg.values, name="Srednia",
+        x=x_labels, y=avg.values, name=tr("Srednia"),
         marker_color=colors,
         text=[f"{v:.2f}%" for v in avg.values],
         textposition="outside", textfont=dict(size=11),
     ))
     fig.add_trace(go.Scatter(
-        x=x_labels, y=median.values, name="Mediana",
+        x=x_labels, y=median.values, name=tr("Mediana"),
         mode="lines+markers",
         line=dict(color=GOLD, width=2),
         marker=dict(size=6),
     ))
     fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)", line_width=1)
-    fig.update_layout(**_base_layout(f"{ticker} — sredni zwrot miesięczny (%)", height=450))
+    fig.update_layout(**_base_layout(tr('{ticker} — sredni zwrot miesięczny (%)', ticker=ticker), height=450))
     fig.update_yaxes(title_text="%")
     st.plotly_chart(fig, width="stretch")
 
@@ -94,8 +95,8 @@ with tab2:
     st.dataframe(stats_df, width="stretch", hide_index=True)
 
 with tab3:
-    st.markdown("### Sell in May and Go Away")
-    st.caption("Porownanie zwrotow Maj-Pazdziernik vs Listopad-Kwiecien")
+    st.markdown(tr("### Sell in May and Go Away"))
+    st.caption(tr("Porownanie zwrotow Maj-Pazdziernik vs Listopad-Kwiecien"))
 
     # Calculate Sell in May periods
     may_oct_months = [5, 6, 7, 8, 9, 10]
@@ -137,16 +138,16 @@ with tab3:
         fig.add_trace(go.Bar(
             x=[str(y) for y in sm_df["Rok"]],
             y=sm_df["Maj-Paz (%)"],
-            name="Maj-Paz",
+            name=tr("Maj-Paz"),
             marker_color="#EF4444",
         ))
         fig.add_trace(go.Bar(
             x=[str(y) for y in sm_df["Rok"]],
             y=sm_df["Lis-Kwi (%)"],
-            name="Lis-Kwi",
+            name=tr("Lis-Kwi"),
             marker_color="#22C55E",
         ))
-        fig.update_layout(**_base_layout(f"{ticker} — Sell in May vs Winter", height=450))
+        fig.update_layout(**_base_layout(tr('{ticker} — Sell in May vs Winter', ticker=ticker), height=450))
         fig.update_layout(barmode="group")
         fig.update_yaxes(title_text="%")
         fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)", line_width=1)
@@ -159,10 +160,10 @@ with tab3:
         total = len(sm_df)
 
         cols = st.columns(3)
-        cols[0].metric("Sredni zwrot Maj-Paz", f"{avg_mo:.2f}%")
-        cols[1].metric("Sredni zwrot Lis-Kwi", f"{avg_na:.2f}%")
-        cols[2].metric("Lis-Kwi wygrywa", f"{win_na}/{total} ({win_na/total*100:.0f}%)")
+        cols[0].metric(tr("Sredni zwrot Maj-Paz"), f"{avg_mo:.2f}%")
+        cols[1].metric(tr("Sredni zwrot Lis-Kwi"), f"{avg_na:.2f}%")
+        cols[2].metric(tr("Lis-Kwi wygrywa"), f"{win_na}/{total} ({win_na/total*100:.0f}%)")
     else:
-        st.warning("Za malo danych do analizy Sell in May.")
+        st.warning(tr("Za malo danych do analizy Sell in May."))
 
 render_footer()

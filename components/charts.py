@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 
 from components.constants import GOLD, BG, BG2, GRID, TEXT, MUTED, BG_CARD, BORDER, CHART_COLORS as COLORS  # noqa: F401
+from components.i18n import tr
+from components.formatting import fmt_number
 
 
 def _base_layout(title: str = "", height: int = 450) -> dict:
@@ -14,7 +16,7 @@ def _base_layout(title: str = "", height: int = 450) -> dict:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         colorway=COLORS,
-        title=dict(text=title, font=dict(size=15, color=TEXT)),
+        title=dict(text=tr(title), font=dict(size=15, color=TEXT)),
         font=dict(family="Inter, system-ui, sans-serif", color=MUTED, size=12),
         xaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
         yaxis=dict(gridcolor=GRID, showgrid=True, zeroline=False),
@@ -111,7 +113,7 @@ def ranking_bar_chart(ranking_df: pd.DataFrame, top_n: int = 10,
         textfont=dict(size=11),
     ))
     fig.update_layout(**_base_layout(title, height=max(300, top_n * 35)))
-    fig.update_xaxes(title_text="Wynik kompozytowy (%)")
+    fig.update_xaxes(title_text=tr("Wynik kompozytowy (%)"))
     return fig
 
 
@@ -127,7 +129,7 @@ def equity_chart(equity_curves: dict[str, pd.Series],
         ))
 
     fig.update_layout(**_base_layout(title))
-    fig.update_yaxes(title_text="Wartosc portfela (USD)")
+    fig.update_yaxes(title_text=tr("Wartosc portfela (USD)"))
     return fig
 
 
@@ -151,7 +153,7 @@ def correlation_heatmap(corr_matrix: pd.DataFrame,
 def category_pie(category_counts: dict, title: str = "Rozklad kategorii") -> go.Figure:
     """Pie chart kategorii ETF."""
     fig = go.Figure(go.Pie(
-        labels=list(category_counts.keys()),
+        labels=[tr(k) for k in category_counts.keys()],
         values=list(category_counts.values()),
         marker=dict(colors=COLORS[:len(category_counts)]),
         textfont=dict(size=12),
@@ -198,7 +200,7 @@ def seasonality_heatmap(matrix: pd.DataFrame,
     labels = np.where(np.isnan(vals), "", np.vectorize(lambda v: f"{v:.1f}%")(vals))
 
     cols_present = matrix.columns.tolist()
-    x_labels = [MONTH_NAMES_PL[m - 1] if m <= 12 else str(m) for m in cols_present]
+    x_labels = [tr(MONTH_NAMES_PL[m - 1]) if m <= 12 else str(m) for m in cols_present]
 
     fig = go.Figure(go.Heatmap(
         z=vals,
@@ -209,7 +211,7 @@ def seasonality_heatmap(matrix: pd.DataFrame,
         text=labels,
         texttemplate="%{text}",
         textfont=dict(size=10),
-        hovertemplate="Rok: %{y}<br>Miesiąc: %{x}<br>Zwrot: %{text}<extra></extra>",
+        hovertemplate=tr("Rok") + ": %{y}<br>" + tr("Miesiac") + ": %{x}<br>" + tr("Zwrot") + ": %{text}<extra></extra>",
     ))
     h = max(400, len(matrix) * 28)
     fig.update_layout(**_base_layout(title, height=h))
@@ -250,8 +252,8 @@ def fan_chart(simulations: pd.DataFrame,
     if 50 in pcts:
         fig.add_trace(go.Scatter(
             x=x_years, y=pcts[50], mode="lines",
-            line=dict(color=GOLD, width=2.5), name="Mediana (P50)",
-            hovertemplate="Rok %{x:.1f}<br>Wartosc: %{y:,.0f}<extra></extra>",
+            line=dict(color=GOLD, width=2.5), name=tr("Mediana (P50)"),
+            hovertemplate=tr("Rok") + " %{x:.1f}<br>" + tr("Wartosc") + ": %{y:,.0f}<extra></extra>",
         ))
 
     # Percentile labels
@@ -261,12 +263,12 @@ def fan_chart(simulations: pd.DataFrame,
                 x=x_years, y=pcts[p], mode="lines",
                 line=dict(color=GOLD, width=1, dash="dot"),
                 name=f"P{p}",
-                hovertemplate=f"P{p}<br>Rok %{{x:.1f}}<br>Wartosc: %{{y:,.0f}}<extra></extra>",
+                hovertemplate=f"P{p}<br>{tr('Rok')} %{{x:.1f}}<br>{tr('Wartosc')}: %{{y:,.0f}}<extra></extra>",
             ))
 
     fig.update_layout(**_base_layout(title, height=500))
-    fig.update_xaxes(title_text="Lata")
-    fig.update_yaxes(title_text="Wartosc portfela")
+    fig.update_xaxes(title_text=tr("Lata"))
+    fig.update_yaxes(title_text=tr("Wartosc portfela"))
     return fig
 
 
@@ -290,17 +292,17 @@ def ta_overview_chart(prices: pd.Series, ema_df: pd.DataFrame,
         ))
         fig.add_trace(go.Scatter(
             x=bb_clean.index, y=bb_clean["Upper"], mode="lines",
-            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name="BB Upper",
+            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name=tr("BB Upper"),
         ))
         fig.add_trace(go.Scatter(
             x=bb_clean.index, y=bb_clean["Lower"], mode="lines",
-            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name="BB Lower",
+            line=dict(color="rgba(212,176,98,0.3)", width=1, dash="dot"), name=tr("BB Lower"),
         ))
 
     # Cena
     p = prices.dropna()
     fig.add_trace(go.Scatter(
-        x=p.index, y=p.values, name="Cena", mode="lines",
+        x=p.index, y=p.values, name=tr("Cena"), mode="lines",
         line=dict(color="#E6E8EC", width=2),
     ))
 
@@ -321,13 +323,13 @@ def ta_overview_chart(prices: pd.Series, ema_df: pd.DataFrame,
             fig.add_trace(go.Scatter(
                 x=buys["date"], y=buys["price"], mode="markers",
                 marker=dict(symbol="triangle-up", size=12, color="#22C55E", line=dict(width=1, color="#fff")),
-                name="KUP",
+                name=tr("KUP"),
             ))
         if not sells.empty:
             fig.add_trace(go.Scatter(
                 x=sells["date"], y=sells["price"], mode="markers",
                 marker=dict(symbol="triangle-down", size=12, color="#EF4444", line=dict(width=1, color="#fff")),
-                name="SPRZEDAJ",
+                name=tr("SPRZEDAJ"),
             ))
 
     fig.update_layout(**_base_layout(title, height=500))
@@ -345,17 +347,17 @@ def macd_chart(macd_df: pd.DataFrame, title: str = "MACD") -> go.Figure:
     # Histogram bars
     colors = ["#22C55E" if v >= 0 else "#EF4444" for v in df["Histogram"]]
     fig.add_trace(go.Bar(
-        x=df.index, y=df["Histogram"], name="Histogram",
+        x=df.index, y=df["Histogram"], name=tr("Histogram"),
         marker_color=colors, opacity=0.6,
     ))
 
     # MACD & Signal lines
     fig.add_trace(go.Scatter(
-        x=df.index, y=df["MACD"], name="MACD", mode="lines",
+        x=df.index, y=df["MACD"], name=tr("MACD"), mode="lines",
         line=dict(color=GOLD, width=2),
     ))
     fig.add_trace(go.Scatter(
-        x=df.index, y=df["Signal"], name="Signal", mode="lines",
+        x=df.index, y=df["Signal"], name=tr("Signal"), mode="lines",
         line=dict(color="#3B82F6", width=1.5),
     ))
 
@@ -379,7 +381,7 @@ def rsi_chart(rsi_series: pd.Series, title: str = "RSI") -> go.Figure:
 
     # RSI line
     fig.add_trace(go.Scatter(
-        x=s.index, y=s.values, name="RSI", mode="lines",
+        x=s.index, y=s.values, name=tr("RSI"), mode="lines",
         line=dict(color=GOLD, width=2),
     ))
 
@@ -402,7 +404,7 @@ def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
 
     if "RS" in rs_df.columns:
         fig.add_trace(go.Scatter(
-            x=rs_df.index, y=rs_df["RS"], name="RS", mode="lines",
+            x=rs_df.index, y=rs_df["RS"], name=tr("RS"), mode="lines",
             line=dict(color=GOLD, width=2),
         ))
 
@@ -417,7 +419,7 @@ def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
 
     # Linia referencyjna 100
     fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1,
-                  annotation_text="Baza", annotation_position="bottom right")
+                  annotation_text=tr("Baza"), annotation_position="bottom right")
 
     # Adnotacje outperformance/underperformance
     if "RS" in rs_df.columns and len(rs_df) > 0:
@@ -436,7 +438,7 @@ def rs_chart(rs_df: pd.DataFrame, asset_name: str = "Asset",
             )
 
     fig.update_layout(**_base_layout(title))
-    fig.update_yaxes(title_text="RS (baza=100)")
+    fig.update_yaxes(title_text=tr("RS (baza=100)"))
     return fig
 
 
@@ -470,7 +472,7 @@ def picks_return_bar(labels: list[str], returns: list[float | None],
         hovertemplate="%{y}: %{x:.2f}%<extra></extra>",
     ))
     fig.update_layout(**_base_layout(title, height=max(220, len(pairs) * 46)))
-    fig.update_xaxes(title_text="Zwrot (%)", zeroline=True,
+    fig.update_xaxes(title_text=tr("Zwrot (%)"), zeroline=True,
                      zerolinecolor="rgba(255,255,255,0.25)")
     return fig
 
@@ -500,10 +502,10 @@ def growth_chart(series: dict[str, pd.Series], proxy_end: dict[str, pd.Timestamp
         fig.add_trace(go.Scatter(x=v.index, y=v.values, name=name, mode="lines",
                                  legendgroup=name, hovertemplate=hover,
                                  line=dict(color=color, width=2, dash="solid")))
-    fig.update_layout(**_base_layout(title or f"Wzrost {start_value:,.0f} {currency}".replace(",", " "),
+    fig.update_layout(**_base_layout(title or tr("Wzrost {v} {currency}", v=fmt_number(start_value, 0), currency=currency),
                                      height=480))
     fig.update_layout(separators=", ")
-    fig.update_yaxes(type="log", title_text=f"Wartosc ({currency})")
+    fig.update_yaxes(type="log", title_text=tr('Wartosc ({currency})', currency=currency))
     return fig
 
 
@@ -527,7 +529,7 @@ def yearly_returns_heatmap(df: pd.DataFrame, ytd_year: int | None = None,
         colorscale=[[0, "#EF4444"], [0.5, BG2], [1, "#22C55E"]],
         zmin=-lim, zmax=lim, xgap=1, ygap=1,
         text=labels, texttemplate="%{text}", textfont=dict(size=10),
-        hovertemplate="Rok: %{y}<br>%{x}: %{text}<extra></extra>",
+        hovertemplate=tr("Rok") + ": %{y}<br>%{x}: %{text}<extra></extra>",
     ))
     fig.update_layout(**_base_layout(title, height=max(400, len(df) * 24 + 90)))
     fig.update_layout(margin=dict(l=40, r=20, t=90, b=30), separators=", ")
@@ -547,10 +549,10 @@ def rolling_returns_chart(rolling: dict[str, pd.Series], years: int,
         fig.add_trace(go.Scatter(
             x=r.index, y=r.values * 100, name=name, mode="lines",
             line=dict(color=COLORS[i % len(COLORS)], width=2),
-            hovertemplate=f"{name}<br>okno do %{{x|%m.%Y}}<br>%{{y:.1f}}% rocznie<extra></extra>",
+            hovertemplate=f"{name}<br>{tr('okno do')} %{{x|%m.%Y}}<br>%{{y:.1f}}% {tr('rocznie')}<extra></extra>",
         ))
     fig.add_hline(y=0, line=dict(color="#6B7280", width=1, dash="dot"))
-    fig.update_layout(**_base_layout(title or f"Kroczacy CAGR — okno {years} lat (%)", height=450))
+    fig.update_layout(**_base_layout(title or tr("Kroczacy CAGR — okno {years} lat (%)", years=years), height=450))
     fig.update_layout(separators=", ")
     fig.update_yaxes(ticksuffix="%")
     return fig

@@ -1,9 +1,10 @@
-"""Polskie formatowanie: procenty, liczby, kolory."""
+"""Formatowanie procentow i liczb wg jezyka (PL: 1 234,56 · EN: 1,234.56), kolory."""
 
 import numpy as np
 import pandas as pd
 
 from components.constants import GOLD, GREEN, RED, MUTED, BG, BG2, BG_CARD, BORDER  # noqa: F401
+from components.i18n import is_pl, tr
 
 
 def fmt_pct(value: float | None, decimals: int = 2) -> str:
@@ -12,6 +13,8 @@ def fmt_pct(value: float | None, decimals: int = 2) -> str:
         return "—"
     v = value * 100
     sign = "+" if v > 0 else ""
+    if not is_pl():
+        return f"{sign}{v:,.{decimals}f}%"
     return f"{sign}{v:,.{decimals}f}%".replace(",", " ").replace(".", ",")
 
 
@@ -19,6 +22,8 @@ def fmt_number(value: float | None, decimals: int = 0) -> str:
     """Formatuje liczbę po polsku: 10 000, 1 234,56."""
     if value is None or (isinstance(value, float) and (np.isnan(value) or np.isinf(value))):
         return "—"
+    if not is_pl():
+        return f"{value:,.{decimals}f}"
     if decimals == 0:
         return f"{value:,.0f}".replace(",", " ")
     formatted = f"{value:,.{decimals}f}"
@@ -51,7 +56,15 @@ def signal_badge(signal: str) -> str:
         "NIE": (RED, "NIE"),
     }
     color, label = colors.get(signal, (MUTED, signal))
+    label = tr(label)
     return (
         f'<span style="background:{color}20;color:{color};padding:4px 12px;'
         f'border-radius:20px;font-weight:700;font-size:0.85rem">{label}</span>'
     )
+
+
+def money(num_str: str, ccy: str) -> str:
+    """Kwota z waluta: PL '351,91 $' / '12,5 zl', EN '$351.91' (dolar z przodu) / '12.5 PLN'."""
+    if ccy == "$" and not is_pl():
+        return f"${num_str}"
+    return f"{num_str} {ccy}".strip()

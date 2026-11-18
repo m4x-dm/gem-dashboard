@@ -53,7 +53,7 @@ views/                  # STRONY (NIE "pages/" — katalog pages/ obok st.naviga
 - Nowa strona = plik w `views/<sekcja>/` + jeden wpis `PageDef` w `components/nav.py`. Strona NIE wola `st.set_page_config`, `setup_sidebar()` ani zadnego gatingu — robi to router. Zaczyna sie od importow i `st.markdown("# Tytul")` (bez emoji), konczy `render_footer()`.
 - URL strony = nazwa pliku (bez `url_path`; `AppTest.switch_page` hashuje nazwe pliku) -> nazwy plikow unikalne. Router rozpoznaje strone po tytule (`nav.access_info(pg.title)`, nieznana = zablokowana) -> tytuly unikalne.
 - W `app.py` `st.navigation` MUSI byc przed `setup_sidebar()` (rerun komponentu localStorage gubil strone z URL). Testy pilnuja obu regul (`tests/test_nav.py`).
-- Darmowe: Pulpit (czesciowo — `is_premium()` + `premium_teaser()` wewnatrz), Sygnal GEM (zakladka Teraz), Ranking ETF, O strategii. Reszta przez router -> `render_lock_screen`.
+- Darmowe: Pulpit (caly, od 2026-11-18 — wlacznie z watchlista, wynikami tygodnia, wygranymi/przegranymi i PDF), Sygnal GEM (zakladka Teraz), Ranking ETF, O strategii. Reszta przez router -> `render_lock_screen`.
 - Linki miedzy stronami tylko `nav.go(key)` / `nav.link(key)` — nigdy `st.switch_page("views/...")` na sztywno. Przejscie do spolki (od 2026-11-16): zawsze `nav.go_company(ticker)` (= `st.switch_page` karty z `query_params={"t": ticker}`) albo `nav.company_link(ticker)`; URL `/karta?t=AAPL`. Stary wzorzec `{sp500|gpw}_deep_dive_ticker` / `_pending_view` usuniety — strony S&P 500 / GPW nie maja juz zakladki Finanse ani deep dive.
 - **Zrzuty ekranu:** `python scripts/screenshot.py URL OUT.png W H WAIT` (Chrome CDP). Czeka, az zniknie status/spinnery i tekst strony stoi 8 s — wczesniej lapal strone po ~6 s (np. pusta kolumna Momentum w Karcie, zanim policzyl sie ranking). Premium lokalnie: plik startowy ustawiajacy `st.session_state["premium"]=True` + `exec(app.py)` na osobnym porcie (nie commitowac).
 - Na stronach scalonych z zakladkami: `st.stop()` w zakladce zabija caly skrypt -> `return` z funkcji `render_*`; kazdy `st.plotly_chart`/widget dostaje unikalny `key=` z prefiksem zakladki.
@@ -174,14 +174,16 @@ Sektory USA (XLK, XLF, XLE, XLV, XLI, XLY, XLP, XLC, XLRE, XLU, XLB)
 - **sWIG80** (66 spolek): PLW, MBR, SNT, RBW, TOR, VOX, OPN, **MUR** (Murapol), **VOT** (Votum), etc.
 - All tickers use `.WA` suffix for Yahoo Finance
 
-## Crypto Universe (~194 tickers, 11 categories)
+## Crypto Universe (189 tickers, 11 categories)
 Layer 1 (BTC, ETH, SOL, ADA, XRP...), Layer 2/Skalowanie (MATIC, OP, ARB...),
 DeFi (UNI, LINK, AAVE, MKR...), Exchange Tokens (OKB, CRO, LEO...),
 Memecoiny (DOGE, SHIB, PEPE...), Gaming/Metaverse (AXS, SAND, MANA...),
 AI/Data (RNDR, FET, TAO...), Prywatnosc (XMR, ZEC...), Infrastruktura (QNT, ENS, CHZ...),
 RWA/Tokenizacja (ONDO, MNT...), Inne (LTC, BCH, ETC...)
 - All tickers use `-USD` suffix for Yahoo Finance
-- `CRYPTO_BY_MCAP` — ordered list ~195 tickers by approximate market cap (for Top N filters)
+- `CRYPTO_BY_MCAP` — ordered list 189 tickers by approximate market cap (for Top N filters)
+- 2026-11-18: usuniete AGIX, HT, JUP, SXP, ICX (martwe/bledne dane w Yahoo). Ceny krypto na stronie Krypto przechodza przez `downloader.clean_price_glitches` (zera, jednodniowe skoki >5x vs mediana 5 dni).
+- OTWARTE: ~28 tickerow bez danych w Yahoo to zywe projekty pod innymi symbolami (np. SUI20947-USD, POL zamiast MATIC, S zamiast FTM, RENDER zamiast RNDR) — do przemapowania. Zombie-coiny (np. POLY, BTG) z minimalnym obrotem psuja rotacje momentum — potrzebny filtr plynnosci po wolumenie.
 
 ## S&P 500 Universe (~456 tickers, 11 GICS sectors)
 Information Technology (AAPL, MSFT, NVDA, AVGO...), Health Care (LLY, UNH, JNJ, ABBV...),

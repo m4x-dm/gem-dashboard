@@ -49,8 +49,24 @@ def _get_yf_session():
 # Fetch functions (cached 24h)
 # ---------------------------------------------------------------------------
 
-@st.cache_data(ttl=86400, show_spinner=False)
+class _InfoUnavailable(Exception):
+    """Yahoo nie oddalo Ticker.info (rate limit / blad). Wyjatek, bo st.cache_data go NIE zapamietuje."""
+
+
 def _fetch_info(ticker: str) -> dict:
+    """Ticker.info z cache 24h — ale tylko udane odpowiedzi; przy bledzie {} bez zapamietywania.
+
+    Wczesniej porazka (np. Yahoo 429) zapisywala {} w cache na 24h i "zatruwala"
+    wskazniki, rekomendacje i profil spolki na cala dobe (2026-11-18).
+    """
+    try:
+        return _fetch_info_cached(ticker)
+    except _InfoUnavailable:
+        return {}
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _fetch_info_cached(ticker: str) -> dict:
     """Wspolny helper — fetch yfinance Ticker.info raz dla danego tickera.
 
     Uzywany przez get_ratios_snapshot + get_analyst_recos (oba potrzebuja info).
@@ -77,10 +93,11 @@ def _fetch_info(ticker: str) -> dict:
             pass
         if attempt < 2:
             time.sleep(0.5 * (3 ** attempt))
-    return {}
+    raise _InfoUnavailable(ticker)
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+# Bez wlasnego cache: tylko przeksztalca slownik z _fetch_info (ktory cache'uje
+# wylacznie udane odpowiedzi), wiec chwilowy blad Yahoo nie zostaje na 24h.
 def get_ratios_snapshot(ticker: str) -> dict:
     """Pobiera 12 kluczowych wskaznikow z yfinance Ticker.info.
 
@@ -234,8 +251,7 @@ def get_earnings_history(ticker: str, n_quarters: int = 8) -> pd.DataFrame | Non
     return out
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_analyst_recos(ticker: str) -> dict:
+def get_analyst_recos(ticker: str) -> dict:  # bez cache — patrz get_ratios_snapshot
     """Rekomendacje analitykow + target prices.
 
     Zwraca dict z kluczami: target_mean, target_median, target_high,
@@ -367,7 +383,6 @@ def format_large_number(value: float | None) -> str:
 # Bulk fetch dla tab Screening (pages 7_sp500 + 8_gpw)
 # ---------------------------------------------------------------------------
 
-@st.cache_data(ttl=86400, show_spinner="Pobieram dane fundamentalne universe...")
 def bulk_fetch_universe(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     """Bulk fetch danych fundamentalnych dla calego subset universe.
 
@@ -382,10 +397,12 @@ def bulk_fetch_universe(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     Returns:
         dict[ticker, {info dict}] — brak rekordu gdy ticker zwrocil 404/timeout.
     """
+    # Bez wlasnego cache (od 2026-11-18): wczesniej ticker, ktory chwilowo nie odpowiedzial,
+    # znikal ze screenera na 24h. Cache per ticker w _fetch_info wystarcza — drugi run jest szybki.
     out: dict[str, dict] = {}
     tickers = list(tickers_tuple)
     for t in tickers:
-        info = _fetch_info(t)  # cached per ticker — drugi run instant
+        info = _fetch_info(t)  # cached per ticker (tylko udane) — drugi run instant
         if not info:
             continue
         # Sanity check: yfinance zwraca dict nawet dla nieistniejacych tickerów
@@ -847,21 +864,23 @@ def _status_badge(date, eps_act, eps_est) -> str:
     ts = pd.Timestamp(date).normalize()
     days_diff = (ts - today).days
 
+    from components.i18n import tr  # tylko do wyswietlania (badge nie jest porownywany w logice)
+
     if days_diff == 0:
-        return "🔥 DZIŚ"
+        return tr("🔥 DZIŚ")
     if days_diff > 0:  # Future
         if days_diff <= 7:
-            return f"🔜 W {days_diff}d"
+            return tr("🔜 W {n}d", n=days_diff)
         if days_diff <= 14:
-            return f"⏰ W {days_diff}d"
+            return tr("⏰ W {n}d", n=days_diff)
         return f"📅 {ts.strftime('%d.%m')}"
     # Past
     abs_diff = abs(days_diff)
     if pd.notna(eps_act) and pd.notna(eps_est):
         if eps_act > eps_est:
-            return f"✅ Beat ({abs_diff}d temu)"
-        return f"❌ Miss ({abs_diff}d temu)"
-    return f"⚪ {abs_diff}d temu"
+            return tr("✅ Beat ({n}d temu)", n=abs_diff)
+        return tr("❌ Miss ({n}d temu)", n=abs_diff)
+    return tr("⚪ {n}d temu", n=abs_diff)
 
 
 def _get_etf_set() -> set[str]:

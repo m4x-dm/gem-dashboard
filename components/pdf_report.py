@@ -14,6 +14,8 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from components.i18n import tr
+
 
 # --- Kolory ---
 GOLD = HexColor("#D4B062")
@@ -108,26 +110,26 @@ def generate_report(sections: dict) -> bytes:
 
     # ---- NAGLOWEK ----
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    elements.append(Paragraph("GEM ETF Dashboard — Raport", title_style))
-    elements.append(Paragraph(f"Wygenerowano: {now}", subtitle_style))
+    elements.append(Paragraph(tr("GEM ETF Dashboard — Raport"), title_style))
+    elements.append(Paragraph(tr("Wygenerowano: {now}", now=now), subtitle_style))
 
     # ---- SYGNAL GEM ----
     if "gem_signal" in sections:
         gem = sections["gem_signal"]
-        elements.append(Paragraph("Sygnal GEM", heading_style))
+        elements.append(Paragraph(tr("Sygnal GEM"), heading_style))
         signal = gem.get("signal", "—")
-        label = gem.get("signal_label", "")
-        elements.append(Paragraph(f"<b>Aktualny sygnal: {signal}</b>", body_style))
+        label = tr(gem.get("signal_label", ""))
+        elements.append(Paragraph("<b>" + tr("Aktualny sygnal: {signal}", signal=signal) + "</b>", body_style))
         elements.append(Paragraph(label, body_style))
 
         # Zwroty 12M
         data = [
-            ["Instrument", "Zwrot 12M"],
+            ["Instrument", tr("Zwrot 12M")],
             ["QQQ (USA)", _fmt_pct(gem.get("qqq_12m"))],
-            ["VEA (Rozwin.)", _fmt_pct(gem.get("vea_12m"))],
-            ["EEM (Wsch.)", _fmt_pct(gem.get("eem_12m"))],
+            [tr("VEA (Rozwin.)"), _fmt_pct(gem.get("vea_12m"))],
+            [tr("EEM (Wsch.)"), _fmt_pct(gem.get("eem_12m"))],
             ["ACWI (Global)", _fmt_pct(gem.get("acwi_12m"))],
-            ["AGG (Obligacje)", _fmt_pct(gem.get("agg_12m"))],
+            [tr("AGG (Obligacje)"), _fmt_pct(gem.get("agg_12m"))],
         ]
         t = Table(data, colWidths=[120, 80])
         t.setStyle(_table_style())
@@ -137,19 +139,19 @@ def generate_report(sections: dict) -> bytes:
     # ---- REGIME ----
     if "regime" in sections:
         reg = sections["regime"]
-        elements.append(Paragraph("Regime rynkowy", heading_style))
+        elements.append(Paragraph(tr("Regime rynkowy"), heading_style))
         elements.append(Paragraph(
-            f"<b>{reg.get('label', '—')}</b> (Risk-On score: {reg.get('score', 0):.0f}%)",
+            f"<b>{tr(reg.get('label', '—'))}</b> (Risk-On score: {reg.get('score', 0):.0f}%)",
             body_style,
         ))
         elements.append(Spacer(1, 8))
 
     # ---- TOP 5 ETF ----
     if "top_etfs" in sections and sections["top_etfs"]:
-        elements.append(Paragraph("Top 5 ETF-ow wg momentum", heading_style))
-        data = [["#", "Ticker", "Nazwa", "Wynik"]]
+        elements.append(Paragraph(tr("Top 5 ETF-ow wg momentum"), heading_style))
+        data = [["#", "Ticker", tr("Nazwa"), tr("Wynik")]]
         for i, (ticker, name, score) in enumerate(sections["top_etfs"][:5], 1):
-            data.append([str(i), ticker, name, _fmt_pct(score)])
+            data.append([str(i), ticker, tr(name), _fmt_pct(score)])
         t = Table(data, colWidths=[25, 60, 180, 80])
         t.setStyle(_table_style())
         elements.append(t)
@@ -157,8 +159,8 @@ def generate_report(sections: dict) -> bytes:
 
     # ---- SPARKLINES (tabela aktywow) ----
     if "sparklines" in sections and sections["sparklines"]:
-        elements.append(Paragraph("Kluczowe aktywa", heading_style))
-        data = [["Ticker", "Aktywo", "Cena", "Zmiana 1M"]]
+        elements.append(Paragraph(tr("Kluczowe aktywa"), heading_style))
+        data = [["Ticker", tr("Aktywo"), tr("Cena"), tr("Zmiana 1M")]]
         for ticker, label, price, chg in sections["sparklines"]:
             data.append([ticker, label, f"{price:,.2f}", _fmt_pct(chg)])
         t = Table(data, colWidths=[60, 120, 80, 80])
@@ -168,8 +170,8 @@ def generate_report(sections: dict) -> bytes:
 
     # ---- BACKTEST STATS ----
     if "backtest_stats" in sections and sections["backtest_stats"]:
-        elements.append(Paragraph("Statystyki strategii (5 lat)", heading_style))
-        data = [["Strategia", "CAGR", "Max DD", "Sharpe"]]
+        elements.append(Paragraph(tr("Statystyki strategii (5 lat)"), heading_style))
+        data = [[tr("Strategia"), "CAGR", "Max DD", "Sharpe"]]
         for name, s in sections["backtest_stats"].items():
             data.append([
                 name,
@@ -184,10 +186,10 @@ def generate_report(sections: dict) -> bytes:
 
     # ---- RANKING TOP 10 ----
     if "ranking_top10" in sections and sections["ranking_top10"]:
-        elements.append(Paragraph("Ranking ETF — Top 10", heading_style))
-        data = [["#", "Ticker", "Nazwa", "Wynik", "Mom. abs."]]
+        elements.append(Paragraph(tr("Ranking ETF — Top 10"), heading_style))
+        data = [["#", "Ticker", tr("Nazwa"), tr("Wynik"), "Mom. abs."]]
         for i, (ticker, name, score, mom) in enumerate(sections["ranking_top10"][:10], 1):
-            data.append([str(i), ticker, name, _fmt_pct(score), mom])
+            data.append([str(i), ticker, tr(name), _fmt_pct(score), tr(mom)])
         t = Table(data, colWidths=[25, 55, 160, 70, 60])
         t.setStyle(_table_style())
         elements.append(t)
@@ -195,10 +197,10 @@ def generate_report(sections: dict) -> bytes:
 
     # ---- MAKRO ----
     if "macro" in sections and sections["macro"]:
-        elements.append(Paragraph("Makro Dashboard", heading_style))
-        data = [["Wskaznik", "Wartosc", "Sygnal"]]
+        elements.append(Paragraph(tr("Makro Dashboard"), heading_style))
+        data = [[tr("Wskaznik"), tr("Wartosc"), tr("Sygnal")]]
         for name, value, unit, signal in sections["macro"]:
-            data.append([name, f"{value} {unit}", signal])
+            data.append([tr(name), f"{value} {tr(unit)}", tr(signal)])
         t = Table(data, colWidths=[120, 100, 100])
         t.setStyle(_table_style())
         elements.append(t)
@@ -207,8 +209,8 @@ def generate_report(sections: dict) -> bytes:
     # ---- STOPKA ----
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(
-        "Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej. "
-        "Wyniki historyczne nie gwarantuja przyszlych zwrotow.",
+        tr("Dashboard ma charakter edukacyjny i informacyjny. Nie stanowi porady inwestycyjnej. "
+           "Wyniki historyczne nie gwarantuja przyszlych zwrotow."),
         small_style,
     ))
     elements.append(Paragraph(f"© 2026 M4X · GEM ETF Dashboard", small_style))

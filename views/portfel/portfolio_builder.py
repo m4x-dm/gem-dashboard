@@ -19,10 +19,17 @@ from components.charts import (
     category_pie, COLORS,
 )
 from components.cards import stats_table
+from components.i18n import tr
 
 
-st.markdown("# Portfolio Builder")
-st.caption("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki")
+def _tr_option(label: str) -> str:
+    """'[ETF] AGG — Obligacje zagregowane USA' -> nazwa po przetlumaczeniu (nazwy spolek bez zmian)."""
+    head, sep, name = label.partition(" — ")
+    return f"{head}{sep}{tr(name)}" if sep else label
+
+
+st.markdown(tr("# Portfolio Builder"))
+st.caption(tr("Zbuduj portfel z dowolnych aktywow, ustaw wagi i przeanalizuj wyniki"))
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -146,45 +153,45 @@ ticker_list = list(ALL_OPTIONS.keys())
 # ---------------------------------------------------------------------------
 # 1. Wybor tickerow
 # ---------------------------------------------------------------------------
-st.markdown("### 1. Wybor aktywow")
+st.markdown(tr("### 1. Wybor aktywow"))
 
 selected = st.multiselect(
-    "Wybierz aktywa (max 20)",
+    tr("Wybierz aktywa (max 20)"),
     options=ticker_list,
     default=[],
     max_selections=20,
-    format_func=lambda t: ALL_OPTIONS.get(t, t),
+    format_func=lambda t: _tr_option(ALL_OPTIONS.get(t, t)),
 )
 
 if not selected or len(selected) < 2:
-    st.info("Wybierz co najmniej 2 aktywa, aby rozpoczac analize.")
+    st.info(tr("Wybierz co najmniej 2 aktywa, aby rozpoczac analize."))
     st.stop()
 
 # ---------------------------------------------------------------------------
 # 2. Wagi
 # ---------------------------------------------------------------------------
-st.markdown("### 2. Wagi portfela")
+st.markdown(tr("### 2. Wagi portfela"))
 
 # Presets
 pcol1, pcol2, pcol3 = st.columns(3)
 with pcol1:
-    if st.button("Equal-weight", width="stretch"):
+    if st.button(tr("Equal-weight"), width="stretch"):
         eq_w = round(100.0 / len(selected), 2)
         for t in selected:
             st.session_state[f"w_{t}"] = eq_w
 with pcol2:
-    if st.button("Risk Parity", width="stretch"):
-        with st.spinner("Obliczam wagi risk parity..."):
+    if st.button(tr("Risk Parity"), width="stretch"):
+        with st.spinner(tr("Obliczam wagi risk parity...")):
             rp_prices = download_prices(selected, period="1y")
             if rp_prices.empty or len(rp_prices) < 10:
-                st.warning("Nie udalo sie pobrac danych — uzywam equal-weight.")
+                st.warning(tr("Nie udalo sie pobrac danych — uzywam equal-weight."))
                 rp_weights = {t: 1.0 / len(selected) for t in selected}
             else:
                 rp_weights = _risk_parity_weights(rp_prices)
             for t in selected:
                 st.session_state[f"w_{t}"] = round(rp_weights.get(t, 0) * 100, 2)
 with pcol3:
-    if st.button("Reset", width="stretch"):
+    if st.button(tr("Reset"), width="stretch"):
         for t in selected:
             st.session_state[f"w_{t}"] = 0.0
 
@@ -209,10 +216,10 @@ total_weight = sum(weights_raw.values())
 
 # Validation
 if abs(total_weight - 100.0) > 0.5:
-    st.warning(f"Suma wag: **{total_weight:.1f}%** — powinna wynosic 100%. Roznica: {total_weight - 100:.1f}%")
+    st.warning(tr('Suma wag: **{v0}%** — powinna wynosic 100%. Roznica: {v1}%', v0=f'{total_weight:.1f}', v1=f'{total_weight - 100:.1f}'))
     weights_valid = False
 else:
-    st.success(f"Suma wag: {total_weight:.1f}% ✓")
+    st.success(tr('Suma wag: {v0}% ✓', v0=f'{total_weight:.1f}'))
     weights_valid = True
 
 if not weights_valid:
@@ -223,19 +230,19 @@ weights = {t: w / 100.0 for t, w in weights_raw.items() if w > 0}
 active_tickers = list(weights.keys())
 
 if len(active_tickers) < 2:
-    st.warning("Co najmniej 2 aktywa musza miec niezerowa wage.")
+    st.warning(tr("Co najmniej 2 aktywa musza miec niezerowa wage."))
     st.stop()
 
 # ---------------------------------------------------------------------------
 # 3. Analiza portfela
 # ---------------------------------------------------------------------------
-st.markdown("### 3. Analiza portfela")
+st.markdown(tr("### 3. Analiza portfela"))
 
-with st.spinner("Pobieram dane i analizuje portfel..."):
+with st.spinner(tr("Pobieram dane i analizuje portfel...")):
     prices = download_prices(active_tickers, period="2y")
 
 if prices.empty:
-    st.error("Nie udalo sie pobrac danych.")
+    st.error(tr("Nie udalo sie pobrac danych."))
     st.stop()
 
 # -- Pie chart alokacji --
@@ -246,7 +253,7 @@ with acol1:
 
 # -- Tabela zwrotow holdingsow --
 with acol2:
-    st.markdown("#### Zwroty holdingsow")
+    st.markdown(tr("#### Zwroty holdingsow"))
     rets = latest_returns(prices)
     rets["Waga"] = rets.index.map(lambda t: weights.get(t, 0))
     rets["Nazwa"] = rets.index.map(lambda t: _ticker_name(t))
@@ -257,12 +264,12 @@ with acol2:
     st.dataframe(display_rets, width="stretch", height=min(400, 40 + 35 * len(display_rets)))
 
 # -- Correlation heatmap --
-st.markdown("#### Macierz korelacji")
+st.markdown(tr("#### Macierz korelacji"))
 corr = correlation_matrix(prices, period=252)
 st.plotly_chart(correlation_heatmap(corr), width="stretch")
 
 # -- Backtest --
-st.markdown("#### Backtest portfela")
+st.markdown(tr("#### Backtest portfela"))
 
 trading_days = 365 if _has_crypto(active_tickers) else 252
 
@@ -291,6 +298,6 @@ if result and result_eq:
     })
     st.plotly_chart(drawdown_chart(dd_df, "Drawdown — spadek od szczytu"), width="stretch")
 else:
-    st.warning("Za malo danych do przeprowadzenia backtestu (wymagane min. 10 dni wspolnych danych).")
+    st.warning(tr("Za malo danych do przeprowadzenia backtestu (wymagane min. 10 dni wspolnych danych)."))
 
 render_footer()

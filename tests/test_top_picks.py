@@ -784,3 +784,18 @@ def test_portfolio_equity_trzyma_sklad_gdy_rynku_brak_w_srodkowym_miesiacu():
     assert len(equity) == 90
     assert float(equity.iloc[-1]) == pytest.approx(
         10000.0 * prices["AAA"].iloc[60] / prices["AAA"].iloc[0], rel=1e-6)
+
+
+def test_analyst_card_without_enrichment_has_no_zero_analysts():
+    """Bez wzbogacenia (brak num_analysts) karta nie pokazuje '0 analitykow' (2026-11-18)."""
+    import re
+    src = open("views/spolki/top_picks.py", encoding="utf-8").read()
+    m = re.search(r"^def _analyst_card_fields.*?(?=^def )", src, re.M | re.S)
+    ns = {"fmt_number": lambda x, d=2: f"{x:.{d}f}", "money": lambda s, c: f"{s} {c}",
+          "tr": lambda t, **k: t.format(**k), "consensus_label": lambda rm: "—" if rm is None else "Buy"}
+    exec(m.group(0), ns)
+    f = ns["_analyst_card_fields"]
+    bare = f({"recommendation_mean": None, "num_analysts": None, "target_mean": None, "upside": None}, "analyst", "$")
+    assert "0 analitykow" not in bare["note"]
+    full = f({"recommendation_mean": 1.8, "num_analysts": 12, "target_mean": 120.0, "upside": 0.2}, "analyst", "$")
+    assert "12 analitykow" in full["note"]

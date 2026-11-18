@@ -12,31 +12,32 @@ from data.momentum import latest_returns
 from components.charts import _base_layout, GOLD
 from components.formatting import fmt_pct, color_for_value, BORDER
 from components.constants import PERIOD_MAP_FULL
+from components.i18n import tr
 
 
-st.markdown("# Waluta PLN/USD")
-st.caption("Wplyw kursu USD/PLN na zwroty ETF-ow — realne zwroty polskiego inwestora")
+st.markdown(tr("# Waluta PLN/USD"))
+st.caption(tr("Wplyw kursu USD/PLN na zwroty ETF-ow — realne zwroty polskiego inwestora"))
 
 USDPLN_TICKER = "USDPLN=X"
 
 period_labels = list(PERIOD_MAP_FULL.keys())
-period = st.selectbox("Okres danych", period_labels, index=5, key="waluta_period")
+period = st.selectbox(tr("Okres danych"), period_labels, index=5, key="waluta_period", format_func=tr)
 yf_period = PERIOD_MAP_FULL[period]
 
 # Tickers
 default_etfs = ["QQQ", "VEA", "AGG", "GLD"]
 custom = st.session_state.get("custom_tickers", [])
 all_available = ALL_TICKERS + custom
-selected = st.multiselect("ETF-y do porownania", all_available, default=default_etfs,
+selected = st.multiselect(tr("ETF-y do porownania"), all_available, default=default_etfs,
                             max_selections=6, key="waluta_etfs")
 
 if not selected:
-    st.warning("Wybierz przynajmniej jeden ETF.")
+    st.warning(tr("Wybierz przynajmniej jeden ETF."))
     render_footer()
     st.stop()
 
 # Download
-with st.spinner("Pobieram dane..."):
+with st.spinner(tr("Pobieram dane...")):
     usdpln = download_single(USDPLN_TICKER, period=yf_period)
     _parts = {}
     for _t in selected:
@@ -46,7 +47,7 @@ with st.spinner("Pobieram dane..."):
     etf_prices = pd.DataFrame(_parts) if _parts else pd.DataFrame()
 
 if usdpln is None or usdpln.empty:
-    st.error("Brak danych kursu USD/PLN.")
+    st.error(tr("Brak danych kursu USD/PLN."))
     render_footer()
     st.stop()
 
@@ -58,18 +59,18 @@ if period == "Strategia 12-1":
         etf_prices = etf_prices.iloc[-273:-21]
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Kurs USD/PLN", "📊 Zwroty USD vs PLN",
-                                    "🔀 Overlay", "📖 Hedging"])
+tab1, tab2, tab3, tab4 = st.tabs([tr("📈 Kurs USD/PLN"), tr("📊 Zwroty USD vs PLN"),
+                                    tr("🔀 Overlay"), tr("📖 Hedging")])
 
 with tab1:
-    st.subheader("Kurs USD/PLN")
+    st.subheader(tr("Kurs USD/PLN"))
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=usdpln.index, y=usdpln.values, mode="lines",
-        line=dict(color=GOLD, width=2), name="USD/PLN",
+        line=dict(color=GOLD, width=2), name=tr("USD/PLN"),
     ))
-    fig.update_layout(**_base_layout("Kurs USD/PLN", height=450))
-    fig.update_yaxes(title_text="PLN za 1 USD")
+    fig.update_layout(**_base_layout(tr("Kurs USD/PLN"), height=450))
+    fig.update_yaxes(title_text=tr("PLN za 1 USD"))
     st.plotly_chart(fig, width="stretch")
 
     # Metrics
@@ -78,11 +79,11 @@ with tab1:
     for i, p in enumerate(["1M", "3M", "6M", "12M"]):
         val = rets.loc["USDPLN", p] if "USDPLN" in rets.index and p in rets.columns else None
         c = color_for_value(val)
-        cols[i].metric(f"Zmiana {p}", fmt_pct(val))
+        cols[i].metric(tr('Zmiana {p}', p=p), fmt_pct(val))
 
 with tab2:
-    st.subheader("Zwroty USD vs PLN")
-    st.caption("ret_PLN = (1 + ret_USD) × (1 + ret_USDPLN) − 1")
+    st.subheader(tr("Zwroty USD vs PLN"))
+    st.caption(tr("ret_PLN = (1 + ret_USD) × (1 + ret_USDPLN) − 1"))
 
     # Align dates
     combined = etf_prices.copy()
@@ -90,14 +91,14 @@ with tab2:
     combined = combined.dropna()
 
     if len(combined) < 22:
-        st.warning("Za malo wspolnych danych.")
+        st.warning(tr("Za malo wspolnych danych."))
     else:
         periods_map = {"1M": 21, "3M": 63, "6M": 126, "12M": 252}
         rows = []
         for t in selected:
             if t not in combined.columns:
                 continue
-            row = {"Ticker": t, "Nazwa": ETF_NAMES.get(t, t)}
+            row = {"Ticker": t, "Nazwa": tr(ETF_NAMES.get(t, t))}
             for label, days in periods_map.items():
                 if len(combined) > days:
                     ret_usd = combined[t].iloc[-1] / combined[t].iloc[-1 - days] - 1
@@ -145,11 +146,11 @@ with tab2:
                 fx_12m = combined["USDPLN"].iloc[-1] / combined["USDPLN"].iloc[-253] - 1
                 sign = "+" if fx_12m > 0 else ""
                 impact = "korzystny" if fx_12m > 0 else "niekorzystny"
-                st.info(f"Zmiana kursu USD/PLN (12M): **{sign}{fx_12m*100:.2f}%** — wplyw {impact} dla polskiego inwestora")
+                st.info(tr('Zmiana kursu USD/PLN (12M): **{sign}{v1}%** — wplyw {impact} dla polskiego inwestora', sign=sign, v1=f'{fx_12m * 100:.2f}', impact=tr(impact)))
 
 with tab3:
-    st.subheader("Overlay: ETF vs USD/PLN")
-    overlay_ticker = st.selectbox("Wybierz ETF", selected, key="overlay_ticker")
+    st.subheader(tr("Overlay: ETF vs USD/PLN"))
+    overlay_ticker = st.selectbox(tr("Wybierz ETF"), selected, key="overlay_ticker")
 
     if overlay_ticker in etf_prices.columns:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -171,20 +172,20 @@ with tab3:
                 line=dict(color=GOLD, width=2),
             ), secondary_y=False)
             fig.add_trace(go.Scatter(
-                x=usd_norm.index, y=usd_norm.values, name="USD/PLN",
+                x=usd_norm.index, y=usd_norm.values, name=tr("USD/PLN"),
                 line=dict(color="#3B82F6", width=2),
             ), secondary_y=True)
 
-            fig.update_layout(**_base_layout(f"{overlay_ticker} vs USD/PLN (baza=100)", height=450))
-            fig.update_yaxes(title_text=f"{overlay_ticker} (baza=100)", secondary_y=False)
-            fig.update_yaxes(title_text="USD/PLN (baza=100)", secondary_y=True)
+            fig.update_layout(**_base_layout(tr('{overlay_ticker} vs USD/PLN (baza=100)', overlay_ticker=overlay_ticker), height=450))
+            fig.update_yaxes(title_text=tr('{overlay_ticker} (baza=100)', overlay_ticker=overlay_ticker), secondary_y=False)
+            fig.update_yaxes(title_text=tr("USD/PLN (baza=100)"), secondary_y=True)
             st.plotly_chart(fig, width="stretch")
         else:
-            st.warning("Za malo wspolnych dat.")
+            st.warning(tr("Za malo wspolnych dat."))
 
 with tab4:
-    st.subheader("Koszt hedgingu walutowego")
-    st.markdown("""
+    st.subheader(tr("Koszt hedgingu walutowego"))
+    st.markdown(tr("""
 **Czym jest hedging walutowy?**
 
 Polski inwestor kupujacy ETF-y denominowane w USD jest narazony na ryzyko walutowe.
@@ -212,6 +213,6 @@ Przy wyzszych stopach w Polsce, hedging jest "darmowy" lub nawet korzystny.
 **Praktyczna wskazowka:**
 Jesli inwestujesz >5 lat, ryzyko walutowe ma mniejsze znaczenie.
 Przy krotszym horyzoncie, wahania USD/PLN moga dominowac nad zwrotem z ETF-a.
-    """)
+    """))
 
 render_footer()

@@ -155,7 +155,7 @@ def test_company_profile_fields(monkeypatch):
     monkeypatch.setattr(c, "_fetch_info", lambda t: {"longBusinessSummary": "x", "beta": 1.2,
                                                      "fiftyTwoWeekLow": 1, "fiftyTwoWeekHigh": 2,
                                                      "exchange": "NMS", "currency": "USD"})
-    p = c.company_profile.__wrapped__("AAA")
+    p = c.company_profile("AAA")
     assert p == {"summary": "x", "beta": 1.2, "low52": 1.0, "high52": 2.0, "exchange": "NMS", "currency": "USD"}
 
 

@@ -252,9 +252,9 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
     """Backtest klasycznego GEM vs Buy&Hold QQQ vs ACWI vs AGG.
 
     UWAGA: Default zmieniony 2026-05-23 z 12M-1 skip-month (lookback=273, skip=21)
-    na czyste 12M no-skip (lookback=252, skip=0). Backtest na universe QQQ/VEA/EEM/
-    ACWI/AGG za 2012-2026 wykazal +4,6 p.p. CAGR/rok, lepszy Sharpe (0,65 vs 0,42),
-    mniejszy MaxDD (-29% vs -36%), PF 15,7 vs 3,8. Skip-month (Jegadeesh & Titman
+    na czyste 12M no-skip (lookback=252, skip=0). Pierwotne uzasadnienie (+4,6 p.p.
+    CAGR/rok) NIE odtworzylo sie w re-tescie 2026-10-08 — patrz CLAUDE.md i
+    scripts/recheck_skip_month.py (12M-1 lepsze w calym okresie 2012-2026). Skip-month (Jegadeesh & Titman
     1993) dziala dla akcji indywidualnych — na koszykach ETF tracimy timing.
     Dla porownania historycznego skip-month uzyj lookback=273, skip=21.
 

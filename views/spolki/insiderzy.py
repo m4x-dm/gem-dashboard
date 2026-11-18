@@ -21,14 +21,15 @@ from data.financials import (
     format_large_number,
 )
 from data.sp500_universe import ALL_SP500_TICKERS
+from components.i18n import tr
 
 
 
-st.markdown("# Bulk Insider Screener")
+st.markdown(tr("# Bulk Insider Screener"))
 st.caption(
-    "Bulk insider activity dla SP500 (456 spolek). "
+    tr("Bulk insider activity dla SP500 (456 spolek). "
     "Window: ostatnie 6 mc. ETF wykluczone (no insider data). "
-    "GPW pominiete (yfinance nie ma SEC Form 4 dla PL)."
+    "GPW pominiete (yfinance nie ma SEC Form 4 dla PL).")
 )
 
 # ---------------------------------------------------------------------------
@@ -40,8 +41,8 @@ df = bulk_fetch_insider_screener(universe)
 
 if df.empty:
     st.warning(
-        "Brak danych insider — yfinance moze byc globalnie blocked dla "
-        "insider endpointow. Sprobuj ponownie za kilka minut (cache 24h)."
+        tr("Brak danych insider — yfinance moze byc globalnie blocked dla "
+        "insider endpointow. Sprobuj ponownie za kilka minut (cache 24h).")
     )
     render_footer()
     st.stop()
@@ -54,30 +55,30 @@ watchlist = get_watchlist(ls)
 # FILTRY (expander)
 # ---------------------------------------------------------------------------
 
-with st.expander("Filtry", expanded=True):
+with st.expander(tr("Filtry"), expanded=True):
     c1, c2, c3 = st.columns(3)
     with c1:
         sector_options = sorted(set(df["sector"].dropna()))
         sector_filter = st.multiselect(
-            "Sektor",
+            tr("Sektor"),
             options=sector_options,
             default=[],
             key="insider_screener_sector",
         )
         status_filter = st.radio(
-            "Status",
+            tr("Status"),
             ["Wszystkie", "Net Buyers 🟢", "Net Sellers 🔴", "Mixed 🟡"],
-            horizontal=True, key="insider_screener_status",
+            horizontal=True, key="insider_screener_status", format_func=tr,
         )
     with c2:
         min_net_value = st.number_input(
-            "Min |Net Value| ($)",
+            tr("Min |Net Value| ($)"),
             min_value=0, value=0, step=100_000,
-            help="Filter abs(net_value_6m). 0 = bez filtra.",
+            help=tr("Filter abs(net_value_6m). 0 = bez filtra."),
             key="insider_screener_min_net",
         )
         min_streak = st.slider(
-            "Min beat streak (mc 0-6)", 0, 6, 0,
+            tr("Min beat streak (mc 0-6)"), 0, 6, 0,
             key="insider_screener_min_streak",
         )
     with c3:
@@ -89,13 +90,13 @@ with st.expander("Filtry", expanded=True):
             ("$1T+", 1e12),
         ]
         min_cap_choice = st.selectbox(
-            "Min Market Cap",
+            tr("Min Market Cap"),
             options=cap_options,
-            format_func=lambda x: x[0],
+            format_func=lambda x: tr(x[0]),
             key="insider_screener_min_cap",
         )
         sort_by = st.selectbox(
-            "Sort by",
+            tr("Sort by"),
             options=[
                 "net_value_6m DESC", "net_value_6m ASC",
                 "n_buys DESC", "n_sells DESC",
@@ -105,18 +106,18 @@ with st.expander("Filtry", expanded=True):
             key="insider_screener_sort",
         )
         top_n = st.selectbox(
-            "Top N", [10, 25, 50, 100, 250], index=2,
+            tr("Top N"), [10, 25, 50, 100, 250], index=2,
             key="insider_screener_top_n",
         )
         # F17 watchlist filter
         only_watchlist = st.checkbox(
-            "⭐ Tylko watchlist",
+            tr("⭐ Tylko watchlist"),
             value=False,
             disabled=len(watchlist) == 0,
             help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
             key="insider_screener_only_watchlist",
         )
-        if st.button("🔄 Refresh cache", key="insider_screener_refresh"):
+        if st.button(tr("🔄 Refresh cache"), key="insider_screener_refresh"):
             st.cache_data.clear()
             st.rerun()
 
@@ -162,13 +163,13 @@ n_net_sellers = int((df["sentiment"] == "🔴").sum())
 avg_net = df["net_value_6m"].mean()
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Spolek z danymi", f"{total_with_data}/456")
+c1.metric(tr("Spolek z danymi"), f"{total_with_data}/456")
 c2.metric(
-    "Net Buyers 🟢", f"{n_net_buyers}",
+    tr("Net Buyers 🟢"), f"{n_net_buyers}",
     f"{n_net_buyers / total_with_data * 100:.0f}%" if total_with_data else "",
 )
-c3.metric("Net Sellers 🔴", f"{n_net_sellers}")
-c4.metric("Avg Net 6mc", format_large_number(avg_net) if pd.notna(avg_net) else "—")
+c3.metric(tr("Net Sellers 🔴"), f"{n_net_sellers}")
+c4.metric(tr("Avg Net 6mc"), format_large_number(avg_net) if pd.notna(avg_net) else "—")
 
 st.markdown("---")
 
@@ -176,7 +177,7 @@ st.markdown("---")
 # SEKCJA 1: Top Buyers + Top Sellers (2 bar charts side-by-side)
 # ---------------------------------------------------------------------------
 
-st.markdown("### 📈 Top movers")
+st.markdown(tr("### 📈 Top movers"))
 col_b, col_s = st.columns(2)
 
 with col_b:
@@ -195,17 +196,17 @@ with col_b:
             textposition="outside",
         ))
         fig_b.update_layout(
-            title="Top 10 Net Buyers (6 mc)",
+            title=tr("Top 10 Net Buyers (6 mc)"),
             template="plotly_dark",
             height=380,
             yaxis=dict(autorange="reversed"),
-            xaxis_title="Net Value USD",
+            xaxis_title=tr("Net Value USD"),
             margin=dict(l=40, r=80, t=60, b=40),
             showlegend=False,
         )
         st.plotly_chart(fig_b, width="stretch")
     else:
-        st.caption("Brak net buyers po filtrach.")
+        st.caption(tr("Brak net buyers po filtrach."))
 
 with col_s:
     top_sellers = filtered.nsmallest(10, "net_value_6m")
@@ -223,17 +224,17 @@ with col_s:
             textposition="outside",
         ))
         fig_s.update_layout(
-            title="Top 10 Net Sellers (6 mc)",
+            title=tr("Top 10 Net Sellers (6 mc)"),
             template="plotly_dark",
             height=380,
             yaxis=dict(autorange="reversed"),
-            xaxis_title="Net Value USD",
+            xaxis_title=tr("Net Value USD"),
             margin=dict(l=40, r=80, t=60, b=40),
             showlegend=False,
         )
         st.plotly_chart(fig_s, width="stretch")
     else:
-        st.caption("Brak net sellers po filtrach.")
+        st.caption(tr("Brak net sellers po filtrach."))
 
 st.markdown("---")
 
@@ -241,16 +242,16 @@ st.markdown("---")
 # SEKCJA 2: Tabela screener (st.dataframe)
 # ---------------------------------------------------------------------------
 
-st.markdown(f"### 📋 Tabela screener ({len(filtered)} spolek)")
+st.markdown(tr('### 📋 Tabela screener ({v0} spolek)', v0=len(filtered)))
 
 display = filtered.head(top_n).copy()
 display = display.rename(columns={
     "sentiment": "🎯",
     "ticker": "Ticker",
-    "name": "Nazwa",
-    "sector": "Sektor",
+    "name": tr("Nazwa"),
+    "sector": tr("Sektor"),
     "market_cap": "Cap",
-    "net_value_6m": "Net 6mc",
+    "net_value_6m": tr("Net 6mc"),
     "n_buys": "#Buys",
     "n_sells": "#Sells",
     "top_buyer": "Top Buyer",
@@ -258,7 +259,7 @@ display = display.rename(columns={
     "beat_streak_buys": "Streak",
 })
 display_cols = [
-    "🎯", "Ticker", "Nazwa", "Sektor", "Cap", "Net 6mc",
+    "🎯", "Ticker", tr("Nazwa"), tr("Sektor"), "Cap", tr("Net 6mc"),
     "#Buys", "#Sells", "Top Buyer", "Top Fund", "Streak",
 ]
 
@@ -273,9 +274,9 @@ edited = st.data_editor(
     column_config={
         "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
         "Cap": st.column_config.NumberColumn("Cap", format="$%.0f"),
-        "Net 6mc": st.column_config.NumberColumn("Net 6mc", format="$%+.0f"),
+        tr("Net 6mc"): st.column_config.NumberColumn(tr("Net 6mc"), format="$%+.0f"),
         "Streak": st.column_config.ProgressColumn(
-            "Streak", min_value=0, max_value=6, format="%d mc",
+            "Streak", min_value=0, max_value=6, format=tr("%d mc"),
         ),
     },
     disabled=[c for c in display_cols_with_star if c != "⭐"],
@@ -294,7 +295,7 @@ st.markdown("---")
 # SEKCJA 3: Sektorowa heatmapa (Plotly horizontal bar)
 # ---------------------------------------------------------------------------
 
-st.markdown("### 🏭 Net insider activity per sektor")
+st.markdown(tr("### 🏭 Net insider activity per sektor"))
 
 sector_agg = filtered.groupby("sector")["net_value_6m"].sum().sort_values()
 if not sector_agg.empty:
@@ -308,16 +309,16 @@ if not sector_agg.empty:
         textposition="outside",
     ))
     fig_sec.update_layout(
-        title="Sum net insider value 6 mc per sektor",
+        title=tr("Sum net insider value 6 mc per sektor"),
         template="plotly_dark",
         height=400,
-        xaxis_title="Sum Net Value USD",
+        xaxis_title=tr("Sum Net Value USD"),
         margin=dict(l=40, r=80, t=60, b=40),
         showlegend=False,
     )
     st.plotly_chart(fig_sec, width="stretch")
 else:
-    st.caption("Brak danych sektorowych po filtrach.")
+    st.caption(tr("Brak danych sektorowych po filtrach."))
 
 st.markdown("---")
 
@@ -325,18 +326,18 @@ st.markdown("---")
 # CROSS-LINK do Karty spolki (zakladka Akcjonariat = insiderzy)
 # ---------------------------------------------------------------------------
 
-st.markdown("### 🏢 Karta spółki")
+st.markdown(tr("### 🏢 Karta spółki"))
 col_sel, col_btn = st.columns([3, 1])
 with col_sel:
     selected_ticker = st.selectbox(
-        "Wybierz spółkę:",
+        tr("Wybierz spółkę:"),
         options=[""] + filtered["ticker"].tolist(),
         key="insider_screener_card_select",
     )
 with col_btn:
     st.write("")  # spacer
     go_btn = st.button(
-        "Otwórz kartę spółki",
+        tr("Otwórz kartę spółki"),
         key="insider_screener_card_btn",
         disabled=not selected_ticker,
     )
@@ -352,7 +353,7 @@ st.markdown("---")
 
 csv = filtered.to_csv(index=False).encode("utf-8")
 st.download_button(
-    "📥 Eksport CSV (screener)",
+    tr("📥 Eksport CSV (screener)"),
     data=csv,
     file_name=f"insider_screener_sp500_{pd.Timestamp.now():%Y%m%d}.csv",
     mime="text/csv",

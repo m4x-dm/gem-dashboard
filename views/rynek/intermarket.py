@@ -13,10 +13,11 @@ from components.charts import (
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, RED, PERIOD_MAP_FULL, SHADOW
 from components.sidebar import get_risk_free
+from components.i18n import tr
 
 
-st.markdown("# Analiza Intermarket")
-st.caption("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa")
+st.markdown(tr("# Analiza Intermarket"))
+st.caption(tr("Relacje miedzy klasami aktywow: akcje, obligacje, zloto, dolar, ropa"))
 
 # Assets
 INTERMARKET = {
@@ -28,11 +29,16 @@ INTERMARKET = {
 }
 IM_TICKERS = list(INTERMARKET.keys())
 
-period = st.selectbox("Okres danych", list(PERIOD_MAP_FULL.keys())[3:], index=4, key="im_period")
+
+def _imn(t: str) -> str:
+    """Nazwa aktywa w biezacym jezyku."""
+    return tr(INTERMARKET.get(t, t))
+
+period = st.selectbox(tr("Okres danych"), list(PERIOD_MAP_FULL.keys())[3:], index=4, key="im_period", format_func=tr)
 yf_period = PERIOD_MAP_FULL[period]
 
 # Download
-with st.spinner("Pobieram dane intermarket..."):
+with st.spinner(tr("Pobieram dane intermarket...")):
     all_data = {}
     for t in IM_TICKERS:
         s = download_single(t, period=yf_period)
@@ -40,7 +46,7 @@ with st.spinner("Pobieram dane intermarket..."):
             all_data[t] = s
 
 if len(all_data) < 3:
-    st.error("Za malo danych intermarket.")
+    st.error(tr("Za malo danych intermarket."))
     render_footer()
     st.stop()
 
@@ -56,25 +62,25 @@ available = [t for t in IM_TICKERS if t in prices.columns]
 
 # --- Tabs ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-    ["📈 Overlay", "📊 Ratio", "🔄 Korelacja rolling", "🗺️ Macierz korelacji",
-     "🚦 Regime", "📊 Korelacja strategii"])
+    [tr("📈 Overlay"), tr("📊 Ratio"), tr("🔄 Korelacja rolling"), tr("🗺️ Macierz korelacji"),
+     tr("🚦 Regime"), tr("📊 Korelacja strategii")])
 
 with tab1:
-    st.subheader("Wszystkie aktywa znormalizowane (baza=100)")
+    st.subheader(tr("Wszystkie aktywa znormalizowane (baza=100)"))
     st.plotly_chart(
-        price_chart(prices[available].rename(columns=INTERMARKET),
-                    title="Intermarket — baza = 100"),
+        price_chart(prices[available].rename(columns=_imn),
+                    title=tr("Intermarket — baza = 100")),
         width="stretch",
     )
 
 with tab2:
-    st.subheader("Ratio miedzy aktywami")
+    st.subheader(tr("Ratio miedzy aktywami"))
     pairs = []
     for i, a in enumerate(available):
         for b in available[i+1:]:
             pairs.append(f"{a} / {b}")
 
-    pair = st.selectbox("Wybierz pare", pairs, key="im_pair")
+    pair = st.selectbox(tr("Wybierz pare"), pairs, key="im_pair")
     parts = pair.split(" / ")
     t1, t2 = parts[0], parts[1]
 
@@ -82,8 +88,8 @@ with tab2:
         ratio = prices[t1] / prices[t2]
         ratio = ratio.dropna()
         if len(ratio) > 1:
-            name1 = INTERMARKET.get(t1, t1)
-            name2 = INTERMARKET.get(t2, t2)
+            name1 = _imn(t1)
+            name2 = _imn(t2)
 
             fig = go.Figure()
             fig.add_trace(go.Scatter(
@@ -93,33 +99,33 @@ with tab2:
             # Add mean line
             mean_val = ratio.mean()
             fig.add_hline(y=mean_val, line_dash="dash", line_color="rgba(255,255,255,0.4)",
-                          line_width=1, annotation_text=f"Srednia: {mean_val:.2f}")
-            fig.update_layout(**_base_layout(f"Ratio {name1} / {name2}", height=450))
-            fig.update_yaxes(title_text="Ratio")
+                          line_width=1, annotation_text=f"{tr('Srednia:')} {mean_val:.2f}")
+            fig.update_layout(**_base_layout(tr('Ratio {name1} / {name2}', name1=name1, name2=name2), height=450))
+            fig.update_yaxes(title_text=tr("Ratio"))
             st.plotly_chart(fig, width="stretch")
 
             # Interpretation
             current = ratio.iloc[-1]
             if current > mean_val * 1.1:
-                st.info(f"Ratio {current:.2f} — powyzej sredniej ({mean_val:.2f}). {name1} relatywnie drogi vs {name2}.")
+                st.info(tr('Ratio {v0} — powyzej sredniej ({v1}). {name1} relatywnie drogi vs {name2}.', v0=f'{current:.2f}', v1=f'{mean_val:.2f}', name1=name1, name2=name2))
             elif current < mean_val * 0.9:
-                st.info(f"Ratio {current:.2f} — ponizej sredniej ({mean_val:.2f}). {name1} relatywnie tani vs {name2}.")
+                st.info(tr('Ratio {v0} — ponizej sredniej ({v1}). {name1} relatywnie tani vs {name2}.', v0=f'{current:.2f}', v1=f'{mean_val:.2f}', name1=name1, name2=name2))
             else:
-                st.info(f"Ratio {current:.2f} — blisko sredniej ({mean_val:.2f}).")
+                st.info(tr('Ratio {v0} — blisko sredniej ({v1}).', v0=f'{current:.2f}', v1=f'{mean_val:.2f}'))
 
 with tab3:
-    st.subheader("Rolling korelacja (63 dni)")
+    st.subheader(tr("Rolling korelacja (63 dni)"))
 
     col1, col2 = st.columns(2)
     with col1:
-        t1_sel = st.selectbox("Aktywo 1", available, index=0, key="rc_t1",
-                               format_func=lambda t: INTERMARKET.get(t, t))
+        t1_sel = st.selectbox(tr("Aktywo 1"), available, index=0, key="rc_t1",
+                               format_func=lambda t: _imn(t))
     with col2:
         t2_opts = [t for t in available if t != t1_sel]
-        t2_sel = st.selectbox("Aktywo 2", t2_opts, index=0, key="rc_t2",
-                               format_func=lambda t: INTERMARKET.get(t, t))
+        t2_sel = st.selectbox(tr("Aktywo 2"), t2_opts, index=0, key="rc_t2",
+                               format_func=lambda t: _imn(t))
 
-    window = st.slider("Okno korelacji (dni)", 21, 252, 63, key="rc_window")
+    window = st.slider(tr("Okno korelacji (dni)"), 21, 252, 63, key="rc_window")
 
     if t1_sel in prices.columns and t2_sel in prices.columns:
         rets = prices[[t1_sel, t2_sel]].pct_change().dropna()
@@ -130,42 +136,42 @@ with tab3:
             fig.add_trace(go.Scatter(
                 x=rolling_corr.index, y=rolling_corr.values, mode="lines",
                 line=dict(color=GOLD, width=2),
-                name=f"Korelacja {INTERMARKET.get(t1_sel, t1_sel)} vs {INTERMARKET.get(t2_sel, t2_sel)}",
+                name=tr('Korelacja {v0} vs {v1}', v0=_imn(t1_sel), v1=_imn(t2_sel)),
             ))
             fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)", line_width=1)
             fig.add_hline(y=0.5, line_dash="dot", line_color="rgba(34,197,94,0.3)", line_width=1)
             fig.add_hline(y=-0.5, line_dash="dot", line_color="rgba(239,68,68,0.3)", line_width=1)
             fig.update_layout(**_base_layout(
-                f"Rolling {window}D korelacja: {INTERMARKET.get(t1_sel, t1_sel)} vs {INTERMARKET.get(t2_sel, t2_sel)}",
+                tr('Rolling {window}D korelacja: {v1} vs {v2}', window=window, v1=_imn(t1_sel), v2=_imn(t2_sel)),
                 height=400))
-            fig.update_yaxes(title_text="Korelacja", range=[-1, 1])
+            fig.update_yaxes(title_text=tr("Korelacja"), range=[-1, 1])
             st.plotly_chart(fig, width="stretch")
 
             current_corr = rolling_corr.iloc[-1]
             if current_corr > 0.5:
-                st.info(f"Aktualna korelacja: **{current_corr:.2f}** — silna pozytywna")
+                st.info(tr('Aktualna korelacja: **{v0}** — silna pozytywna', v0=f'{current_corr:.2f}'))
             elif current_corr < -0.5:
-                st.info(f"Aktualna korelacja: **{current_corr:.2f}** — silna negatywna")
+                st.info(tr('Aktualna korelacja: **{v0}** — silna negatywna', v0=f'{current_corr:.2f}'))
             else:
-                st.info(f"Aktualna korelacja: **{current_corr:.2f}** — slaba/umiarkowana")
+                st.info(tr('Aktualna korelacja: **{v0}** — slaba/umiarkowana', v0=f'{current_corr:.2f}'))
         else:
-            st.warning("Za malo danych dla wybranego okna korelacji.")
+            st.warning(tr("Za malo danych dla wybranego okna korelacji."))
 
 with tab4:
-    st.subheader("Macierz korelacji")
-    corr_period = st.slider("Okres korelacji (dni)", 63, 504, 252, key="im_corr_period")
+    st.subheader(tr("Macierz korelacji"))
+    corr_period = st.slider(tr("Okres korelacji (dni)"), 63, 504, 252, key="im_corr_period")
     avail_prices = prices[available].dropna()
     if len(avail_prices) > corr_period:
-        corr = correlation_matrix(avail_prices.rename(columns=INTERMARKET), period=corr_period)
+        corr = correlation_matrix(avail_prices.rename(columns=_imn), period=corr_period)
         st.plotly_chart(
-            correlation_heatmap(corr, title=f"Macierz korelacji ({corr_period} dni)"),
+            correlation_heatmap(corr, title=tr('Macierz korelacji ({corr_period} dni)', corr_period=corr_period)),
             width="stretch",
         )
     else:
-        st.warning("Za malo danych dla wybranego okresu korelacji.")
+        st.warning(tr("Za malo danych dla wybranego okresu korelacji."))
 
 with tab5:
-    st.subheader("Regime: Risk-On vs Risk-Off")
+    st.subheader(tr("Regime: Risk-On vs Risk-Off"))
 
     # Simple regime classifier based on current momentum
     signals = {}
@@ -224,19 +230,19 @@ with tab5:
 
     st.html(
         f'<div style="background:{BG_CARD};border-left:3px solid {regime_color};box-shadow:{SHADOW};border-radius:16px;padding:32px;text-align:center;margin-bottom:24px">'
-        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">Biezacy regime</div>'
-        f'<div style="font-size:2rem;font-weight:800;color:{regime_color}">{regime_label}</div>'
-        f'<div style="font-size:1rem;color:{MUTED};margin-top:8px">{regime_desc}</div>'
+        f'<div style="font-size:0.8rem;color:{MUTED};margin-bottom:8px">{tr("Biezacy regime")}</div>'
+        f'<div style="font-size:2rem;font-weight:800;color:{regime_color}">{tr(regime_label)}</div>'
+        f'<div style="font-size:1rem;color:{MUTED};margin-top:8px">{tr(regime_desc)}</div>'
         f'<div style="font-size:0.85rem;color:{MUTED};margin-top:16px">Risk-On score: {risk_on_pct:.0f}%</div>'
         f'</div>'
     )
 
     # Detail per asset
-    st.markdown("#### Sygnaly per klasa aktywow")
+    st.markdown(tr("#### Sygnaly per klasa aktywow"))
     for t in available:
         if t in signals:
             mom = signals[t]
-            name = INTERMARKET.get(t, t)
+            name = _imn(t)
             color = GREEN if mom > 0 else RED
             sign = "+" if mom > 0 else ""
             st.html(
@@ -246,8 +252,8 @@ with tab5:
                 f'</div>'
             )
 
-    with st.expander("📖 Jak czytac analilze intermarket?"):
-        st.markdown("""
+    with st.expander(tr("📖 Jak czytac analilze intermarket?")):
+        st.markdown(tr("""
 **Kluczowe relacje:**
 
 | Para | Typowa korelacja | Znaczenie |
@@ -266,21 +272,21 @@ with tab5:
 **Ratio SPY / 10Y yield:**
 - Rosnace = akcje wygrywaja vs obligacje (risk-on)
 - Spadajace = rentownosci rosna szybciej niz akcje (zaostrzanie polityki monetarnej)
-        """)
+        """))
 
 with tab6:
-    st.subheader("Rolling korelacja miedzy strategiami")
-    st.caption("Porownanie equity curves: GEM Klasyczny, QQQ+SMA200, TQQQ+Momentum")
+    st.subheader(tr("Rolling korelacja miedzy strategiami"))
+    st.caption(tr("Porownanie equity curves: GEM Klasyczny, QQQ+SMA200, TQQQ+Momentum"))
 
     rf = get_risk_free()
 
     # Potrzebujemy QQQ, VEA, EEM, ACWI, AGG
     strat_tickers = ["QQQ", "VEA", "EEM", "ACWI", "AGG"]
-    with st.spinner("Pobieram dane do backtestow strategii..."):
+    with st.spinner(tr("Pobieram dane do backtestow strategii...")):
         from data.downloader import download_prices
         strat_prices = download_prices(strat_tickers, period=yf_period)
 
-    strat_window = st.slider("Okno korelacji (dni)", 63, 252, 63, key="strat_corr_window")
+    strat_window = st.slider(tr("Okno korelacji (dni)"), 63, 252, 63, key="strat_corr_window")
 
     corr_result = strategy_correlations(strat_prices, rf, window=strat_window)
 
@@ -298,12 +304,12 @@ with tab6:
         fig.add_hline(y=0.5, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
         fig.add_hline(y=-0.5, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
         fig.update_layout(**_base_layout(
-            f"Rolling {strat_window}D korelacja miedzy strategiami", height=450))
-        fig.update_yaxes(title_text="Korelacja", range=[-1, 1])
+            tr('Rolling {strat_window}D korelacja miedzy strategiami', strat_window=strat_window), height=450))
+        fig.update_yaxes(title_text=tr("Korelacja"), range=[-1, 1])
         st.plotly_chart(fig, width="stretch")
 
         # Aktualne wartosci
-        st.markdown("#### Aktualne korelacje")
+        st.markdown(tr("#### Aktualne korelacje"))
         corr_cols = st.columns(3)
         for i, col in enumerate(corr_result.columns):
             val = corr_result[col].iloc[-1]
@@ -327,12 +333,12 @@ with tab6:
                 f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:16px;text-align:center">'
                 f'<div style="font-size:0.7rem;color:{MUTED};margin-bottom:4px">{col}</div>'
                 f'<div style="font-size:1.4rem;font-weight:700;color:{c_color}">{val:.2f}</div>'
-                f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px">{c_label}</div>'
+                f'<div style="font-size:0.75rem;color:{MUTED};margin-top:4px">{tr(c_label)}</div>'
                 f'</div>'
             )
 
-        with st.expander("📖 Jak interpretowac korelacje strategii?"):
-            st.markdown("""
+        with st.expander(tr("📖 Jak interpretowac korelacje strategii?")):
+            st.markdown(tr("""
 **GEM vs QQQ+SMA200:**
 - Obie strategie uzywaja QQQ i AGG, wiec korelacja jest zazwyczaj umiarkowana-wysoka
 - Roznica: GEM rebalansuje miesiecznie (momentum 12M no-skip), SMA200 dziennie (trend)
@@ -350,8 +356,8 @@ with tab6:
 **Praktyczne wnioski:**
 - Korelacja < 0.5 → warto rozwazyc alokacje do obu strategii (dywersyfikacja)
 - Korelacja > 0.8 → strategie zachowuja sie podobnie — mala wartosc laczenia
-            """)
+            """))
     else:
-        st.warning("Za malo danych do obliczenia korelacji strategii (wymagane 252+ sesji + okno korelacji).")
+        st.warning(tr("Za malo danych do obliczenia korelacji strategii (wymagane 252+ sesji + okno korelacji)."))
 
 render_footer()

@@ -11,10 +11,11 @@ from components.formatting import (
 )
 from components.charts import sparkline_chart
 from components.cards import macro_card
+from components.i18n import tr
 
 
-st.markdown("# Makro Dashboard")
-st.caption("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM")
+st.markdown(tr("# Makro Dashboard"))
+st.caption(tr("Kluczowe wskazniki makroekonomiczne — kontekst dla strategii GEM"))
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -107,7 +108,7 @@ def _yield_curve_spread(tnx: pd.Series | None, irx: pd.Series | None) -> pd.Seri
 # ---------------------------------------------------------------------------
 # Download all macro data
 # ---------------------------------------------------------------------------
-with st.spinner("Pobieram dane makro..."):
+with st.spinner(tr("Pobieram dane makro...")):
     vix_data = _download_macro("^VIX")
     tnx_data = _download_macro("^TNX")
     irx_data = _download_macro("^IRX")
@@ -128,11 +129,11 @@ with row1_col1:
     if vix_data is not None and len(vix_data) > 0:
         vix_val = float(vix_data.iloc[-1])
         tl_color, tl_label = _vix_traffic_light(vix_val)
-        macro_card("VIX — Fear Index", f"{vix_val:.2f}", "pkt",
+        macro_card(tr("VIX — Fear Index"), f"{vix_val:.2f}", "pkt",
                    _changes_dict(vix_data), tl_color, tl_label)
         st.plotly_chart(sparkline_chart(vix_data, color="#F59E0B"), width="stretch")
     else:
-        st.warning("Brak danych VIX")
+        st.warning(tr("Brak danych VIX"))
 
 # --- Yield Curve ---
 with row1_col2:
@@ -146,7 +147,7 @@ with row1_col2:
         else:
             yc_color, yc_label = GREEN, "Normalna"
 
-        macro_card("Yield Curve (10Y - 13W)", f"{spread_val:.2f}", "pp",
+        macro_card(tr("Yield Curve (10Y - 13W)"), f"{spread_val:.2f}", "pp",
                    _changes_dict(spread, absolute=True), yc_color, yc_label)
 
         # Special chart with zero line and red fill below 0
@@ -179,7 +180,7 @@ with row1_col2:
         )
         st.plotly_chart(fig, width="stretch")
     else:
-        st.warning("Brak danych yield curve")
+        st.warning(tr("Brak danych yield curve"))
 
 # --- DXY ---
 with row2_col1:
@@ -192,11 +193,11 @@ with row2_col1:
             dxy_color, dxy_label = "#F59E0B", "Neutralny"
         else:
             dxy_color, dxy_label = GREEN, "Slaby dolar"
-        macro_card("US Dollar Index (DXY)", f"{dxy_val:.2f}", "pkt",
+        macro_card(tr("US Dollar Index (DXY)"), f"{dxy_val:.2f}", "pkt",
                    _changes_dict(dxy_data), dxy_color, dxy_label)
         st.plotly_chart(sparkline_chart(dxy_data, color="#3B82F6"), width="stretch")
     else:
-        st.warning("Brak danych DXY")
+        st.warning(tr("Brak danych DXY"))
 
 # --- S&P 500 + 200MA ---
 with row2_col2:
@@ -217,7 +218,7 @@ with row2_col2:
             ma200 = sp500_data.rolling(200).mean()
             fig.add_trace(go.Scatter(
                 x=ma200.index, y=ma200.values, mode="lines",
-                line=dict(color="#EF4444", width=1, dash="dash"), name="200MA",
+                line=dict(color="#EF4444", width=1, dash="dash"), name=tr("200MA"),
                 hovertemplate="%{x|%Y-%m-%d}<br>200MA: %{y:,.0f}<extra></extra>",
             ))
         fig.update_layout(
@@ -229,7 +230,7 @@ with row2_col2:
         )
         st.plotly_chart(fig, width="stretch")
     else:
-        st.warning("Brak danych S&P 500")
+        st.warning(tr("Brak danych S&P 500"))
 
 # --- Gold ---
 with row3_col1:
@@ -243,11 +244,11 @@ with row3_col1:
             g_color, g_label = "#F59E0B", "Wzrostowy"
         else:
             g_color, g_label = RED, "Spadkowy"
-        macro_card("Zloto (USD/oz)", f"${gld_val:.2f}", "USD",
+        macro_card(tr("Zloto (USD/oz)"), f"${gld_val:.2f}", "USD",
                    gld_changes, g_color, g_label)
         st.plotly_chart(sparkline_chart(gld_data, color=GOLD), width="stretch")
     else:
-        st.warning("Brak danych zlota (GC=F)")
+        st.warning(tr("Brak danych zlota (GC=F)"))
 
 # --- Oil WTI ---
 with row3_col2:
@@ -260,17 +261,17 @@ with row3_col2:
             o_color, o_label = "#F59E0B", "Umiarkowana"
         else:
             o_color, o_label = GREEN, "Niska cena"
-        macro_card("Ropa WTI (CL=F)", f"${oil_val:.2f}", "USD",
+        macro_card(tr("Ropa WTI (CL=F)"), f"${oil_val:.2f}", "USD",
                    oil_changes, o_color, o_label)
         st.plotly_chart(sparkline_chart(oil_data, color="#A855F7"), width="stretch")
     else:
-        st.warning("Brak danych ropy WTI")
+        st.warning(tr("Brak danych ropy WTI"))
 
 # ---------------------------------------------------------------------------
 # Interpretacja makro
 # ---------------------------------------------------------------------------
-with st.expander("📖 Interpretacja makro dla GEM", expanded=False):
-    st.markdown("""
+with st.expander(tr("📖 Interpretacja makro dla GEM"), expanded=False):
+    st.markdown(tr("""
 **VIX (Fear Index)**
 - < 15: Rynek spokojny, niski strach — sprzyjajace warunki dla akcji
 - 15-25: Normalna zmiennosc
@@ -302,6 +303,6 @@ with st.expander("📖 Interpretacja makro dla GEM", expanded=False):
 - Wysoka cena (>$90): Ryzyko inflacji → wyzsze stopy → presja na akcje
 - Niska cena (<$60): Spowolnienie gospodarcze lub nadpodaz
 - Dla GEM: szoki naftowe historycznie poprzedzaly zmiany sygnalow
-    """)
+    """))
 
 render_footer()

@@ -7,6 +7,7 @@ from data.financials import (
     _compute_beat_streak, _quarter_label, fetch_earnings_trend, format_large_number,
     get_earnings_history,
 )
+from components.i18n import tr
 
 
 def _summary_metrics(ticker: str) -> None:
@@ -33,31 +34,32 @@ def _summary_metrics(ticker: str) -> None:
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric(
-            f"EPS {last_q}".strip() if last_q else "Ostatni EPS",
+            f"EPS {last_q}".strip() if last_q else tr("Ostatni EPS"),
             f"{eps_act:.2f}" if pd.notna(eps_act) else "—",
-            f"vs prognoza {eps_est:.2f} ({surprise:+.1f}%)" if pd.notna(surprise) and pd.notna(eps_est) else "",
+            tr("vs prognoza {est} ({surprise}%)", est=f"{eps_est:.2f}", surprise=f"{surprise:+.1f}")
+            if pd.notna(surprise) and pd.notna(eps_est) else "",
         )
     with c2:
-        st.metric("Seria wyników powyżej prognoz", f"{streak} kw.")
+        st.metric(tr("Seria wyników powyżej prognoz"), tr("{n} kw.", n=streak))
     with c3:
         st.metric(
-            "Prognoza EPS Q+1",
+            tr("Prognoza EPS Q+1"),
             f"{fwd_eps:.2f}" if pd.notna(fwd_eps) else "—",
-            f"r/r {fwd_growth*100:+.1f}%" if pd.notna(fwd_growth) else "",
+            tr("r/r {pct}%", pct=f"{fwd_growth*100:+.1f}") if pd.notna(fwd_growth) else "",
         )
     with c4:
-        st.metric("Prognoza przychodów Q+1",
+        st.metric(tr("Prognoza przychodów Q+1"),
                   format_large_number(fwd_rev) if pd.notna(fwd_rev) else "—")
 
 
 def render(ticker, market):
     if market == "GPW":
-        st.caption("Część spółek GPW (small-cap) nie ma pełnych danych w yfinance — luki są oczekiwane.")
+        st.caption(tr("Część spółek GPW (small-cap) nie ma pełnych danych w yfinance — luki są oczekiwane."))
     try:
         _summary_metrics(ticker)
     except Exception:
-        st.caption("Podsumowanie wyników: dane chwilowo niedostępne")
-    t1, t2, t3, t4 = st.tabs(["Beat/miss", "Rachunek zysków i strat", "Bilans", "Przepływy"])
+        st.caption(tr("Podsumowanie wyników: dane chwilowo niedostępne"))
+    t1, t2, t3, t4 = st.tabs([tr("Beat/miss"), tr("Rachunek zysków i strat"), tr("Bilans"), tr("Przepływy")])
     with t1:
         fu._render_beat_miss_tab(ticker)
     with t2:

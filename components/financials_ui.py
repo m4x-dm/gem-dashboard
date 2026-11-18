@@ -31,11 +31,16 @@ from data.financials import (
     get_forward_consensus,
     is_bank,
 )
+from components.i18n import tr
 
 
 # ---------------------------------------------------------------------------
 # Screener (bulk view, ~570-620 spolek)
 # ---------------------------------------------------------------------------
+
+SORT_LABELS = {"eps_surprise_pct": "EPS surprise %", "beat_streak": "Beat streak",
+               "eps_actual": "EPS actual", "ticker": "Ticker"}
+
 
 def render_sprawozdania_screener(
     universe: list[str],
@@ -45,39 +50,40 @@ def render_sprawozdania_screener(
 
     Przycisk "Otwórz kartę spółki" przechodzi na Karte spolki (nav.go_company).
     """
-    st.markdown("### 🔍 Screener — beat/miss ostatniego kwartalu")
+    st.markdown(tr("### 🔍 Screener — beat/miss ostatniego kwartalu"))
 
     # FILTRY (expander)
-    with st.expander("Filtry", expanded=True):
+    with st.expander(tr("Filtry"), expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
             beat_status = st.radio(
-                "Beat status",
+                tr("Beat status"),
                 options=["Wszystkie", "Beat EPS", "Miss EPS"],
                 index=0,
                 horizontal=True,
+                format_func=tr,
                 key=f"{market}_beat_status",
             )
             min_surprise = st.slider(
-                "Min EPS surprise %",
+                tr("Min EPS surprise %"),
                 min_value=-50.0, max_value=50.0, value=-50.0, step=5.0,
                 key=f"{market}_min_surprise",
             )
         with col2:
             min_streak = st.slider(
-                "Min beat streak (Q)",
+                tr("Min beat streak (Q)"),
                 min_value=0, max_value=8, value=0,
                 key=f"{market}_min_streak",
             )
             top_n = st.selectbox(
-                "Top N",
+                tr("Top N"),
                 options=[10, 25, 50, 100, 250],
                 index=2,
                 key=f"{market}_top_n",
             )
         with col3:
             sort_by = st.selectbox(
-                "Sort by",
+                tr("Sort by"),
                 options=[
                     "eps_surprise_pct",
                     "beat_streak",
@@ -85,12 +91,13 @@ def render_sprawozdania_screener(
                     "ticker",
                 ],
                 index=0,
+                format_func=lambda c: tr(SORT_LABELS.get(c, c)),
                 key=f"{market}_sort_by",
             )
             sort_desc = st.checkbox(
-                "Malejaco", value=True, key=f"{market}_sort_desc"
+                tr("Malejaco"), value=True, key=f"{market}_sort_desc"
             )
-            refresh = st.button("🔄 Odswiez cache", key=f"{market}_refresh")
+            refresh = st.button(tr("🔄 Odswiez cache"), key=f"{market}_refresh")
             if refresh:
                 st.cache_data.clear()
                 st.rerun()
@@ -99,10 +106,10 @@ def render_sprawozdania_screener(
     ls = LocalStorage()
     watchlist = get_watchlist(ls)
     only_watchlist = st.checkbox(
-        "⭐ Tylko watchlist",
+        tr("⭐ Tylko watchlist"),
         value=False,
         disabled=len(watchlist) == 0,
-        help="Watchlist pusty — kliknij ⭐ w tabeli aby dodac." if not watchlist else None,
+        help=tr("Watchlist pusty — kliknij ⭐ w tabeli aby dodac.") if not watchlist else None,
         key=f"{market}_sprawozdania_only_watchlist",
     )
 
@@ -110,7 +117,7 @@ def render_sprawozdania_screener(
     df = bulk_fetch_earnings_history(tuple(universe))
 
     if df.empty:
-        st.warning("Brak danych dla universe.")
+        st.warning(tr("Brak danych dla universe."))
         return
 
     # FILTRY apply
@@ -133,19 +140,19 @@ def render_sprawozdania_screener(
     avg_streak = df["beat_streak"].mean()
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Beat EPS", f"{beat_eps}/{total}", f"{beat_eps/total*100:.0f}%" if total else "")
-    c2.metric("Miss EPS", f"{miss_eps}/{total}", f"{miss_eps/total*100:.0f}%" if total else "")
+    c1.metric(tr("Beat EPS"), f"{beat_eps}/{total}", f"{beat_eps/total*100:.0f}%" if total else "")
+    c2.metric(tr("Miss EPS"), f"{miss_eps}/{total}", f"{miss_eps/total*100:.0f}%" if total else "")
     c3.metric(
-        "Avg surprise %",
+        tr("Avg surprise %"),
         f"{avg_surprise:+.1f}%" if pd.notna(avg_surprise) else "—",
     )
     c4.metric(
-        "Avg streak (Q)",
+        tr("Avg streak (Q)"),
         f"{avg_streak:.1f}" if pd.notna(avg_streak) else "—",
     )
 
     # TABELA
-    st.markdown(f"#### Wyniki ({len(filtered)} spolek)")
+    st.markdown("#### " + tr("Wyniki ({n} spolek)", n=len(filtered)))
 
     display = filtered.rename(columns={
         "ticker": "Ticker",
@@ -187,14 +194,14 @@ def render_sprawozdania_screener(
     col_sel, col_btn = st.columns([3, 1])
     with col_sel:
         selected = st.selectbox(
-            "Wybierz spółkę",
+            tr("Wybierz spółkę"),
             options=[""] + filtered["ticker"].tolist(),
             key=f"{market}_card_select",
         )
     with col_btn:
         st.write("")  # spacer
         go_btn = st.button(
-            "Otwórz kartę spółki",
+            tr("Otwórz kartę spółki"),
             key=f"{market}_card_btn",
             disabled=not selected,
         )
@@ -202,7 +209,7 @@ def render_sprawozdania_screener(
     # CSV EXPORT
     csv = filtered.to_csv(index=False).encode("utf-8")
     st.download_button(
-        "📥 Eksport CSV (screener)",
+        tr("📥 Eksport CSV (screener)"),
         data=csv,
         file_name=f"sprawozdania_screener_{market}.csv",
         mime="text/csv",
@@ -258,7 +265,7 @@ def _render_beat_miss_tab(ticker: str) -> None:
     trend_df = fetch_earnings_trend(ticker)
 
     if earnings_df is None or earnings_df.empty:
-        st.warning(f"Brak danych earnings history dla {ticker}.")
+        st.warning(tr("Brak danych earnings history dla {ticker}.", ticker=ticker))
         return
 
     # Wykres 1: EPS est vs actual (8 Q historia) + forward 4 punkty
@@ -286,7 +293,7 @@ def _render_beat_miss_tab(ticker: str) -> None:
         )
 
     fig.update_layout(
-        title="EPS: Estimate vs Actual (8Q historia + forward consensus)",
+        title=tr("EPS: Estimate vs Actual (8Q historia + forward consensus)"),
         barmode="group",
         template="plotly_dark",
         height=400,
@@ -310,15 +317,15 @@ def _render_beat_miss_tab(ticker: str) -> None:
                 "eps_30d_ago": "30d ago",
                 "eps_60d_ago": "60d ago",
                 "eps_90d_ago": "90d ago",
-                "revision_pct": "Rewizja (now vs 30d) %",
+                "revision_pct": tr("Rewizja (now vs 30d) %"),
             }
             rev_table = rev_table.rename(columns=rename_map)
-            st.markdown("#### Rewizje konsensusu analitykow")
+            st.markdown(tr("#### Rewizje konsensusu analitykow"))
             st.dataframe(
                 rev_table,
                 width="stretch",
                 column_config={
-                    "Rewizja (now vs 30d) %": st.column_config.NumberColumn(
+                    tr("Rewizja (now vs 30d) %"): st.column_config.NumberColumn(
                         format="%+.1f%%"
                     ),
                 },
@@ -334,9 +341,10 @@ def _render_statement_tab(
 ) -> None:
     """Wspolny renderer dla IS/BS/CF (DRY)."""
     period = st.radio(
-        "Okres",
+        tr("Okres"),
         options=["Kwartalne 8Q", "Roczne 4Y"],
         horizontal=True,
+        format_func=tr,
         key=f"{key_prefix}_period_{ticker}",
     )
     if period == "Kwartalne 8Q":
@@ -345,7 +353,7 @@ def _render_statement_tab(
         stmts = fetch_annual_statements(ticker, n_years=4)
 
     if stmts is None or stmts.get(statement_key) is None or stmts[statement_key].empty:
-        st.warning(f"Brak danych {statement_label} dla {ticker}.")
+        st.warning(tr("Brak danych {statement} dla {ticker}.", statement=statement_label, ticker=ticker))
         return
 
     df = stmts[statement_key]
@@ -357,7 +365,7 @@ def _render_statement_tab(
     final_rows = [r for r in final_rows if r in df.index]  # safety
 
     if not final_rows:
-        st.warning(f"Brak rozpoznawalnych wierszy w {statement_label}.")
+        st.warning(tr("Brak rozpoznawalnych wierszy w {statement}.", statement=statement_label))
         st.dataframe(_format_statement_df(df), width="stretch")
         return
 
@@ -446,13 +454,13 @@ def _chart_insider_net_per_month(transactions_df: pd.DataFrame, ticker: str = ""
         x=[str(p) for p in agg.index],
         y=agg.values,
         marker_color=colors,
-        name="Net insider activity",
+        name=tr("Net insider activity"),
     ))
     fig.update_layout(
-        title="Net insider buy/sell value per miesiac (6 mc)",
+        title=tr("Net insider buy/sell value per miesiac (6 mc)"),
         template="plotly_dark",
         height=300,
-        yaxis_title="Net USD",
+        yaxis_title=tr("Net USD"),
         showlegend=False,
         margin=dict(l=40, r=40, t=60, b=40),
     )
@@ -470,7 +478,7 @@ def _chart_institutional_pie(institutional_df: pd.DataFrame, ticker: str = "") -
     top10_sum = float(top10["% Out"].sum())
     rest_pct = max(0.0, 100.0 - top10_sum)
 
-    labels = list(top10["Holder"]) + ["Reszta"]
+    labels = list(top10["Holder"]) + [tr("Reszta")]
     values = list(top10["% Out"]) + [rest_pct]
 
     fig = go.Figure(go.Pie(
@@ -489,7 +497,7 @@ def _chart_institutional_pie(institutional_df: pd.DataFrame, ticker: str = "") -
         sort=False,
     ))
     fig.update_layout(
-        title="Distribution institutional ownership",
+        title=tr("Distribution institutional ownership"),
         template="plotly_dark",
         height=380,
         showlegend=False,
@@ -525,30 +533,30 @@ def _render_insiders_tab(ticker: str) -> None:
         is_gpw = ticker.endswith(".WA")
         if is_gpw:
             st.info(
-                "⚠️ Brak danych insider/institutional dla tego tickera GPW.\n\n"
+                tr("⚠️ Brak danych insider/institutional dla tego tickera GPW.\n\n"
                 "Raporty biezace polskich spolek ida przez ESPI (poza zakresem yfinance).\n"
-                "Sprawdz recznie: https://www.gpw.pl/komunikaty-spolek"
+                "Sprawdz recznie: https://www.gpw.pl/komunikaty-spolek")
             )
         else:
             st.warning(
-                f"⚠️ yfinance nie zwrocil danych insider/institutional dla {ticker}.\n\n"
-                "**Mozliwe przyczyny:**\n"
-                "- Yahoo Finance czasowo blokuje insider endpointy (rate limit / API change)\n"
-                "- Streamlit Cloud IP jest na czarnej liscie Yahoo\n"
-                "- Sproboj ponownie za kilka minut (cache 24h)\n\n"
-                "**Alternatywne zrodla:**\n"
-                f"- SEC EDGAR (Form 4): https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type=4\n"
+                tr("⚠️ yfinance nie zwrocil danych insider/institutional dla {ticker}.\n\n"
+                   "**Mozliwe przyczyny:**\n"
+                   "- Yahoo Finance czasowo blokuje insider endpointy (rate limit / API change)\n"
+                   "- Streamlit Cloud IP jest na czarnej liscie Yahoo\n"
+                   "- Sproboj ponownie za kilka minut (cache 24h)\n\n"
+                   "**Alternatywne zrodla:**\n", ticker=ticker)
+                + f"- SEC EDGAR (Form 4): https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type=4\n"
                 f"- Finviz: https://finviz.com/quote.ashx?t={ticker}\n"
                 f"- OpenInsider: http://openinsider.com/screener?s={ticker}"
             )
-        with st.expander("🔍 Diagnostyka yfinance endpointow"):
+        with st.expander(tr("🔍 Diagnostyka yfinance endpointow")):
             for name, ok in endpoint_status.items():
                 icon = "✅" if ok else "❌"
                 st.write(f"{icon} {name}")
         return
 
     # ============== SEKCJA 1: Major Holders (4 metric cards) ==============
-    st.markdown("#### 📊 Major Holders")
+    st.markdown(tr("#### 📊 Major Holders"))
 
     def _fmt_pct(v):
         if v is None:
@@ -568,29 +576,29 @@ def _render_insiders_tab(ticker: str) -> None:
 
     c1, c2, c3, c4 = st.columns(4)
     if major is not None:
-        c1.metric("% Insider", _fmt_pct(major.get("insider_pct")))
-        c2.metric("% Institutional", _fmt_pct(major.get("institutional_pct")))
-        c3.metric("# Institutions", _fmt_count(major.get("institutional_count")))
-        c4.metric("% Float", _fmt_pct(major.get("float_pct")))
+        c1.metric(tr("% Insider"), _fmt_pct(major.get("insider_pct")))
+        c2.metric(tr("% Institutional"), _fmt_pct(major.get("institutional_pct")))
+        c3.metric(tr("# Institutions"), _fmt_count(major.get("institutional_count")))
+        c4.metric(tr("% Float"), _fmt_pct(major.get("float_pct")))
     else:
-        c1.metric("% Insider", "—")
-        c2.metric("% Institutional", "—")
-        c3.metric("# Institutions", "—")
-        c4.metric("% Float", "—")
+        c1.metric(tr("% Insider"), "—")
+        c2.metric(tr("% Institutional"), "—")
+        c3.metric(tr("# Institutions"), "—")
+        c4.metric(tr("% Float"), "—")
 
     st.markdown("---")
 
     # ============== SEKCJA 2: Insider Purchases summary ==============
-    st.markdown("#### 💰 Insider Purchases (6 mc agregat)")
+    st.markdown(tr("#### 💰 Insider Purchases (6 mc agregat)"))
     if purchases is not None and not purchases.empty:
         st.dataframe(purchases, width="stretch", hide_index=True)
     else:
-        st.caption("Brak danych dla Insider Purchases.")
+        st.caption(tr("Brak danych dla Insider Purchases."))
 
     st.markdown("---")
 
     # ============== SEKCJA 3: Insider Transactions + bar chart ==============
-    st.markdown("#### 📈 Historia transakcji insiderow (6 mc)")
+    st.markdown(tr("#### 📈 Historia transakcji insiderow (6 mc)"))
     if transactions is not None and not transactions.empty:
         _chart_insider_net_per_month(transactions, ticker)
         display = transactions.head(30).copy()
@@ -604,21 +612,21 @@ def _render_insiders_tab(ticker: str) -> None:
             },
         )
     else:
-        st.caption("Brak danych dla Insider Transactions.")
+        st.caption(tr("Brak danych dla Insider Transactions."))
 
     st.markdown("---")
 
     # ============== SEKCJA 4: Insider Roster ==============
-    st.markdown("#### 🏢 Roster zarzadu")
+    st.markdown(tr("#### 🏢 Roster zarzadu"))
     if roster is not None and not roster.empty:
         st.dataframe(roster, width="stretch", hide_index=True)
     else:
-        st.caption("Brak danych dla Insider Roster.")
+        st.caption(tr("Brak danych dla Insider Roster."))
 
     st.markdown("---")
 
     # ============== SEKCJA 5: Institutional Holders + donut ==============
-    st.markdown("#### 🏛️ Top 10 funduszy instytucjonalnych")
+    st.markdown(tr("#### 🏛️ Top 10 funduszy instytucjonalnych"))
     if institutional is not None and not institutional.empty:
         col_t, col_c = st.columns([6, 4])
         with col_t:
@@ -626,13 +634,13 @@ def _render_insiders_tab(ticker: str) -> None:
         with col_c:
             _chart_institutional_pie(institutional, ticker)
     else:
-        st.caption("Brak danych dla Institutional Holders.")
+        st.caption(tr("Brak danych dla Institutional Holders."))
 
     st.markdown("---")
 
     # ============== SEKCJA 6: Mutual Fund Holders ==============
-    st.markdown("#### 💼 Top 10 mutual funds")
+    st.markdown(tr("#### 💼 Top 10 mutual funds"))
     if mutual is not None and not mutual.empty:
         st.dataframe(mutual, width="stretch", hide_index=True)
     else:
-        st.caption("Brak danych dla Mutual Fund Holders.")
+        st.caption(tr("Brak danych dla Mutual Fund Holders."))

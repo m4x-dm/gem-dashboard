@@ -2,10 +2,11 @@
 import streamlit as st
 
 from components import financials_ui as fu
+from components.i18n import tr
 
 
 def render(ticker, market):
-    st.markdown("### Akcjonariat i transakcje insiderów")
+    st.markdown(tr("### Akcjonariat i transakcje insiderów"))
     if market == "GPW":
-        st.caption("Dla spółek GPW dane yfinance bywają niepełne; raporty bieżące: gpw.pl/komunikaty-spolek.")
+        st.caption(tr("Dla spółek GPW dane yfinance bywają niepełne; raporty bieżące: gpw.pl/komunikaty-spolek."))
     fu._render_insiders_tab(ticker)

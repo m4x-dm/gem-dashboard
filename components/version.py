@@ -127,4 +127,5 @@ def version_label() -> str:
     v = get_version()
     if not v["sha"]:
         return ""
-    return "wersja %s%s" % (v["sha"], " · %s" % v["date"] if v["date"] else "")
+    from components.i18n import tr
+    return tr("wersja") + " %s%s" % (v["sha"], " · %s" % v["date"] if v["date"] else "")

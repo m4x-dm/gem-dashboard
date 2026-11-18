@@ -17,17 +17,18 @@ from data.momentum import (latest_returns, correlation_matrix, calc_stats,
 from components.charts import (price_chart, momentum_chart, drawdown_chart,
                                correlation_heatmap, rs_chart)
 from components.cards import comparison_card, stats_table
+from components.i18n import tr
 
 
 def render_charts_tab() -> None:
     """Tresc dawnej 3_wykresy.py."""
-    st.caption("Wykresy — cena, momentum i drawdown wybranych ETF-ow")
+    st.caption(tr("Wykresy — cena, momentum i drawdown wybranych ETF-ow"))
     # Wybor ETF-ow
     available = ALL_TICKERS + st.session_state.get("custom_tickers", [])
     options = {t: f"{t} — {ETF_NAMES.get(t, t)}" for t in available}
 
     selected = st.multiselect(
-        "Wybierz ETF-y (maks. 5)",
+        tr("Wybierz ETF-y (maks. 5)"),
         options=list(options.keys()),
         default=["QQQ", "VEA", "AGG"],
         format_func=lambda x: options[x],
@@ -47,13 +48,13 @@ def render_charts_tab() -> None:
         "10 lat": "10y",
         "Maksymalny": "max",
     }
-    period_label = st.selectbox("Okres", list(period_map.keys()), index=4, key="wyk_period")
+    period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=4, key="wyk_period", format_func=tr)
     period = period_map[period_label]
     is_strategy_view = period_label == "Strategia 12-1"
 
     _ok = True
     if not selected:
-        st.info("Wybierz co najmniej 1 ETF.")
+        st.info(tr("Wybierz co najmniej 1 ETF."))
         _ok = False
 
     if _ok:
@@ -71,21 +72,21 @@ def render_charts_tab() -> None:
         if is_strategy_view and len(prices_full) > 273:
             prices = prices_full.iloc[-273:-21]
         elif is_strategy_view:
-            st.warning("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane.")
+            st.warning(tr("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane."))
             prices = prices_full
         else:
             prices = prices_full
 
         if prices.empty:
-            st.error("Nie udalo sie pobrac danych.")
+            st.error(tr("Nie udalo sie pobrac danych."))
             _ok = False
 
     if _ok:
         # Zakladki
-        tab1, tab2, tab3 = st.tabs(["📈 Cena", "🚀 Momentum", "📉 Drawdown"])
+        tab1, tab2, tab3 = st.tabs([tr("📈 Cena"), tr("🚀 Momentum"), tr("📉 Drawdown")])
 
         with tab1:
-            normalize = st.checkbox("Normalizuj (baza = 100)", value=True, key="wyk_norm")
+            normalize = st.checkbox(tr("Normalizuj (baza = 100)"), value=True, key="wyk_norm")
             title = "Cena znormalizowana (baza = 100)" if normalize else "Cena (USD)"
             fig = price_chart(prices, title=title, normalize=normalize)
             st.plotly_chart(fig, width="stretch", key="wyk_price")
@@ -95,8 +96,8 @@ def render_charts_tab() -> None:
             mom_data = prices_full if is_strategy_view else prices
             max_window = min(504, len(mom_data) - 1) if len(mom_data) > 21 else 21
             default_window = min(252, max_window)
-            window = st.slider("Okno momentum (dni)", 21, max_window, default_window, step=21, key="wyk_window")
-            fig = momentum_chart(mom_data, window=window, title=f"Momentum {window}D (rolling)")
+            window = st.slider(tr("Okno momentum (dni)"), 21, max_window, default_window, step=21, key="wyk_window")
+            fig = momentum_chart(mom_data, window=window, title=tr('Momentum {window}D (rolling)', window=window))
             st.plotly_chart(fig, width="stretch", key="wyk_mom")
 
         with tab3:
@@ -106,7 +107,7 @@ def render_charts_tab() -> None:
 
 def render_h2h_tab() -> None:
     """Tresc dawnej 4_porownanie.py."""
-    st.caption("Porownanie head-to-head 2-4 ETF-ow")
+    st.caption(tr("Porownanie head-to-head 2-4 ETF-ow"))
     # Indeksy GPW (dane ze stooq.com)
     GPW_INDEX_NAMES = {"WIG20": "WIG20 (GPW)", "mWIG40": "mWIG40 (GPW)", "sWIG80": "sWIG80 (GPW)"}
     GPW_INDEX_CAT = {t: "Indeksy GPW" for t in GPW_INDEX_NAMES}
@@ -123,7 +124,7 @@ def render_h2h_tab() -> None:
     col_sel, col_period = st.columns([3, 1])
     with col_sel:
         selected = st.multiselect(
-            "Wybierz 2-4 instrumenty do porownania",
+            tr("Wybierz 2-4 instrumenty do porownania"),
             options=list(options.keys()),
             default=["QQQ", "VEA"],
             format_func=lambda x: options[x],
@@ -142,12 +143,12 @@ def render_h2h_tab() -> None:
             "10 lat": "10y",
             "Maksymalny": "max",
         }
-        period_label = st.selectbox("Okres", list(period_map.keys()), index=4, key="h2h_period")
+        period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=4, key="h2h_period", format_func=tr)
         period = period_map[period_label]
         is_strategy_view = period_label == "Strategia 12-1"
 
     if len(selected) < 2:
-        st.info("Wybierz co najmniej 2 ETF-y.")
+        st.info(tr("Wybierz co najmniej 2 ETF-y."))
         return
 
     # Dane — rozdziel tickery yfinance vs stooq
@@ -172,8 +173,8 @@ def render_h2h_tab() -> None:
     # Indeksy GPW ida z ETF-ow Beta przez yfinance. Gdy to zrodlo padnie, zostaje
     # zamrozony cache - ma to byc widoczne, a nie udawac aktualnych danych.
     if _stale_idx:
-        st.warning("Nieaktualne dane indeksow: " + ", ".join(_stale_idx) +
-                   ". Porownanie moze wprowadzac w blad.")
+        st.warning(tr("Nieaktualne dane indeksow: {v}. Porownanie moze wprowadzac w blad.",
+                      v=", ".join(_stale_idx)))
 
     prices = prices.dropna(how="all")
 
@@ -181,13 +182,13 @@ def render_h2h_tab() -> None:
     if is_strategy_view and len(prices) > 273:
         prices = prices.iloc[-273:-21]
     elif is_strategy_view:
-        st.warning("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane.")
+        st.warning(tr("Za malo danych dla widoku Strategia 12-1. Wyswietlam dostepne dane."))
     if prices.empty:
-        st.error("Brak danych.")
+        st.error(tr("Brak danych."))
         return
 
     # Metryki
-    st.markdown("### Stopy zwrotu")
+    st.markdown(tr("### Stopy zwrotu"))
     rets = latest_returns(prices)
 
     cols = st.columns(len(selected))
@@ -202,14 +203,14 @@ def render_h2h_tab() -> None:
     st.divider()
 
     # Overlay cenowy
-    st.markdown("### Cena znormalizowana (baza = 100)")
-    fig = price_chart(prices, title=f"Porownanie cenowe — {period_label}")
+    st.markdown(tr("### Cena znormalizowana (baza = 100)"))
+    fig = price_chart(prices, title=tr('Porownanie cenowe — {period_label}', period_label=tr(period_label)))
     st.plotly_chart(fig, width="stretch", key="h2h_price")
 
     st.divider()
 
     # Statystyki
-    st.markdown("### Statystyki")
+    st.markdown(tr("### Statystyki"))
     rf = get_risk_free()
     rf_decimal = rf / 100.0
     cmp_stats = {}
@@ -222,30 +223,30 @@ def render_h2h_tab() -> None:
     st.divider()
 
     # Macierz korelacji
-    st.markdown("### Macierz korelacji (252 dni)")
+    st.markdown(tr("### Macierz korelacji (252 dni)"))
     corr = correlation_matrix(prices, period=252)
     fig = correlation_heatmap(corr)
     st.plotly_chart(fig, width="stretch", key="h2h_corr")
 
     # Interpretacja
-    with st.expander("Jak czytac korelacje?"):
-        st.markdown("""
+    with st.expander(tr("Jak czytac korelacje?")):
+        st.markdown(tr("""
         - **1.0** = doskonala korelacja dodatnia (ruchy w tym samym kierunku)
         - **0.0** = brak korelacji (niezalezne ruchy)
         - **-1.0** = doskonala korelacja ujemna (ruchy w przeciwnym kierunku)
 
         Dobrze zdywersyfikowany portfel powinien zawierac aktywa o **niskiej lub ujemnej korelacji**.
-        """)
+        """))
 
     st.divider()
 
     # =====================================================================
     # Relative Strength
     # =====================================================================
-    st.markdown("### Relative Strength")
+    st.markdown(tr("### Relative Strength"))
 
     rs_benchmark = st.selectbox(
-        "Benchmark RS", [t for t in selected], index=0, key="h2h_rs_bench",
+        tr("Benchmark RS"), [t for t in selected], index=0, key="h2h_rs_bench",
     )
     rs_assets = [t for t in selected if t != rs_benchmark]
 
@@ -257,12 +258,12 @@ def render_h2h_tab() -> None:
                     fig = rs_chart(rs_data, asset_t, rs_benchmark)
                     st.plotly_chart(fig, width="stretch", key=f"h2h_rs_{asset_t}")
     else:
-        st.info("Wybierz co najmniej 2 instrumenty.")
+        st.info(tr("Wybierz co najmniej 2 instrumenty."))
 
 
 def render_side_by_side_tab() -> None:
     """Tresc dawnej 21_side_by_side.py."""
-    st.caption("Porownaj dwa aktywa obok siebie — cena, drawdown, statystyki i Relative Strength")
+    st.caption(tr("Porownaj dwa aktywa obok siebie — cena, drawdown, statystyki i Relative Strength"))
     # --- Polaczony universe ---
     all_names = {**ETF_NAMES, **SP500_NAMES, **GPW_NAMES, **CRYPTO_NAMES}
     all_categories = {**ETF_CATEGORY_MAP, **SP500_SECTOR_MAP, **GPW_CATEGORY_MAP, **CRYPTO_CATEGORY_MAP}
@@ -288,26 +289,26 @@ def render_side_by_side_tab() -> None:
     # --- Selektory ---
     col_a, col_b, col_period = st.columns([2, 2, 1])
     with col_a:
-        ticker_a = st.selectbox("Aktywo A", unique_tickers, index=0,
+        ticker_a = st.selectbox(tr("Aktywo A"), unique_tickers, index=0,
                                 format_func=lambda x: options_map[x], key="sbs_a")
     with col_b:
         default_b = min(1, len(unique_tickers) - 1)
-        ticker_b = st.selectbox("Aktywo B", unique_tickers, index=default_b,
+        ticker_b = st.selectbox(tr("Aktywo B"), unique_tickers, index=default_b,
                                 format_func=lambda x: options_map[x], key="sbs_b")
     with col_period:
         period_map = {
             "6 miesiecy": "6mo", "1 rok": "1y", "2 lata": "2y",
             "5 lat": "5y", "10 lat": "10y", "Maksymalny": "max",
         }
-        period_label = st.selectbox("Okres", list(period_map.keys()), index=2, key="sbs_period")
+        period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=2, key="sbs_period", format_func=tr)
         period = period_map[period_label]
 
     if ticker_a == ticker_b:
-        st.warning("Wybierz dwa rozne aktywa.")
+        st.warning(tr("Wybierz dwa rozne aktywa."))
         return
 
     # --- Pobierz dane ---
-    with st.spinner("Pobieram dane..."):
+    with st.spinner(tr("Pobieram dane...")):
         _parts = {}
         for _t in [ticker_a, ticker_b]:
             _s = download_single(_t, period=period)
@@ -316,7 +317,7 @@ def render_side_by_side_tab() -> None:
         prices = pd.DataFrame(_parts) if _parts else pd.DataFrame()
 
     if prices.empty or ticker_a not in prices.columns or ticker_b not in prices.columns:
-        st.error("Nie udalo sie pobrac danych dla wybranych aktywow.")
+        st.error(tr("Nie udalo sie pobrac danych dla wybranych aktywow."))
         return
 
     rf = get_risk_free()
@@ -340,9 +341,9 @@ def render_side_by_side_tab() -> None:
 
     with col_left:
         st.markdown(f"#### {ticker_a}")
-        fig = price_chart(prices[[ticker_a]], title=f"Cena — {ticker_a}", normalize=True)
+        fig = price_chart(prices[[ticker_a]], title=tr('Cena — {ticker_a}', ticker_a=ticker_a), normalize=True)
         st.plotly_chart(fig, width="stretch", key="sbs_price_a")
-        fig = drawdown_chart(prices[[ticker_a]], title=f"Drawdown — {ticker_a}")
+        fig = drawdown_chart(prices[[ticker_a]], title=tr('Drawdown — {ticker_a}', ticker_a=ticker_a))
         st.plotly_chart(fig, width="stretch", key="sbs_dd_a")
 
         s_a = calc_stats(prices[ticker_a].dropna(), 252, rf_decimal)
@@ -350,9 +351,9 @@ def render_side_by_side_tab() -> None:
 
     with col_right:
         st.markdown(f"#### {ticker_b}")
-        fig = price_chart(prices[[ticker_b]], title=f"Cena — {ticker_b}", normalize=True)
+        fig = price_chart(prices[[ticker_b]], title=tr('Cena — {ticker_b}', ticker_b=ticker_b), normalize=True)
         st.plotly_chart(fig, width="stretch", key="sbs_price_b")
-        fig = drawdown_chart(prices[[ticker_b]], title=f"Drawdown — {ticker_b}")
+        fig = drawdown_chart(prices[[ticker_b]], title=tr('Drawdown — {ticker_b}', ticker_b=ticker_b))
         st.plotly_chart(fig, width="stretch", key="sbs_dd_b")
 
         s_b = calc_stats(prices[ticker_b].dropna(), 252, rf_decimal)
@@ -361,28 +362,28 @@ def render_side_by_side_tab() -> None:
     st.divider()
 
     # --- Wspolna sekcja: Korelacja + Relative Strength ---
-    st.markdown("### Porownanie wspolne")
+    st.markdown(tr("### Porownanie wspolne"))
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### Korelacja")
+        st.markdown(tr("#### Korelacja"))
         corr = correlation_matrix(prices, period=252)
-        fig = correlation_heatmap(corr, title="Macierz korelacji")
+        fig = correlation_heatmap(corr, title=tr("Macierz korelacji"))
         st.plotly_chart(fig, width="stretch", key="sbs_corr")
 
     with col2:
-        st.markdown("#### Relative Strength")
+        st.markdown(tr("#### Relative Strength"))
         rs_data = relative_strength(prices[ticker_a].dropna(), prices[ticker_b].dropna())
         if not rs_data.empty:
             fig = rs_chart(rs_data, ticker_a, ticker_b)
             st.plotly_chart(fig, width="stretch", key="sbs_rs")
         else:
-            st.info("Za malo wspolnych danych do RS.")
+            st.info(tr("Za malo wspolnych danych do RS."))
 
 
-st.markdown("# Porównaj")
-tab_charts, tab_h2h, tab_sbs = st.tabs(["📈 Wykresy", "⚖️ Head-to-head", "🔀 Side-by-side"])
+st.markdown(tr("# Porównaj"))
+tab_charts, tab_h2h, tab_sbs = st.tabs([tr("📈 Wykresy"), tr("⚖️ Head-to-head"), tr("🔀 Side-by-side")])
 with tab_charts:
     render_charts_tab()
 with tab_h2h:

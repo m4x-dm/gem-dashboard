@@ -10,9 +10,10 @@ from data.momentum import backtest_gem, backtest_sma200, backtest_tqqq_mom, walk
 from components.cards import stats_table
 from components.charts import equity_chart
 from components.formatting import fmt_number, GOLD, BG_CARD, BORDER, MUTED, GREEN, RED
+from components.i18n import tr, tr_doc
 
 
-st.markdown("# Backtest strategii")
+st.markdown(tr("# Backtest strategii"))
 
 # Parametry
 col1, col2, col3, col4 = st.columns(4)
@@ -24,7 +25,7 @@ with col1:
         "Porownanie wszystkich",
         "Walk-forward GEM",
     ]
-    strategy = st.selectbox("Strategia", strategy_options)
+    strategy = st.selectbox(tr("Strategia"), strategy_options, format_func=tr)
 with col2:
     period_map = {
         "1 miesiac": "1mo", "2 miesiace": "3mo", "3 miesiace": "3mo",
@@ -32,13 +33,13 @@ with col2:
         "2 lata": "2y", "3 lata": "3y", "5 lat": "5y", "7 lat": "7y",
         "10 lat": "10y", "15 lat": "15y", "20 lat": "20y", "Maksymalny": "max",
     }
-    period_label = st.selectbox("Okres", list(period_map.keys()), index=7)
+    period_label = st.selectbox(tr("Okres"), list(period_map.keys()), index=7, format_func=tr)
     period = period_map[period_label]
 with col3:
-    start_capital = st.number_input("Kapital poczatkowy (USD)", value=10000, step=1000, min_value=100)
+    start_capital = st.number_input(tr("Kapital poczatkowy (USD)"), value=10000, step=1000, min_value=100)
 with col4:
     rf = get_risk_free()
-    st.metric("Stopa wolna", f"{rf:.2f}%")
+    st.metric(tr("Stopa wolna"), f"{rf:.2f}%")
 
 # Pobierz dane (z ^VIX dla regime filtera)
 tickers = list(set(ALL_TICKERS + st.session_state.get("custom_tickers", []) + ["^VIX"]))
@@ -60,7 +61,7 @@ def _render_final_values(curves: list[tuple[str, pd.Series]], capital: float):
         gain = final - capital
         gain_color = GREEN if gain >= 0 else RED
         gain_sign = "+" if gain >= 0 else ""
-        gain_label = "zysku" if gain >= 0 else "straty"
+        gain_label = tr("zysku") if gain >= 0 else tr("straty")
         cols[i].html(
             f'<div style="background:{BG_CARD};box-shadow:{SHADOW};border-radius:12px;padding:16px;text-align:center">'
             f'<div style="font-size:0.75rem;color:{MUTED};text-transform:uppercase">{name}</div>'
@@ -73,85 +74,85 @@ def _render_final_values(curves: list[tuple[str, pd.Series]], capital: float):
 def _render_signals(signals: list, signal_map: dict, title: str = "Historia zmian sygnalu"):
     """Wyswietla timeline zmian sygnalu."""
     st.divider()
-    st.markdown(f"### {title}")
+    st.markdown("### " + tr(title))
     if signals:
         signal_df = pd.DataFrame(signals, columns=["Data", "Sygnal"])
         signal_df["Data"] = signal_df["Data"].dt.strftime("%Y-%m-%d")
         signal_df["Opis"] = signal_df["Sygnal"].map(signal_map)
         st.dataframe(signal_df, width="stretch", hide_index=True)
-        st.caption(f"Laczna liczba zmian sygnalu: **{len(signals)}**")
+        st.caption(tr('Laczna liczba zmian sygnalu: **{v0}**', v0=len(signals)))
     else:
-        st.info("Brak zmian sygnalu w tym okresie.")
+        st.info(tr("Brak zmian sygnalu w tym okresie."))
 
 
 # ─── GEM Klasyczny ───────────────────────────────────────────
 if strategy == "GEM Klasyczny":
-    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+    with st.expander(tr("⚙️ Ustawienia zaawansowane"), expanded=False):
         trend_filter = st.checkbox(
-            "Filtr trendu (AND cena > SMA200)",
+            tr("Filtr trendu (AND cena > SMA200)"),
             value=False,
-            help="Dodatkowo wymaga aby wybrane aktywo akcyjne bylo powyzej SMA200. "
-                 "Redukuje whipsawy, obniza CAGR o 1-2pp, poprawia win rate i drawdown.",
+            help=tr("Dodatkowo wymaga aby wybrane aktywo akcyjne bylo powyzej SMA200. "
+                 "Redukuje whipsawy, obniza CAGR o 1-2pp, poprawia win rate i drawdown."),
         )
         vol_on = st.checkbox(
-            "Volatility targeting",
+            tr("Volatility targeting"),
             value=False,
-            help="Skaluj pozycje do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
+            help=tr("Skaluj pozycje do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
                  "Redukuje wahania portfela — Sharpe rosnie, DD maleje kosztem CAGR "
-                 "w trendach. Dziala tylko gdy sygnal to akcje (nie AGG).",
+                 "w trendach. Dziala tylko gdy sygnal to akcje (nie AGG)."),
         )
         col_v1, col_v2 = st.columns(2)
         with col_v1:
             vol_target_pct = st.slider(
-                "Cel zmiennosci (%)", 8.0, 25.0, 15.0, 0.5,
+                tr("Cel zmiennosci (%)"), 8.0, 25.0, 15.0, 0.5,
                 disabled=not vol_on,
-                help="Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie.",
+                help=tr("Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie."),
             ) / 100.0
         with col_v2:
             max_lev = st.slider(
-                "Maks. dzwignia", 1.0, 3.0, 1.0, 0.25,
+                tr("Maks. dzwignia"), 1.0, 3.0, 1.0, 0.25,
                 disabled=not vol_on,
-                help="1.0 = bez dzwigni (tylko skalowanie w dol). 1.5-2.0 wymaga konta margin "
-                     "i dolicza koszt finansowania ~rf.",
+                help=tr("1.0 = bez dzwigni (tylko skalowanie w dol). 1.5-2.0 wymaga konta margin "
+                     "i dolicza koszt finansowania ~rf."),
             )
         costs_on_gem = st.checkbox(
-            "Koszty i podatki (realistycznie)",
+            tr("Koszty i podatki (realistycznie)"),
             value=False,
             key="gem_costs_on",
-            help="Dodaj: (1) koszt roundtrip przy kazdej zmianie sygnalu (spread+prowizja), "
-                 "(2) podatek Belki 19% od zyskownych segmentow (zrealizowany zysk = rozliczany przy sprzedazy).",
+            help=tr("Dodaj: (1) koszt roundtrip przy kazdej zmianie sygnalu (spread+prowizja), "
+                 "(2) podatek Belki 19% od zyskownych segmentow (zrealizowany zysk = rozliczany przy sprzedazy)."),
         )
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             tc_gem_pct = st.slider(
-                "Koszt roundtrip (%)", 0.0, 0.5, 0.05, 0.01,
+                tr("Koszt roundtrip (%)"), 0.0, 0.5, 0.05, 0.01,
                 disabled=not costs_on_gem,
                 key="gem_tc",
-                help="IBKR/Bossa ~0.02-0.1%, XTB ETF ~0.05-0.2%. Polska stawka plus spread.",
+                help=tr("IBKR/Bossa ~0.02-0.1%, XTB ETF ~0.05-0.2%. Polska stawka plus spread."),
             ) / 100.0
         with col_c2:
             belka_on_gem = st.checkbox(
-                "Belka 19%",
+                tr("Belka 19%"),
                 value=False,
                 disabled=not costs_on_gem,
                 key="gem_belka",
-                help="Podatek od zyskow kapitalowych (PL). Placony per segment: przy kazdej "
-                     "zmianie sygnalu realizowany jest zysk/strata na dotychczasowej pozycji.",
+                help=tr("Podatek od zyskow kapitalowych (PL). Placony per segment: przy kazdej "
+                     "zmianie sygnalu realizowany jest zysk/strata na dotychczasowej pozycji."),
             )
         regime_on_gem = st.checkbox(
-            "Filtr regime (VIX)",
+            tr("Filtr regime (VIX)"),
             value=False,
             disabled=(vix_series is None),
             key="gem_regime",
-            help="Gdy VIX > progu, ignoruje momentum i siedzi w AGG. Historycznie VIX>30 "
+            help=tr("Gdy VIX > progu, ignoruje momentum i siedzi w AGG. Historycznie VIX>30 "
                  "markuje panike (2008, 2020, 2022). Obniza CAGR w normalnym rynku, "
-                 "ale drastycznie ratuje drawdown w stressie.",
+                 "ale drastycznie ratuje drawdown w stressie."),
         )
         vix_thr_gem = st.slider(
-            "Prog VIX", 15.0, 50.0, 30.0, 1.0,
+            tr("Prog VIX"), 15.0, 50.0, 30.0, 1.0,
             disabled=not regime_on_gem,
             key="gem_vix_thr",
-            help="30 = klasyczny prog paniki. 25 = ostrozniej (wiecej dni w AGG).",
+            help=tr("30 = klasyczny prog paniki. 25 = ostrozniej (wiecej dni w AGG)."),
         )
     vol_target_val = vol_target_pct if vol_on else None
     tc_gem = tc_gem_pct if costs_on_gem else 0.0
@@ -163,11 +164,11 @@ if strategy == "GEM Klasyczny":
                           transaction_cost=tc_gem, tax_belka=tax_gem,
                           regime_series=rs_gem, regime_threshold=vix_thr_gem)
     if result is None:
-        st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
+        st.error(tr("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres."))
         st.stop()
 
-    with st.expander("ℹ️ O strategii GEM Klasyczny", expanded=False):
-        st.markdown("""
+    with st.expander(tr("ℹ️ O strategii GEM Klasyczny"), expanded=False):
+        st.markdown(tr_doc("backtest_gem", """
 **Global Equity Momentum (GEM)** to strategia opracowana przez **Gary'ego Antonacciego**
 (*Dual Momentum Investing*, 2014). Laczy momentum absolutny (vs stopa wolna) z momentum
 relatywnym (porownanie rynkow).
@@ -179,9 +180,9 @@ relatywnym (porownanie rynkow).
 | 2 | QQQ 12M > stopa wolna | → Porownaj QQQ vs VEA vs EEM vs ACWI, kup najlepszy |
 
 **Rebalans miesięczny** (co 21 dni roboczych). Zawsze 100% w jednym aktywie.
-**Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1), ale backtest
-14y na koszyku ETF wykazal +4,6 p.p. CAGR/rok dla czystego 12M (skip-month dziala
-dla pojedynczych akcji, nie dla ETF indeksowych).
+**Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1). Ponowny test
+z pazdziernika 2026 nie potwierdzil przewagi czystego 12M (w latach 2012–2026 lepiej
+wypadal skip-month, w ostatniej dekadzie roznica w granicach szumu).
 
 ### Zalety
 - **Prosta** — jedna decyzja raz w miesiacu, 5 aktywow
@@ -196,9 +197,9 @@ dla pojedynczych akcji, nie dla ETF indeksowych).
 - **Koszty transakcji** — czeste zmiany sygnalu = prowizje + podatki
 
 Pelny opis strategii → strona **O strategii GEM** w menu bocznym.
-""")
+"""))
 
-    st.markdown("### Krzywa kapitalu")
+    st.markdown(tr("### Krzywa kapitalu"))
     fig = equity_chart({
         "GEM": result["equity_gem"],
         "QQQ Buy&Hold": result["equity_qqq"],
@@ -207,7 +208,7 @@ Pelny opis strategii → strona **O strategii GEM** w menu bocznym.
     })
     st.plotly_chart(fig, width="stretch")
 
-    st.markdown("### Statystyki")
+    st.markdown(tr("### Statystyki"))
     stats_table(result["stats"])
 
     st.divider()
@@ -227,78 +228,78 @@ Pelny opis strategii → strona **O strategii GEM** w menu bocznym.
 
 # ─── QQQ + SMA 200 ───────────────────────────────────────────
 elif strategy == "QQQ + SMA 200":
-    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+    with st.expander(tr("⚙️ Ustawienia zaawansowane"), expanded=False):
         col_a, col_b = st.columns(2)
         with col_a:
             buffer_pct = st.slider(
-                "Bufor / histereza (%)", 0.0, 5.0, 0.0, 0.5,
-                help="Switch do AGG tylko gdy cena < SMA × (1 − bufor); do QQQ tylko gdy "
+                tr("Bufor / histereza (%)"), 0.0, 5.0, 0.0, 0.5,
+                help=tr("Switch do AGG tylko gdy cena < SMA × (1 − bufor); do QQQ tylko gdy "
                      "cena > SMA × (1 + bufor). Faber rekomenduje 2%. Redukuje whipsawy "
-                     "w rynku bocznym (2015, 2022).",
+                     "w rynku bocznym (2015, 2022)."),
             ) / 100.0
         with col_b:
             monthly_check = st.checkbox(
-                "Sprawdzanie miesięczne",
+                tr("Sprawdzanie miesięczne"),
                 value=False,
-                help="Sprawdzaj sygnal co ~21 dni zamiast codziennie. Dalej redukuje "
-                     "whipsawy, ale opozni reakcje na gwaltowne zmiany trendu.",
+                help=tr("Sprawdzaj sygnal co ~21 dni zamiast codziennie. Dalej redukuje "
+                     "whipsawy, ale opozni reakcje na gwaltowne zmiany trendu."),
             )
         vol_on_sma = st.checkbox(
-            "Volatility targeting",
+            tr("Volatility targeting"),
             value=False,
-            help="Skaluj pozycje QQQ do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
+            help=tr("Skaluj pozycje QQQ do zadanej rocznej zmiennosci: pos = cel / realizowana_vol. "
                  "Redukuje wahania portfela — Sharpe rosnie, DD maleje kosztem CAGR "
-                 "w trendach. Gdy sygnal = AGG, brak skalowania.",
+                 "w trendach. Gdy sygnal = AGG, brak skalowania."),
         )
         col_v1, col_v2 = st.columns(2)
         with col_v1:
             vol_target_pct_sma = st.slider(
-                "Cel zmiennosci (%) ", 8.0, 25.0, 15.0, 0.5,
+                tr("Cel zmiennosci (%) "), 8.0, 25.0, 15.0, 0.5,
                 disabled=not vol_on_sma,
                 key="sma_vol_target",
-                help="Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie.",
+                help=tr("Typowe cele: 10-12% bardzo ostroznie, 15% standard, 20% agresywnie."),
             ) / 100.0
         with col_v2:
             max_lev_sma = st.slider(
-                "Maks. dzwignia ", 1.0, 3.0, 1.0, 0.25,
+                tr("Maks. dzwignia "), 1.0, 3.0, 1.0, 0.25,
                 disabled=not vol_on_sma,
                 key="sma_max_lev",
-                help="1.0 = bez dzwigni. >1 wymaga konta margin, w tle doliczany koszt ~rf.",
+                help=tr("1.0 = bez dzwigni. >1 wymaga konta margin, w tle doliczany koszt ~rf."),
             )
         costs_on_sma = st.checkbox(
-            "Koszty i podatki (realistycznie)",
+            tr("Koszty i podatki (realistycznie)"),
             value=False,
             key="sma_costs_on",
-            help="Dodaj: (1) koszt roundtrip przy zmianie sygnalu, (2) podatek Belki 19% "
+            help=tr("Dodaj: (1) koszt roundtrip przy zmianie sygnalu, (2) podatek Belki 19% "
                  "od zyskownych segmentow. SMA z dziennym checkiem ma duzo whipsawow — "
-                 "realistyczne koszty znaczaco obnizaja CAGR.",
+                 "realistyczne koszty znaczaco obnizaja CAGR."),
         )
         col_sc1, col_sc2 = st.columns(2)
         with col_sc1:
             tc_sma_pct = st.slider(
-                "Koszt roundtrip (%) ", 0.0, 0.5, 0.05, 0.01,
+                tr("Koszt roundtrip (%) "), 0.0, 0.5, 0.05, 0.01,
                 disabled=not costs_on_sma,
                 key="sma_tc",
-                help="Spread + prowizja przy kazdej zmianie QQQ<->AGG.",
+                help=tr("Spread + prowizja przy kazdej zmianie QQQ<->AGG."),
             ) / 100.0
         with col_sc2:
             belka_on_sma = st.checkbox(
-                "Belka 19% ",
+                tr("Belka 19% "),
                 value=False,
                 disabled=not costs_on_sma,
                 key="sma_belka",
-                help="Podatek od zyskow kapitalowych (PL) rozliczany per segment.",
+                help=tr("Podatek od zyskow kapitalowych (PL) rozliczany per segment."),
             )
         regime_on_sma = st.checkbox(
-            "Filtr regime (VIX) ",
+            tr("Filtr regime (VIX) "),
             value=False,
             disabled=(vix_series is None),
             key="sma_regime",
-            help="VIX > progu → AGG niezaleznie od sygnalu SMA. Przydatne gdy rynek "
-                 "oscyluje wokol SMA200 w okresie wysokiej niepewnosci.",
+            help=tr("VIX > progu → AGG niezaleznie od sygnalu SMA. Przydatne gdy rynek "
+                 "oscyluje wokol SMA200 w okresie wysokiej niepewnosci."),
         )
         vix_thr_sma = st.slider(
-            "Prog VIX ", 15.0, 50.0, 30.0, 1.0,
+            tr("Prog VIX "), 15.0, 50.0, 30.0, 1.0,
             disabled=not regime_on_sma,
             key="sma_vix_thr",
         )
@@ -312,11 +313,11 @@ elif strategy == "QQQ + SMA 200":
                               transaction_cost=tc_sma, tax_belka=tax_sma,
                               regime_series=rs_sma, regime_threshold=vix_thr_sma)
     if result is None:
-        st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
+        st.error(tr("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres."))
         st.stop()
 
-    with st.expander("ℹ️ O strategii QQQ + SMA 200", expanded=False):
-        st.markdown("""
+    with st.expander(tr("ℹ️ O strategii QQQ + SMA 200"), expanded=False):
+        st.markdown(tr_doc("backtest_sma200", """
 **SMA 200 (Simple Moving Average)** to jedna z najstarszych i najprostszych strategii trend-following.
 200-dniowa srednia kroczaca wyglądza szum cenowy i pokazuje dlugoterminowy kierunek trendu.
 
@@ -345,9 +346,9 @@ Strategia SMA 200 jest popularna od lat 1990-tych. Mebane Faber w pracy
 *"A Quantitative Approach to Tactical Asset Allocation"* (2007) wykazal,
 ze SMA 10-miesieczna (≈200 dni) znaczaco redukuje drawdown przy zachowaniu
 wiekszosci zwrotow z rynku akcji.
-""")
+"""))
 
-    st.markdown("### Krzywa kapitalu")
+    st.markdown(tr("### Krzywa kapitalu"))
     fig = equity_chart({
         "QQQ+SMA200": result["equity_sma"],
         "QQQ Buy&Hold": result["equity_qqq"],
@@ -355,7 +356,7 @@ wiekszosci zwrotow z rynku akcji.
     })
     st.plotly_chart(fig, width="stretch")
 
-    st.markdown("### Statystyki")
+    st.markdown(tr("### Statystyki"))
     stats_table(result["stats"])
 
     st.divider()
@@ -373,68 +374,68 @@ wiekszosci zwrotow z rynku akcji.
 
 # ─── TQQQ + Momentum ─────────────────────────────────────────
 elif strategy == "TQQQ + Momentum":
-    with st.expander("⚙️ Ustawienia zaawansowane", expanded=False):
+    with st.expander(tr("⚙️ Ustawienia zaawansowane"), expanded=False):
         lev_col, cost_col = st.columns(2)
         with lev_col:
             leverage = st.slider(
-                "Dzwignia", 1.0, 3.0, 3.0, 0.5,
-                help="Mnoznik dzwigni. 3.0 = TQQQ, 2.0 = QLD/SSO, 1.5 = CSNDX 1.5x, 1.0 = brak dzwigni.",
+                tr("Dzwignia"), 1.0, 3.0, 3.0, 0.5,
+                help=tr("Mnoznik dzwigni. 3.0 = TQQQ, 2.0 = QLD/SSO, 1.5 = CSNDX 1.5x, 1.0 = brak dzwigni."),
             )
         with cost_col:
             realistic_costs = st.checkbox(
-                "Realistyczne koszty TQQQ",
+                tr("Realistyczne koszty TQQQ"),
                 value=False,
-                help="Dodaj do dziennego zwrotu: koszt finansowania pozyczonej dzwigni "
+                help=tr("Dodaj do dziennego zwrotu: koszt finansowania pozyczonej dzwigni "
                      "((L-1)·(rf+spread)/252) oraz expense ratio. Naiwny syntetyk 3×QQQ "
                      "przeszacowuje TQQQ o 2-4pp rocznie — realistyczny model dopasowuje "
-                     "sie do prawdziwego TQQQ do ~0.5pp.",
+                     "sie do prawdziwego TQQQ do ~0.5pp."),
             )
         col_er, col_sp = st.columns(2)
         with col_er:
             expense_ratio_pct = st.slider(
-                "Expense ratio (%)", 0.0, 2.0, 0.88, 0.01,
+                tr("Expense ratio (%)"), 0.0, 2.0, 0.88, 0.01,
                 disabled=not realistic_costs,
-                help="TQQQ: 0.88%, QLD: 0.95%, SSO: 0.89%, SPXL: 0.91%. 0 = naiwny.",
+                help=tr("TQQQ: 0.88%, QLD: 0.95%, SSO: 0.89%, SPXL: 0.91%. 0 = naiwny."),
             ) / 100.0
         with col_sp:
             borrow_spread_pct = st.slider(
-                "Spread ponad rf (%)", 0.0, 2.0, 0.50, 0.05,
+                tr("Spread ponad rf (%)"), 0.0, 2.0, 0.50, 0.05,
                 disabled=not realistic_costs,
-                help="Spread jaki ETF placi za dzwignie ponad stope wolna. 0.3-0.7% realistycznie.",
+                help=tr("Spread jaki ETF placi za dzwignie ponad stope wolna. 0.3-0.7% realistycznie."),
             ) / 100.0
         costs_on_tqqq = st.checkbox(
-            "Koszty transakcji + Belka",
+            tr("Koszty transakcji + Belka"),
             value=False,
             key="tqqq_costs_on",
-            help="Dodaj koszt roundtrip przy zmianie sygnalu (TQQQ<->AGG) i podatek Belki "
-                 "19% od zyskownych segmentow.",
+            help=tr("Dodaj koszt roundtrip przy zmianie sygnalu (TQQQ<->AGG) i podatek Belki "
+                 "19% od zyskownych segmentow."),
         )
         col_tc1, col_tc2 = st.columns(2)
         with col_tc1:
             tc_tqqq_pct = st.slider(
-                "Koszt roundtrip (%)  ", 0.0, 0.5, 0.05, 0.01,
+                tr("Koszt roundtrip (%)  "), 0.0, 0.5, 0.05, 0.01,
                 disabled=not costs_on_tqqq,
                 key="tqqq_tc",
-                help="Spread + prowizja. TQQQ ma duzy spread srodsesyjny (0.05-0.15%).",
+                help=tr("Spread + prowizja. TQQQ ma duzy spread srodsesyjny (0.05-0.15%)."),
             ) / 100.0
         with col_tc2:
             belka_on_tqqq = st.checkbox(
-                "Belka 19%  ",
+                tr("Belka 19%  "),
                 value=False,
                 disabled=not costs_on_tqqq,
                 key="tqqq_belka",
-                help="Podatek od zyskow kapitalowych rozliczany per segment.",
+                help=tr("Podatek od zyskow kapitalowych rozliczany per segment."),
             )
         regime_on_tqqq = st.checkbox(
-            "Filtr regime (VIX)  ",
+            tr("Filtr regime (VIX)  "),
             value=False,
             disabled=(vix_series is None),
             key="tqqq_regime",
-            help="KRYTYCZNY dla TQQQ — leveraged ETF giną w regime'ach paniki (2008, "
-                 "2020, 2022 spadki 50-80%). VIX>30 → AGG ratuje konto od katastrofy.",
+            help=tr("KRYTYCZNY dla TQQQ — leveraged ETF giną w regime'ach paniki (2008, "
+                 "2020, 2022 spadki 50-80%). VIX>30 → AGG ratuje konto od katastrofy."),
         )
         vix_thr_tqqq = st.slider(
-            "Prog VIX  ", 15.0, 50.0, 30.0, 1.0,
+            tr("Prog VIX  "), 15.0, 50.0, 30.0, 1.0,
             disabled=not regime_on_tqqq,
             key="tqqq_vix_thr",
         )
@@ -449,11 +450,11 @@ elif strategy == "TQQQ + Momentum":
                                 transaction_cost=tc_tqqq, tax_belka=tax_tqqq,
                                 regime_series=rs_tqqq, regime_threshold=vix_thr_tqqq)
     if result is None:
-        st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
+        st.error(tr("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres."))
         st.stop()
 
-    with st.expander("ℹ️ O strategii TQQQ + Momentum", expanded=False):
-        st.markdown("""
+    with st.expander(tr("ℹ️ O strategii TQQQ + Momentum"), expanded=False):
+        st.markdown(tr_doc("backtest_tqqq", """
 **TQQQ + Momentum** laczy 3-krotnie lewarowany NASDAQ 100 z timing momentum, zeby uniknac
 trzymania lewaru w bessie. TQQQ jest **syntetyzowany** z QQQ (daily return × 3), co pozwala
 testowac strategie dalej niz 2010 (rok powstania prawdziwego TQQQ).
@@ -487,9 +488,9 @@ od indywidualnej tolerancji na ryzyko.
 
 > **UWAGA:** Ta strategia jest eksperymentalna i ekstremalnie ryzykowna.
 > 3x lewar nie jest odpowiedni dla wiekszosci inwestorow.
-""")
+"""))
 
-    st.markdown("### Krzywa kapitalu")
+    st.markdown(tr("### Krzywa kapitalu"))
     fig = equity_chart({
         "TQQQ+Momentum": result["equity_tqqq_mom"],
         "TQQQ Buy&Hold": result["equity_tqqq_bh"],
@@ -498,7 +499,7 @@ od indywidualnej tolerancji na ryzyko.
     })
     st.plotly_chart(fig, width="stretch")
 
-    st.markdown("### Statystyki")
+    st.markdown(tr("### Statystyki"))
     stats_table(result["stats"])
 
     st.divider()
@@ -521,7 +522,7 @@ elif strategy == "Porownanie wszystkich":
     tqqq = backtest_tqqq_mom(prices, rf, start_capital=start_capital)
 
     if gem is None and sma is None and tqqq is None:
-        st.error("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres.")
+        st.error(tr("Za malo danych do przeprowadzenia backtestu. Sprobuj dluzszy okres."))
         st.stop()
 
     # Zbierz krzywe equity — wspolny zakres dat
@@ -549,7 +550,7 @@ elif strategy == "Porownanie wszystkich":
             curves_trimmed[name] = trimmed / trimmed.iloc[0] * start_capital
         curves = curves_trimmed
 
-    st.markdown("### Porownanie strategii — Krzywa kapitalu")
+    st.markdown(tr("### Porownanie strategii — Krzywa kapitalu"))
     fig = equity_chart(curves)
     st.plotly_chart(fig, width="stretch")
 
@@ -567,7 +568,7 @@ elif strategy == "Porownanie wszystkich":
             break
 
     if all_stats:
-        st.markdown("### Statystyki")
+        st.markdown(tr("### Statystyki"))
         stats_table(all_stats)
 
     # Kafelki koncowe
@@ -579,33 +580,33 @@ elif strategy == "Porownanie wszystkich":
 # ─── Walk-forward GEM ─────────────────────────────────────────
 elif strategy == "Walk-forward GEM":
     st.caption(
-        "Rolling in-sample / out-of-sample — dla kazdego okna IS siatka parametrow "
+        tr("Rolling in-sample / out-of-sample — dla kazdego okna IS siatka parametrow "
         "(trend_filter × vol_target) oceniana po wybranej metryce, najlepszy zestaw "
         "uruchamiany na OOS. Wyniki OOS lancuchowane w jedna krzywa. Wymaga >=6 lat "
-        "danych (domyslnie 5 IS + 1 OOS). Uwaga: okres powyzej musi byc wystarczajaco dlugi."
+        "danych (domyslnie 5 IS + 1 OOS). Uwaga: okres powyzej musi byc wystarczajaco dlugi.")
     )
-    with st.expander("⚙️ Ustawienia walk-forward", expanded=True):
+    with st.expander(tr("⚙️ Ustawienia walk-forward"), expanded=True):
         col_wf1, col_wf2, col_wf3, col_wf4 = st.columns(4)
         with col_wf1:
             is_years = st.slider(
-                "Dlugosc IS (lat)", 3.0, 8.0, 5.0, 0.5,
-                help="In-sample window — na nim dobierane sa parametry.",
+                tr("Dlugosc IS (lat)"), 3.0, 8.0, 5.0, 0.5,
+                help=tr("In-sample window — na nim dobierane sa parametry."),
             )
         with col_wf2:
             oos_years = st.slider(
-                "Dlugosc OOS (lat)", 0.5, 2.0, 1.0, 0.25,
-                help="Out-of-sample window — na nim liczone realne zwroty.",
+                tr("Dlugosc OOS (lat)"), 0.5, 2.0, 1.0, 0.25,
+                help=tr("Out-of-sample window — na nim liczone realne zwroty."),
             )
         with col_wf3:
             step_years = st.slider(
-                "Krok (lat)", 0.5, 2.0, 1.0, 0.25,
-                help="O ile rolujemy okna. 1.0 = nowy fold co rok.",
+                tr("Krok (lat)"), 0.5, 2.0, 1.0, 0.25,
+                help=tr("O ile rolujemy okna. 1.0 = nowy fold co rok."),
             )
         with col_wf4:
             select_metric = st.selectbox(
-                "Metryka wyboru", ["Sharpe", "Calmar", "CAGR"],
+                tr("Metryka wyboru"), ["Sharpe", "Calmar", "CAGR"],
                 index=0,
-                help="Po czym wybieramy 'najlepsze parametry' na IS.",
+                help=tr("Po czym wybieramy 'najlepsze parametry' na IS."),
             )
 
     wf = walk_forward_gem(
@@ -615,14 +616,12 @@ elif strategy == "Walk-forward GEM":
     )
     if wf is None:
         st.error(
-            f"Za malo danych — walk-forward potrzebuje co najmniej "
-            f"~{int(is_years + oos_years) + 1} lat historii + bufor momentum 252 dni. "
-            "Zwieksz okres lub skroc IS/OOS."
+            tr('Za malo danych — walk-forward potrzebuje co najmniej ~{v0} lat historii + bufor momentum 252 dni. Zwieksz okres lub skroc IS/OOS.', v0=int(is_years + oos_years) + 1)
         )
         st.stop()
 
     folds = wf["folds"]
-    st.markdown(f"### Przebieg walk-forward — {len(folds)} foldow")
+    st.markdown(tr('### Przebieg walk-forward — {v0} foldow', v0=len(folds)))
 
     fold_rows = []
     for i, f in enumerate(folds, start=1):
@@ -644,7 +643,7 @@ elif strategy == "Walk-forward GEM":
     st.dataframe(fold_df, width="stretch", hide_index=True)
 
     # OOS chain chart
-    st.markdown("### Krzywa kapitalu (OOS chain)")
+    st.markdown(tr("### Krzywa kapitalu (OOS chain)"))
     oos_chain = wf["oos_chain"] * start_capital
     charts = {"Walk-forward OOS": oos_chain}
     if wf.get("qqq_oos_chain") is not None:
@@ -653,7 +652,7 @@ elif strategy == "Walk-forward GEM":
     st.plotly_chart(fig_wf, width="stretch")
 
     # Aggregated OOS summary
-    st.markdown("### Podsumowanie OOS vs QQQ")
+    st.markdown(tr("### Podsumowanie OOS vs QQQ"))
     summary = {"Walk-forward OOS": wf["oos_summary"]}
     if wf.get("qqq_oos_summary") is not None:
         summary["QQQ B&H"] = wf["qqq_oos_summary"]
@@ -666,7 +665,7 @@ elif strategy == "Walk-forward GEM":
     _render_final_values(kafelki, start_capital)
 
     # Param stability
-    st.markdown("### Stabilnosc parametrow")
+    st.markdown(tr("### Stabilnosc parametrow"))
     hits = wf.get("param_hits", {})
     if hits:
         total = sum(hits.values())
@@ -679,9 +678,9 @@ elif strategy == "Walk-forward GEM":
             })
         st.dataframe(pd.DataFrame(hit_rows), width="stretch", hide_index=True)
         st.caption(
-            "Gdy jedna kombinacja dominuje (>=60% foldow) — parametry sa stabilne historycznie. "
+            tr("Gdy jedna kombinacja dominuje (>=60% foldow) — parametry sa stabilne historycznie. "
             "Rozproszenie (3+ roznych po ~20%) sugeruje ze kazdy rezim rynkowy preferuje inne "
-            "ustawienia — rozwazyc regime-aware alokacje."
+            "ustawienia — rozwazyc regime-aware alokacje.")
         )
 
 render_footer()

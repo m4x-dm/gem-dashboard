@@ -16,10 +16,11 @@ from components.formatting import (
 )
 from components.charts import _base_layout
 from components.constants import GOLD, SHADOW
+from components.i18n import tr
 
 
-st.markdown("# Cross-Asset Screener")
-st.caption("Jednolity ranking momentum ze wszystkich klas aktywow")
+st.markdown(tr("# Cross-Asset Screener"))
+st.caption(tr("Jednolity ranking momentum ze wszystkich klas aktywow"))
 
 # ---------------------------------------------------------------------------
 # Kolory klas aktywow
@@ -37,19 +38,19 @@ CLASS_COLORS = {
 fcol1, fcol2, fcol3, fcol4 = st.columns(4)
 with fcol1:
     asset_classes = st.multiselect(
-        "Klasy aktywow",
+        tr("Klasy aktywow"),
         ["ETF", "S&P 500", "GPW", "Kryptowaluty"],
         default=["ETF", "S&P 500", "GPW", "Kryptowaluty"],
     )
 with fcol2:
-    min_score = st.number_input("Min. wynik kompozytowy (%)", value=-100.0, step=1.0, format="%.1f")
+    min_score = st.number_input(tr("Min. wynik kompozytowy (%)"), value=-100.0, step=1.0, format="%.1f")
 with fcol3:
-    mom_abs_filter = st.selectbox("Momentum absolutny", ["Wszystkie", "TAK", "NIE"])
+    mom_abs_filter = st.selectbox(tr("Momentum absolutny"), ["Wszystkie", "TAK", "NIE"], format_func=tr)
 with fcol4:
-    top_n = st.selectbox("Top N", ["20", "50", "100", "200", "Wszystkie"], index=1)
+    top_n = st.selectbox(tr("Top N"), ["20", "50", "100", "200", "Wszystkie"], index=1, format_func=tr)
 
 if not asset_classes:
-    st.warning("Wybierz co najmniej jedna klase aktywow.")
+    st.warning(tr("Wybierz co najmniej jedna klase aktywow."))
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ def _build_class_ranking(_tickers_tuple, _rf, class_name, period="2y"):
     return ranking
 
 
-with st.spinner("Pobieram dane i buduje ranking..."):
+with st.spinner(tr("Pobieram dane i buduje ranking...")):
     if "ETF" in asset_classes:
         r = _build_class_ranking(tuple(ETF_TICKERS), rf, "ETF")
         if not r.empty:
@@ -103,7 +104,7 @@ with st.spinner("Pobieram dane i buduje ranking..."):
             all_rankings.append(r)
 
 if not all_rankings:
-    st.error("Nie udalo sie pobrac danych dla zadnej klasy aktywow.")
+    st.error(tr("Nie udalo sie pobrac danych dla zadnej klasy aktywow."))
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -124,7 +125,7 @@ if top_n != "Wszystkie":
     combined = combined.head(int(top_n))
 
 if combined.empty:
-    st.info("Brak wynikow po zastosowaniu filtrow.")
+    st.info(tr("Brak wynikow po zastosowaniu filtrow."))
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -163,7 +164,7 @@ st.dataframe(display_df, width="stretch", hide_index=True, height=500)
 # ---------------------------------------------------------------------------
 # Bar chart colored by asset class
 # ---------------------------------------------------------------------------
-st.markdown("### Wynik kompozytowy — top aktywa")
+st.markdown(tr("### Wynik kompozytowy — top aktywa"))
 
 chart_df = combined.head(min(30, len(combined))).copy()
 chart_df = chart_df.sort_values("Wynik", ascending=True)
@@ -177,10 +178,10 @@ fig = go.Figure(go.Bar(
     text=[f"{v*100:.1f}%" for v in chart_df["Wynik"]],
     textposition="outside",
     textfont=dict(size=10),
-    hovertemplate="%{y}<br>Wynik: %{x:.1f}%<br><extra></extra>",
+    hovertemplate="%{y}<br>" + tr("Wynik") + ": %{x:.1f}%<br><extra></extra>",
 ))
-fig.update_layout(**_base_layout("Top aktywa wg wyniku kompozytowego", height=max(400, len(chart_df) * 25)))
-fig.update_xaxes(title_text="Wynik kompozytowy (%)")
+fig.update_layout(**_base_layout(tr("Top aktywa wg wyniku kompozytowego"), height=max(400, len(chart_df) * 25)))
+fig.update_xaxes(title_text=tr("Wynik kompozytowy (%)"))
 
 # Add legend for asset classes
 for cls, color in CLASS_COLORS.items():
@@ -201,7 +202,7 @@ export_df.index.name = "Ticker"
 csv = export_df.to_csv()
 
 st.download_button(
-    label="📥 Eksport CSV",
+    label=tr("📥 Eksport CSV"),
     data=csv,
     file_name="cross_asset_ranking.csv",
     mime="text/csv",
