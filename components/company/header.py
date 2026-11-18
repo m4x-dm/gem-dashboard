@@ -3,7 +3,7 @@ import streamlit as st
 
 from components.auth import is_premium
 from components.constants import TEXT, MUTED, GREEN, RED
-from components.formatting import fmt_number, fmt_pct
+from components.formatting import fmt_number, fmt_pct, money
 from data import company as co
 from data import downloader
 from data.gpw_universe import GPW_NAMES
@@ -44,7 +44,7 @@ def render(ticker: str, market: str) -> None:
         col, bg = (GREEN, "rgba(52,211,153,.12)") if chg >= 0 else (RED, "rgba(248,113,113,.12)")
         pill = (f'<span style="background:{bg};color:{col};padding:2px 9px;border-radius:999px;'
                 f'font-size:12px">{fmt_pct(chg)} {tr("dziś")}</span>')
-    price_txt = f"{fmt_number(price, 2)} {ccy}" if price is not None else "—"
+    price_txt = money(fmt_number(price, 2), ccy) if price is not None else "—"
     meta = " · ".join(x for x in (company_name(ticker, market), tr(sector) if sector else "",
                                    tr(EXCHANGE[market])) if x)
     st.html(

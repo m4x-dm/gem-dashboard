@@ -7,7 +7,7 @@ import streamlit as st
 from components.cards import card_html
 from components.charts import _base_layout
 from components.constants import TEXT, MUTED, GOLD
-from components.formatting import fmt_pct, fmt_number
+from components.formatting import fmt_pct, fmt_number, money
 from data import company as co
 from data import financials as fin
 from components.i18n import tr
@@ -30,7 +30,7 @@ def _tile(label, value) -> str:
 
 
 def _money(x, ccy) -> str:
-    return f"{fmt_number(x, 2)} {ccy}".strip()
+    return money(fmt_number(x, 2), ccy)
 
 
 def _tiles(s):

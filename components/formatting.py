@@ -61,3 +61,10 @@ def signal_badge(signal: str) -> str:
         f'<span style="background:{color}20;color:{color};padding:4px 12px;'
         f'border-radius:20px;font-weight:700;font-size:0.85rem">{label}</span>'
     )
+
+
+def money(num_str: str, ccy: str) -> str:
+    """Kwota z waluta: PL '351,91 $' / '12,5 zl', EN '$351.91' (dolar z przodu) / '12.5 PLN'."""
+    if ccy == "$" and not is_pl():
+        return f"${num_str}"
+    return f"{num_str} {ccy}".strip()

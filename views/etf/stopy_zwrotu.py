@@ -55,7 +55,7 @@ c1, c2, c3 = st.columns([3, 1.4, 1])
 with c1:
     selected = st.multiselect(
         tr("ETF-y (2-8)"), options=ALL_TICKERS, default=DEFAULT, max_selections=8,
-        format_func=lambda t: f"{t} — {ETF_NAMES.get(t, t)}", key="lr_selected",
+        format_func=lambda t: f"{t} — {tr(ETF_NAMES.get(t, t))}", key="lr_selected",
     )
 with c2:
     use_proxy = st.toggle(tr("Wydluz historie o fundusze proxy"), value=False, key="lr_proxy",
@@ -139,7 +139,7 @@ else:
                                       index=available.index(default_p), key="lr_bar_period", format_func=tr)
             tickers = list(pr_all)
             values = [pr_all[t].loc[bar_period, "cagr"] for t in tickers]
-            st.plotly_chart(picks_return_bar(tickers, values, title=tr('CAGR — {bar_period}', bar_period=bar_period)),
+            st.plotly_chart(picks_return_bar(tickers, values, title=tr('CAGR — {bar_period}', bar_period=tr(bar_period))),
                             width="stretch")
             missing = [t for t, v in zip(tickers, values) if pd.isna(v)]
             if missing:

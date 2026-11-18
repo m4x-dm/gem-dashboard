@@ -248,10 +248,10 @@ display = filtered.head(top_n).copy()
 display = display.rename(columns={
     "sentiment": "🎯",
     "ticker": "Ticker",
-    "name": "Nazwa",
-    "sector": "Sektor",
+    "name": tr("Nazwa"),
+    "sector": tr("Sektor"),
     "market_cap": "Cap",
-    "net_value_6m": "Net 6mc",
+    "net_value_6m": tr("Net 6mc"),
     "n_buys": "#Buys",
     "n_sells": "#Sells",
     "top_buyer": "Top Buyer",
@@ -259,7 +259,7 @@ display = display.rename(columns={
     "beat_streak_buys": "Streak",
 })
 display_cols = [
-    "🎯", "Ticker", "Nazwa", "Sektor", "Cap", "Net 6mc",
+    "🎯", "Ticker", tr("Nazwa"), tr("Sektor"), "Cap", tr("Net 6mc"),
     "#Buys", "#Sells", "Top Buyer", "Top Fund", "Streak",
 ]
 
@@ -274,9 +274,9 @@ edited = st.data_editor(
     column_config={
         "⭐": st.column_config.CheckboxColumn("⭐", width="small"),
         "Cap": st.column_config.NumberColumn("Cap", format="$%.0f"),
-        "Net 6mc": st.column_config.NumberColumn("Net 6mc", format="$%+.0f"),
+        tr("Net 6mc"): st.column_config.NumberColumn(tr("Net 6mc"), format="$%+.0f"),
         "Streak": st.column_config.ProgressColumn(
-            "Streak", min_value=0, max_value=6, format="%d mc",
+            "Streak", min_value=0, max_value=6, format=tr("%d mc"),
         ),
     },
     disabled=[c for c in display_cols_with_star if c != "⭐"],

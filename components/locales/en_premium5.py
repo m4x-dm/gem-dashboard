@@ -74,6 +74,8 @@ DYNAMIC: dict[str, str] = {
     "Mediana (%)": "Median (%)", "% dodatnich": "% positive",
     # Krypto: analiza techniczna, sila relatywna
     "powyzej": "above", "ponizej": "below", "Agregat": "Aggregate", "Baza": "Base",
+    # Stopy zwrotu, Insiderzy
+    "25 lat": "25 years", "30 lat": "30 years", "Net 6mc": "Net 6m", "%d mc": "%d mo",
     # Makro
     "Brak danych": "No data", "Ekstremum": "Extreme", "Powyzej 200MA": "Above 200MA", "Ponizej 200MA": "Below 200MA",
     "Inwersja": "Inverted", "Plaszczenie": "Flattening", "Normalna": "Normal",

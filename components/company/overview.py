@@ -14,6 +14,7 @@ from data import financials as fin
 from data.gpw_universe import GPW_BANKS, ALL_GPW_TICKERS
 from data.sp500_universe import ALL_SP500_TICKERS
 from components.i18n import tr, is_pl
+from components.formatting import money
 
 PERIODS = {"1M": "1mo", "6M": "6mo", "1R": "1y", "5L": "5y", "Max": "max"}
 PERIOD_EN = {"1R": "1Y", "5L": "5Y"}
@@ -50,8 +51,9 @@ def _big(x, ccy) -> str:
     x = float(x)
     for lim, name in ((1e12, "bln"), (1e9, "mld"), (1e6, "mln")):
         if abs(x) >= lim:
-            return f"{_num(x / lim, 1)} {tr(name)} {ccy}"
-    return f"{_num(x, 0)} {ccy}"
+            unit = tr(name)
+            return money(f"{_num(x / lim, 1)} {unit}" if is_pl() else f"{_num(x / lim, 1)}{unit}", ccy)
+    return money(_num(x, 0), ccy)
 
 
 def _lbl(t: str) -> str:
@@ -115,7 +117,7 @@ def _key_data(ticker, market, ccy):
     lo, hi, px = prof.get("low52"), prof.get("high52"), snap.get("current_price")
     if _ok(lo) and _ok(hi) and float(lo) > 0 and float(hi) > float(lo):
         html += (f'<div style="color:{MUTED};margin-top:6px;{NUM}">{tr("Zakres 52 tyg.")}: '
-                 f'{_num(lo, 0)} – {_num(hi, 0)} {ccy}</div>')
+                 f'{money(f"{_num(lo, 0)} – {_num(hi, 0)}", ccy)}</div>')
         if _ok(px):
             html += _bar(_marker((float(px) - float(lo)) / (float(hi) - float(lo)) * 100, TEXT))
     st.html(card_html(html, extra="font-size:13px;"))
@@ -134,7 +136,7 @@ def _analysts(ticker, ccy):
     tm, up = r.get("target_mean"), r.get("upside_pct")
     if _ok(tm):
         upc = GREEN if _ok(up) and up >= 0 else RED
-        html += (f'<div style="color:{TEXT};{NUM}">{tr("Cel średni")} <b>{_num(tm, 0)} {ccy}</b> '
+        html += (f'<div style="color:{TEXT};{NUM}">{tr("Cel średni")} <b>{money(_num(tm, 0), ccy)}</b> '
                  f'<span style="color:{upc}">{_pct(up)}</span></div>')
     lo, hi, px = r.get("target_low"), r.get("target_high"), r.get("current_price")
     if _ok(lo) and _ok(hi) and _ok(px) and float(hi) > float(lo):
