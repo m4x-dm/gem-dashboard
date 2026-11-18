@@ -1,7 +1,7 @@
 """Pulpit — centrum dowodzenia (domyslna strona).
 
 Darmowe: wyszukiwarka, pasek stanu (sygnal GEM, regime, wskazniki rynku), Top 5 ETF, ulubione z sidebara, wyniki strategii 5 lat.
-Premium: watchlista (localStorage), wyniki tygodnia, wygrani/przegrani, eksport PDF.
+Cala strona jest darmowa (od 2026-11-18): watchlista (localStorage), wyniki tygodnia, wygrani/przegrani, eksport PDF.
 Kazda karta renderuje sie niezaleznie — blad w jednej nie psuje reszty.
 """
 import math
@@ -12,7 +12,7 @@ import streamlit as st
 from streamlit_local_storage import LocalStorage
 
 from components import nav
-from components.auth import is_premium, premium_teaser
+from components.auth import is_premium
 from components.cards import (card_html, metric_row, top_etf_cards, stats_table,
                               data_status_card, alert_banner, _sparkline_svg)
 from components.charts import sparkline_chart
@@ -226,7 +226,7 @@ def render_market_tiles() -> list:
     return sparks
 
 
-# --- 4. Trzy kolumny (Premium) ------------------------------------------------
+# --- 4. Trzy kolumny (darmowe) ------------------------------------------------
 _MONTHS_SHORT_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
 
 
@@ -501,58 +501,42 @@ st.divider()
 
 st.markdown(_CLICK_CSS, unsafe_allow_html=True)
 _favs = set(st.session_state.get("favorites", set()))
-if PREMIUM:
-    ls = LocalStorage()
-    try:
-        _wl = get_watchlist(ls) | _favs
-    except Exception:
-        _wl = _favs
-else:
+# Caly Pulpit jest darmowy (decyzja 2026-11-18): watchlista, wyniki tygodnia,
+# wygrani/przegrani i eksport PDF bez kodu Premium.
+ls = LocalStorage()
+try:
+    _wl = get_watchlist(ls) | _favs
+except Exception:
     _wl = _favs
 # Pusta watchlista idzie na koniec wiersza; z co najmniej jedna spolka — na poczatek.
 if _wl:
     col_wl, col_earn, col_mov = st.columns(3)
 else:
     col_earn, col_mov, col_wl = st.columns(3)
-if PREMIUM:
-    with col_wl:
-        try:
-            render_watchlist(
-                _wl,
-                tr("Moja watchlista"),
-                tr("Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione)."))
-        except Exception:
-            unavailable(tr("Watchlista"))
-    with col_earn:
-        try:
-            render_week_earnings(ls)
-        except Exception:
-            unavailable(tr("Wyniki w tym tygodniu"))
-    mov_slot = col_mov.container()
-else:
-    with col_wl:
-        try:
-            render_watchlist(set(st.session_state.get("favorites", set())), tr("Ulubione"),
-                             tr("Dodaj tickery w panelu bocznym (Ulubione)."))
-        except Exception:
-            unavailable(tr("Ulubione"))
-        st.caption(tr("Watchlista ze spółek S&P 500 / GPW (gwiazdki ⭐) — w Premium."))
-    with col_earn:
-        premium_teaser(tr("Wyniki w tym tygodniu"), tr("Kto raportuje w tym tygodniu — najpierw Twoje spółki."))
-    with col_mov:
-        premium_teaser(tr("Wygrani i przegrani"), tr("Największe zmiany dnia w S&P 500 i na GPW."))
+with col_wl:
+    try:
+        render_watchlist(
+            _wl,
+            tr("Moja watchlista"),
+            tr("Pusta. Dodaj spółki gwiazdką ⭐ w S&P 500 / GPW albo w sidebarze (Ulubione)."))
+    except Exception:
+        unavailable(tr("Watchlista"))
+with col_earn:
+    try:
+        render_week_earnings(ls)
+    except Exception:
+        unavailable(tr("Wyniki w tym tygodniu"))
+mov_slot = col_mov.container()
 
 st.divider()
 ranking, names = render_top_etf(prices, rf)
 
 show_stats = render_strategy_5y(rf)
-if PREMIUM:
-    render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats)
+render_pdf_export(gem_data, regime, sparks, ranking, names, show_stats)
 
-if PREMIUM:
-    # Ciezkie pobieranie ~600 spolek na koncu — nie blokuje reszty strony
-    with mov_slot:
-        render_movers()
+# Ciezkie pobieranie ~600 spolek na koncu — nie blokuje reszty strony
+with mov_slot:
+    render_movers()
 
 with st.expander(tr("Status danych")):
     try:

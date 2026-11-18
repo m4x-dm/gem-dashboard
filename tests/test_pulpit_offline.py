@@ -67,12 +67,13 @@ def _md(at) -> str:
     return " ".join(m.value for m in at.markdown)
 
 
-def test_free_pulpit_two_teasers_and_free_blocks():
+def test_free_pulpit_is_fully_unlocked():
+    """Caly Pulpit jest darmowy: bez klodek, z watchlista i eksportem PDF."""
     at = _run(False, favorites={"SPY"})
     assert not at.exception, at.exception
-    assert _html(at).count("🔒") == 2
+    assert _html(at).count("🔒") == 0
     assert "Wyniki strategii" in _md(at)
-    assert "Ulubione" in _md(at)
+    assert "Moja watchlista" in _md(at)
     assert any("Przegląd spółki za darmo" in c.value for c in at.caption)
 
 
