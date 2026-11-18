@@ -14,7 +14,7 @@ import streamlit as st
 from components.cards import kpi_card, section_band, top_pick_cards
 from components.charts import category_pie, equity_chart, picks_return_bar
 from components.constants import BG_CARD, GOLD, SHADOW, TEXT
-from components.formatting import GREEN, MUTED, RED, fmt_number, fmt_pct
+from components.formatting import GREEN, MUTED, RED, fmt_number, fmt_pct, money
 from components.sidebar import render_footer
 from data.downloader import benchmark_status, download_prices, download_stooq
 from data.financials import bulk_fetch_universe
@@ -124,15 +124,18 @@ def _analyst_card_fields(pick: dict, strategy: str, currency: str) -> dict:
     """score_text + note dla kart strategii analitycznych (z danych z dnia wyboru)."""
     if strategy not in ("analyst", "upside"):
         return {}
-    rm, n = pick.get("recommendation_mean"), pick.get("num_analysts") or 0
+    rm, n = pick.get("recommendation_mean"), pick.get("num_analysts")
     target, up = pick.get("target_mean"), pick.get("upside")
     rm_str = fmt_number(rm, 2) if rm is not None else "—"
     up_str = f"{up * 100:+.0f}%" if up is not None else "—"
-    tgt_str = f"{fmt_number(target, 2)} {currency}" if target is not None else "—"
+    tgt_str = money(fmt_number(target, 2), currency) if target is not None else "—"
     score_text = (tr("konsensus {v}", v=rm_str) if strategy == "analyst"
                   else tr("potencjal {v}", v=up_str))
-    note = (f"{consensus_label(rm)} &middot; {tr('{n} analitykow', n=n)}<br>"
-            f"{tr('cel')} {tgt_str} ({up_str})")
+    # Liczba analitykow tylko, gdy jest znana — bez wzbogacenia nie pokazujemy "0 analitykow".
+    head = consensus_label(rm)
+    if n:
+        head += f" &middot; {tr('{n} analitykow', n=int(n))}"
+    note = f"{head}<br>{tr('cel')} {tgt_str} ({up_str})"
     return {"score_text": score_text, "note": note}
 
 
