@@ -195,8 +195,7 @@ def _opt(x):
     return None if np.isnan(v) else v
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
-def company_profile(ticker: str) -> dict:
+def company_profile(ticker: str) -> dict:  # bez cache: _fetch_info cache'uje tylko udane odpowiedzi
     info = _fetch_info(ticker) or {}
     return {
         "summary": info.get("longBusinessSummary"),
