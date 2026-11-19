@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from data.portfolio.xtb_parser import XtbFormatError, parse_xtb_xlsx
-from tests.xtb_fixtures import make_ike_xlsx, make_not_xtb_xlsx, make_zwykle_xlsx
+from tests.xtb_fixtures import _agg, _book, _lot, make_ike_xlsx, make_not_xtb_xlsx, make_zwykle_xlsx
 
 
 def test_ike_lots():
@@ -35,7 +35,7 @@ def test_cfd_skipped_on_regular_account():
     assert acc.account_type == "ZWYKLE"
     assert acc.account_id == "22222222"
     assert acc.lots.empty
-    assert acc.skipped_cfd == 1
+    assert acc.skipped_cfd == 2   # CFD BUY i CFD SELL
 
 
 def test_not_xtb_file_raises():
@@ -46,9 +46,6 @@ def test_not_xtb_file_raises():
 def test_garbage_bytes_raise():
     with pytest.raises(XtbFormatError, match="XLSX"):
         parse_xtb_xlsx(b"to nie jest plik excela")
-
-
-from tests.xtb_fixtures import _book  # noqa: E402
 
 
 def test_cash_operations_parsed():
@@ -102,3 +99,23 @@ def test_real_xtb_bogus_dimension():
     assert len(acc.lots) == 5
     assert acc.account_id == "11111111"
     assert len(acc.cash_ops) == 6
+
+
+def test_lot_numeric_dtypes_and_missing_open_price():
+    p = "IKE"
+    rows = [
+        _agg(p, "Abc", "ABC.US", "STOCK", 3, 300.0),
+        _lot(p, "1", "ABC.US", 1, 100.0, 100.0, None, 46190.5, 0.0),
+        _lot(p, "2", "ABC.US", 2, 200.0, 100.0, 90.0, 46190.5, 0.0),
+    ]
+    acc = parse_xtb_xlsx(_book("1", "1", p, rows, []))
+    for col in ["volume", "open_price", "value_pln", "gross_profit_pln", "cost_pln", "file_price"]:
+        assert acc.lots[col].dtype == float
+    assert acc.lots["open_price"].isna().sum() == 1
+
+
+def test_error_messages_polish():
+    with pytest.raises(XtbFormatError, match="Nie udało się otworzyć"):
+        parse_xtb_xlsx(b"zly")
+    with pytest.raises(XtbFormatError, match="rozpakuj je"):
+        parse_xtb_xlsx(b"PK", "a.zip")

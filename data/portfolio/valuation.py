@@ -91,20 +91,26 @@ def value_portfolio(accounts: list[XtbAccount], quotes: pd.DataFrame,
             continue
         for xtb_ticker, g in acc.lots.groupby("xtb_ticker", sort=False):
             volume = float(g["volume"].sum())
-            avg_price = float((g["open_price"] * g["volume"]).sum() / volume) if volume else float("nan")
+            m = g["open_price"].notna()
+            vol_m = float(g.loc[m, "volume"].sum())
+            avg_price = float((g.loc[m, "open_price"] * g.loc[m, "volume"]).sum() / vol_m) if vol_m else float("nan")
+            fp = g["file_price"].dropna()
+            file_price = float(fp.iloc[-1]) if not fp.empty else float("nan")
             cost = float(g["cost_pln"].sum())
             yahoo = xtb_to_yahoo(xtb_ticker)
             currency = currency_for(xtb_ticker) or "PLN"
             div = price_divisor(xtb_ticker)
             last, prev = _quote(quotes, yahoo, "last"), _quote(quotes, yahoo, "prev")
             fx = _fx(quotes, currency)
-            if last is not None and fx is not None:
-                price = last / div
+            price = last / div if last is not None else float("nan")
+            # XTB wycenia niektóre ETF z LSE w USD, a mapowanie zaklada GBp -> rozjazd >50% = zly kurs
+            sane = not (file_price == file_price and file_price and abs(price / file_price - 1) > 0.5)
+            if last is not None and fx is not None and sane:
                 value = volume * price * fx
                 day = volume * (last - prev) / div * fx if prev is not None else float("nan")
                 live = True
             else:
-                price = float(g["file_price"].iloc[-1]) if g["file_price"].notna().any() else float("nan")
+                price = file_price
                 value = float(g["value_pln"].sum())
                 day = float("nan")
                 live = False

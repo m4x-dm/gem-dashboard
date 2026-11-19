@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from data.portfolio.valuation import deposits_net, dividends_net, value_portfolio
-from data.portfolio.xtb_parser import parse_xtb_xlsx
+from data.portfolio.xtb_parser import XtbAccount, parse_xtb_xlsx
 from tests.xtb_fixtures import make_ike_xlsx, make_zwykle_xlsx
 
 QUOTES = pd.DataFrame(
@@ -130,3 +130,45 @@ def test_fetch_live_prices_failure_returns_empty(monkeypatch):
     monkeypatch.setattr(yf, "download", boom)
     assert valuation.fetch_live_prices(("META",)).empty
     assert valuation.fetch_live_prices(()).empty
+
+
+def _acct(ticker, volume, file_price, value, prices):
+    """Konto z lotami o podanych (open_price, volume) i kursem z pliku."""
+    lots = pd.DataFrame([{
+        "xtb_ticker": ticker, "name": ticker, "category": "ETF", "volume": v, "open_price": op,
+        "open_time": None, "value_pln": value * v / volume, "gross_profit_pln": 0.0,
+        "cost_pln": value * v / volume, "file_price": file_price,
+    } for v, op in prices], columns=XtbAccount.__dataclass_fields__["lots"].default_factory().columns)
+    return XtbAccount("1", "IKE", None, lots=lots)
+
+
+def test_live_price_sanity_mismatch_falls_back():
+    acc = _acct("CSPX.UK", 1, 600.0, 2400.0, [(1, 500.0)])
+    # kurs 600 /100 = 6 vs plik 600 -> rozjazd >50% -> wycena z pliku
+    q = pd.DataFrame({"last": [600.0, 5.0], "prev": [590.0, 5.0]}, index=["CSPX.L", "GBPPLN=X"])
+    pos, s = value_portfolio([acc], q)
+    assert bool(pos.iloc[0]["live"]) is False
+    assert pos.iloc[0]["value_pln"] == pytest.approx(2400.0)
+    assert math.isnan(pos.iloc[0]["day_pln"])
+
+
+def test_live_price_sanity_pence_ok():
+    acc = _acct("CSPX.UK", 1, 600.0, 3000.0, [(1, 500.0)])
+    q = pd.DataFrame({"last": [60000.0, 5.0], "prev": [59000.0, 5.0]}, index=["CSPX.L", "GBPPLN=X"])
+    pos, _ = value_portfolio([acc], q)
+    assert bool(pos.iloc[0]["live"]) is True
+    assert pos.iloc[0]["value_pln"] == pytest.approx(600.0 * 5.0)
+
+
+def test_avg_price_ignores_lots_without_open_price():
+    acc = _acct("META.US", 3, 600.0, 3000.0, [(1, None), (2, 90.0)])
+    pos, _ = value_portfolio([acc], pd.DataFrame(columns=["last", "prev"]))
+    assert pos.iloc[0]["avg_price"] == pytest.approx(90.0)
+
+
+def test_missing_fx_falls_back_to_file(accounts):
+    q = pd.DataFrame({"last": [610.0], "prev": [600.0]}, index=["META"])
+    pos, _ = value_portfolio([accounts[0]], q)
+    meta = pos.set_index("xtb_ticker").loc["META.US"]
+    assert bool(meta["live"]) is False
+    assert meta["value_pln"] == pytest.approx(1200.0)

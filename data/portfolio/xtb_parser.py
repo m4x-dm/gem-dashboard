@@ -67,7 +67,7 @@ def _find_header(rows: list[tuple], first_cell: str, sheet: str) -> int:
     for i, r in enumerate(rows):
         if r and r[0] == first_cell:
             return i
-    raise XtbFormatError(f"Arkusz '{sheet}' nie ma naglowka zaczynajacego sie od '{first_cell}'.")
+    raise XtbFormatError(f"Arkusz '{sheet}' nie ma nagłówka zaczynającego się od '{first_cell}'.")
 
 
 def _records(rows: list[tuple], header_idx: int, required: list[str], sheet: str) -> list[dict]:
@@ -116,11 +116,12 @@ def _parse_open_positions(rows: list[tuple]) -> tuple[pd.DataFrame, int, str | N
         if rec.get("Category") and not rec.get("Type"):     # wiersz zbiorczy spolki
             agg_name, agg_category = rec.get("Instrument/Position"), rec.get("Category")
             continue
-        if str(rec.get("Type") or "").upper() != "BUY":
-            continue
+        rtype = str(rec.get("Type") or "").strip().upper()
         category = rec.get("Category") or agg_category
-        if str(category or "").upper() == "CFD":
+        if rtype and str(category or "").upper() == "CFD":   # CFD (BUY i SELL) pomijamy
             skipped += 1
+            continue
+        if rtype != "BUY":
             continue
         value = _num(rec.get("Value")) or 0.0
         gross = _num(rec.get("Gross Profit")) or 0.0
@@ -136,7 +137,10 @@ def _parse_open_positions(rows: list[tuple]) -> tuple[pd.DataFrame, int, str | N
             "cost_pln": value - gross,
             "file_price": _num(rec.get("Current price")),
         })
-    return pd.DataFrame(lots, columns=LOT_COLUMNS), skipped, product, report_time
+    df = pd.DataFrame(lots, columns=LOT_COLUMNS)
+    for col in ("volume", "open_price", "value_pln", "gross_profit_pln", "cost_pln", "file_price"):
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype(float)
+    return df, skipped, product, report_time
 
 
 def _parse_cash(rows: list[tuple]) -> tuple[pd.DataFrame, str | None, str | None]:
@@ -162,18 +166,20 @@ def _parse_cash(rows: list[tuple]) -> tuple[pd.DataFrame, str | None, str | None
 def parse_xtb_xlsx(data: bytes, filename: str | None = None) -> XtbAccount:
     """Bajty pliku XLSX z XTB -> XtbAccount. XtbFormatError gdy to nie eksport XTB."""
     if filename and filename.lower().endswith(".zip"):
-        raise XtbFormatError("To jest archiwum ZIP — rozpakuj je i wczytaj pliki .xlsx ze srodka.")
+        raise XtbFormatError("To jest archiwum ZIP — rozpakuj je i wczytaj pliki .xlsx ze środka.")
     try:
         from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     except (zipfile.BadZipFile, KeyError, OSError, ValueError) as exc:
-        raise XtbFormatError("Nie udalo sie otworzyc pliku — oczekiwany plik XLSX z XTB.") from exc
+        raise XtbFormatError("Nie udało się otworzyć pliku — oczekiwany plik XLSX z XTB.") from exc
     for sheet in ("Open Positions", "Cash Operations"):
         if sheet not in wb.sheetnames:
-            raise XtbFormatError(f"Brak arkusza '{sheet}' — to nie wyglada na eksport z XTB.")
-    lots, skipped, open_product, report_time = _parse_open_positions(_rows(wb["Open Positions"]))
-    cash, account_id, cash_product = _parse_cash(_rows(wb["Cash Operations"]))
-    wb.close()
+            raise XtbFormatError(f"Brak arkusza '{sheet}' — to nie wygląda na eksport z XTB.")
+    try:
+        lots, skipped, open_product, report_time = _parse_open_positions(_rows(wb["Open Positions"]))
+        cash, account_id, cash_product = _parse_cash(_rows(wb["Cash Operations"]))
+    finally:
+        wb.close()
     account_type = (_account_type(cash_product) or _account_type(open_product)
                     or _type_from_filename(filename) or "ZWYKLE")
     if not account_id:

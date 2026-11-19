@@ -99,6 +99,8 @@ def make_zwykle_xlsx() -> bytes:
     open_rows = [
         _agg(p, "OIL.WTI", "OIL.WTI", "CFD", 0.01, 350.0),
         _lot(p, "2001", "OIL.WTI", 0.01, 350.0, 88.0, 87.0, 46330.5, 5.0),
+        [p, "2002", "OIL.WTI", None, "SELL", 0.01, 350.0, 88.0, 89.0, 46331.5,
+         None, None, None, 2.0, 2.0],
     ]
     cash_rows = [
         ["Deposit", None, None, None, 46299.1, 1500.0, 10, "BLIK deposit", p, None],
@@ -120,7 +122,6 @@ def make_not_xtb_xlsx() -> bytes:
 
 def with_bogus_dimension(xlsx: bytes) -> bytes:
     """XTB exports declare dimension A1 in every sheet, which breaks openpyxl read_only mode."""
-    import io
     import re
     import zipfile
 
