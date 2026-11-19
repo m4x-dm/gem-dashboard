@@ -72,3 +72,67 @@ def test_empty_state_free():
     t = _text(at)
     assert "Mój portfel" in t
     assert "Jak pobrać eksport z XTB" in t
+
+
+def test_portfolio_free_shows_positions_and_teaser():
+    _seed()
+    at = _run(False)
+    assert not at.exception, at.exception
+    t = _text(at)
+    for s in ("SNT.PL", "META.US", "IS3N.DE", "ABC.XX", "Wartość", "Zysk / strata", "Wpłaty netto",
+              "Dywidendy", "Co się dzieje"):
+        assert s in t, s
+    assert "🔒" in t                       # panel Premium jako zajawka
+    assert "OIL.WTI" not in t              # CFD pominiete
+    assert "4 346" in t                    # wartosc: 1005 + 1220 + 2021 + 100
+    assert "Jak pobrać eksport z XTB" not in t
+
+
+def test_portfolio_premium_panel_and_account_filter():
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    assert "🔒" not in t
+    assert "Brak raportów" in t            # fetch_earnings_dates -> None dla wszystkich
+    seg = at.button_group(key="pf_account")
+    assert seg.options == ["Wszystkie", "IKE", "Zwykłe"]
+    seg.set_value("ZWYKLE").run()
+    assert not at.exception, at.exception
+    t = _text(at)
+    assert "SNT.PL" not in t
+    assert any("Brak otwartych pozycji" in i.value for i in at.info)
+
+
+def test_position_row_opens_company_card():
+    _seed()
+    at = _run(False)
+    btns = [b for b in at.button if str(b.key or "").startswith("pfbtn_")]
+    # Karta spolki tylko dla S&P 500 / GPW: ETF (IS3N.DE) i nieznany ABC.XX bez przycisku
+    assert sorted(b.key.rsplit("_", 1)[-1] for b in btns) == ["META", "SNT.WA"]
+    meta = next(b for b in btns if b.key.endswith("_META"))
+    meta.click().run()
+    assert at.query_params.get("t") in ("META", ["META"])
+
+
+def test_delete_portfolio():
+    _seed()
+    at = _run(False)
+    at.button(key="pf_delete_confirm").click().run()
+    assert not at.exception, at.exception
+    assert "Jak pobrać eksport z XTB" in _text(at)
+    # portfel usuniety w sesji i w localStorage (kolejny odczyt go nie wskrzesi)
+    assert at.session_state["portfolio_accounts"] == {}
+    assert ps.load_portfolio(_FakeLocalStorage()) == ({}, False)
+
+
+def test_portfolio_renders_in_english():
+    from tests.test_i18n_pages import _polish_leftovers
+    _seed()
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["_auth_retries"] = 3
+    at.session_state["lang"] = "en"
+    at.switch_page(PAGE).run()
+    assert not at.exception, at.exception
+    leftovers = _polish_leftovers(at)
+    assert not leftovers, "Polskie teksty w wersji EN:\n" + "\n".join(sorted(set(leftovers)))

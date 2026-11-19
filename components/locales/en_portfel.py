@@ -34,7 +34,39 @@ PORTFEL: dict[str, str] = {
         "Imported positions stay in this browser (localStorage) — on another device you need to "
         "upload the file again. The “Delete portfolio” button removes them completely.",
     "Wczytaj eksport z XTB": "Upload XTB export",
-    "Portfel wczytany — szczegóły w kolejnym kroku.": "Portfolio loaded — details in the next step.",
+    # Widok portfela. Celowo BEZ kluczy, ktore juz sa w innych katalogach z innym
+    # tlumaczeniem (np. "Spółki" = sekcja menu "Stocks", "Zwykłe" = "Taxable",
+    # "Otwórz kartę {ticker}") — EN.update(PORTFEL) nadpisalby je na innych stronach.
+    "Wartość": "Value",
+    "Zysk / strata": "Profit / loss",
+    "Dziś": "Today",
+    "Wpłaty netto": "Net deposits",
+    "po podatku u źródła": "after withholding tax",
+    "kurs z dnia raportu": "price from report date",
+    "śr.": "avg",
+    "#### Pozycje": "#### Positions",
+    "#### Struktura": "#### Allocation",
+    "Według": "By",
+    "Konta": "Accounts",
+    "Waluty": "Currencies",
+    "#### Co się dzieje": "#### What's happening",
+    "Alerty dla Twojego portfela": "Alerts for your portfolio",
+    "Najbliższe raporty kwartalne, a wkrótce: wyniki lepsze/gorsze od oczekiwań, "
+    "transakcje insiderów, przełamania poziomów technicznych i newsy.":
+        "Upcoming quarterly reports and soon: earnings beats/misses, insider transactions, "
+        "technical level breaks and news.",
+    "Brak raportów kwartalnych spółek z portfela w ciągu ±14 dni.":
+        "No quarterly reports for portfolio companies within ±14 days.",
+    "wczoraj": "yesterday",
+    "{n} dni temu": "{n} days ago",
+    "raport kwartalny": "quarterly report",
+    "Usuń portfel": "Delete portfolio",
+    "Usuwa wczytane konta z tej przeglądarki. Tej operacji nie można cofnąć.":
+        "Removes the imported accounts from this browser. This cannot be undone.",
+    "Tak, usuń": "Yes, delete",
+    "Stan pozycji z raportu XTB z {d}; kursy z Yahoo Finance (opóźnione do 15 min).":
+        "Positions as of the XTB report from {d}; prices from Yahoo Finance (up to 15 min delayed).",
+    "Brak otwartych pozycji na wybranym koncie.": "No open positions in the selected account.",
     "IKE": "IKE",
     "IKZE": "IKZE",
 }
