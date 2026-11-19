@@ -401,8 +401,11 @@ def bulk_fetch_universe(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     # znikal ze screenera na 24h. Cache per ticker w _fetch_info wystarcza — drugi run jest szybki.
     out: dict[str, dict] = {}
     tickers = list(tickers_tuple)
-    for t in tickers:
-        info = _fetch_info(t)  # cached per ticker (tylko udane) — drugi run instant
+    # Rownolegle (2026-11-19): sekwencyjna petla to ~30 s / 100 spolek na zimnym cache,
+    # 8 watkow ~4 s — ten sam limit co bulk_fetch_earnings_*. map() zachowuje kolejnosc.
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        infos = list(executor.map(_fetch_info, tickers))
+    for t, info in zip(tickers, infos):
         if not info:
             continue
         # Sanity check: yfinance zwraca dict nawet dla nieistniejacych tickerów

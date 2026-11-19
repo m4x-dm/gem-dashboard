@@ -106,7 +106,6 @@ SP500_SECTORS = {
         "COR": "Cencora Inc.",
         "DXCM": "DexCom Inc.",
         "BAX": "Baxter International",
-        "HOLX": "Hologic Inc.",
         "ALGN": "Align Technology",
         "TECH": "Bio-Techne Corp.",
         "WAT": "Waters Corp.",
@@ -133,7 +132,7 @@ SP500_SECTORS = {
     },
     "Financials": {
         "BX": "Blackstone Inc.",
-        "MMC": "Marsh & McLennan",
+        "MRSH": "Marsh McLennan",  # dawniej MMC (zmiana symbolu 2026)
         "BRK-B": "Berkshire Hathaway B",
         "JPM": "JPMorgan Chase",
         "V": "Visa Inc.",
@@ -163,7 +162,7 @@ SP500_SECTORS = {
         "PRU": "Prudential Financial",
         "ALL": "Allstate Corp.",
         "TRV": "Travelers Companies",
-        "BK": "Bank of New York Mellon",
+        "BNY": "BNY Mellon",  # dawniej BK (zmiana symbolu 2026)
         "COF": "Capital One Financial",
         "MSCI": "MSCI Inc.",
         "FITB": "Fifth Third Bancorp",
@@ -390,7 +389,6 @@ SP500_SECTORS = {
         "FANG": "Diamondback Energy",
         "DVN": "Devon Energy",
         "TRGP": "Targa Resources",
-        "CTRA": "Coterra Energy",
         "EQT": "EQT Corp.",
         "APA": "APA Corp.",
     },
@@ -482,7 +480,6 @@ SP500_SECTORS = {
         "FMC": "FMC Corp.",
         "MOS": "Mosaic Co.",
         "AMCR": "Amcor plc",
-        "SEE": "Sealed Air Corp.",
     },
 }
 
@@ -514,7 +511,7 @@ SP500_TOP100: list[str] = [
     "T", "GS", "NOW", "SPGI", "NEE", "UBER", "BKNG", "PGR", "BLK",
     "TJX", "HON", "C", "SCHW", "AMAT", "SYK", "LOW", "DE", "ELV",
     "LMT", "MDT", "MS", "BSX", "REGN", "PLD", "VRTX", "ADP", "GILD",
-    "CB", "ETN", "MMC", "ANET", "ADI", "TMUS", "MU", "SO", "PANW",
+    "CB", "ETN", "MRSH", "ANET", "ADI", "TMUS", "MU", "SO", "PANW",
     "BMY", "INTC", "LRCX", "KLAC", "DUK", "CI", "ICE", "AON", "MO",
     "ZTS",
 ]

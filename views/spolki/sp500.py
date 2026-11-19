@@ -44,6 +44,23 @@ def _tickers_for_sector(sector_name: str) -> list[str]:
     return list(SP500_SECTORS.get(sector_name, {}).keys())
 
 
+def _sector_prices(sector_name: str, period: str, extra: tuple[str, ...] = ()) -> pd.DataFrame:
+    """Ceny dla sektora wyciete z JEDNEGO pobrania calego S&P 500 dla danego okresu.
+
+    Cache download_prices jest kluczowany lista tickerow — pobieranie per sektor dawalo
+    osobne ~20 s przy kazdej zmianie sektora. Teraz caly indeks idzie raz (wspolny wpis
+    cache dla Rankingu i Backtestu), a sektor to tylko wyciecie kolumn.
+    Wyjatek: "max" dla calego indeksu to ~100 s i ~60 MB w cache, wiec tam pobieramy
+    tylko wybrany sektor (posortowana lista = stabilny klucz cache).
+    """
+    sector_tickers = _tickers_for_sector(sector_name)
+    if period == "max" and sector_name != "Wszystkie":
+        return download_prices(sorted(set(sector_tickers) | set(extra)), period=period)
+    full = download_prices(sorted(set(ALL_SP500_TICKERS) | set(extra)), period=period)
+    cols = [c for c in full.columns if c in set(sector_tickers) | set(extra)]
+    return full[cols].dropna(how="all")
+
+
 # ===========================================================================
 # Screener fundamentalny — helpers (page-local, uzywane przez tab Screening)
 # Definicje MUSZA byc PRZED `with tab6:` — Streamlit @st.fragment wykonuje
@@ -179,7 +196,8 @@ with tab1:
             st.warning(tr("Brak tickerow dla wybranego sektora."))
         else:
             with st.spinner(tr("Pobieram dane S&P 500...")):
-                prices = download_prices(tickers, period="2y")
+                # extra=SPY: ten sam wpis cache co Backtest 2y; SPY nie jest spolka rankingu
+                prices = _sector_prices(sector_filter, period="2y", extra=("SPY",)).drop(columns="SPY", errors="ignore")
 
             if prices.empty:
                 st.error(tr("Nie udalo sie pobrac danych."))
@@ -464,11 +482,8 @@ with tab4:
         if not _tab4_ok:
             st.warning(tr('Za malo spolek ({v0}) dla top {top_n}.', v0=len(bt_tickers), top_n=top_n))
         else:
-            # Dodaj SPY do pobrania jesli go nie ma
-            dl_tickers = list(set(bt_tickers + ["SPY"]))
-
             with st.spinner(tr("Pobieram dane i licze backtest...")):
-                bt_prices = download_prices(dl_tickers, period=bt_period)
+                bt_prices = _sector_prices(bt_sector, period=bt_period, extra=("SPY",))
 
             if bt_prices.empty or len(bt_prices) < 273:
                 st.error(tr("Za malo danych do backtestu. Sprobuj dluzszy okres."))

@@ -83,7 +83,9 @@ def _stooq_fallback(ticker: str, period: str = "15y") -> pd.Series | None:
             return None
 
         url = f"https://stooq.com/q/d/l/?s={sym}&i=d"
-        resp = requests.get(url, headers=_HEADERS, timeout=15)
+        # 5 s (bylo 15): fallback idzie sekwencyjnie po kazdym brakujacym tickerze,
+        # a stooq na Streamlit Cloud czesto wisi — 15 s x kilka tickerow blokowalo strone.
+        resp = requests.get(url, headers=_HEADERS, timeout=5)
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
         if df.empty or "Close" not in df.columns or "Date" not in df.columns:
