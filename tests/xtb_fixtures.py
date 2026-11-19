@@ -115,3 +115,21 @@ def make_not_xtb_xlsx() -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def with_bogus_dimension(xlsx: bytes) -> bytes:
+    """XTB exports declare dimension A1 in every sheet, which breaks openpyxl read_only mode."""
+    import io
+    import re
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(xlsx)) as zin, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            raw = zin.read(item.filename)
+            if re.match(r"xl/worksheets/[^/]+\.xml$", item.filename):
+                text = raw.decode("utf-8")
+                text = re.sub(r'<dimension ref="[^"]*"\s*/>', '<dimension ref="A1"/>', text)
+                raw = text.encode("utf-8")
+            zout.writestr(item, raw)
+    return out.getvalue()

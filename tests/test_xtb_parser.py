@@ -94,3 +94,11 @@ def test_missing_cash_column_raises():
     wb.save(buf)
     with pytest.raises(XtbFormatError, match="Amount"):
         parse_xtb_xlsx(buf.getvalue())
+
+
+def test_real_xtb_bogus_dimension():
+    from tests.xtb_fixtures import with_bogus_dimension
+    acc = parse_xtb_xlsx(with_bogus_dimension(make_ike_xlsx()))
+    assert len(acc.lots) == 5
+    assert acc.account_id == "11111111"
+    assert len(acc.cash_ops) == 6

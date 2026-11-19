@@ -56,6 +56,10 @@ def _num(value) -> float | None:
 
 
 def _rows(ws) -> list[tuple]:
+    # XTB declares dimension A1 in every sheet; openpyxl read_only trusts it and yields
+    # only row 1, so reset the dimensions to iterate over the real data.
+    if hasattr(ws, "reset_dimensions"):
+        ws.reset_dimensions()
     return [tuple(r) for r in ws.iter_rows(values_only=True)]
 
 
