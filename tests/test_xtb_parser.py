@@ -46,3 +46,51 @@ def test_not_xtb_file_raises():
 def test_garbage_bytes_raise():
     with pytest.raises(XtbFormatError, match="XLSX"):
         parse_xtb_xlsx(b"to nie jest plik excela")
+
+
+from tests.xtb_fixtures import _book  # noqa: E402
+
+
+def test_cash_operations_parsed():
+    acc = parse_xtb_xlsx(make_ike_xlsx())
+    ops = acc.cash_ops
+    assert len(ops) == 6
+    assert list(ops["type"]) == ["IKE deposit", "IKE deposit", "Stock purchase", "Dividend",
+                                 "Withholding tax", "Free funds interest"]
+    assert ops["amount_pln"].sum() == pytest.approx(1000 + 4000 - 1300 + 10 - 1.5 + 0.12)
+    assert ops.iloc[3]["ticker"] == "META.US"
+    assert isinstance(ops.iloc[0]["time"], datetime)
+
+
+def test_regular_account_cash():
+    ops = parse_xtb_xlsx(make_zwykle_xlsx()).cash_ops
+    assert list(ops["amount_pln"]) == [1500.0, -1000.0, -100.0]
+
+
+def test_account_type_from_filename_when_no_product():
+    """Konto bez operacji i bez pozycji: typ z prefiksu nazwy pliku."""
+    data = _book("33333333", "33333333", None, [], [])
+    assert parse_xtb_xlsx(data, "IKZE_33333333_2006-01-01_2026-11-08.xlsx").account_type == "IKZE"
+    assert parse_xtb_xlsx(data, "PLN_33333333_x.xlsx").account_type == "ZWYKLE"
+    assert parse_xtb_xlsx(data, None).account_type == "ZWYKLE"
+
+
+def test_zip_rejected_with_hint():
+    with pytest.raises(XtbFormatError, match="ZIP"):
+        parse_xtb_xlsx(b"PK\x03\x04", "53853640_2006-01-01_2026-11-08.zip")
+
+
+def test_missing_cash_column_raises():
+    from openpyxl import Workbook
+    import io
+    wb = Workbook()
+    wb.active.title = "Open Positions"
+    wb.active.append(["Product", "Instrument/Position", "Ticker", "Category", "Type", "Volume", "Value",
+                      "Current price", "Open price", "Open time (UTC)", "Gross Profit"])
+    cash = wb.create_sheet("Cash Operations")
+    cash.append(["Account number", "1"])
+    cash.append(["Type", "Ticker", "Time"])          # brak Amount i Comment
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(XtbFormatError, match="Amount"):
+        parse_xtb_xlsx(buf.getvalue())
