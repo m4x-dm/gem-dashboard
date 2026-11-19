@@ -88,6 +88,7 @@ def make_ike_xlsx() -> bytes:
         ["Dividend", "Meta", "META.US", "STOCK", 46320.5, 10.0, 4, "META.US USD 0.5250/ SHR", p, None],
         ["Withholding tax", "Meta", "META.US", "STOCK", 46320.5, -1.5, 5, "META.US USD WHT 15%", p, None],
         ["Free funds interest", None, None, None, 46329.7, 0.12, 6, "Free-funds Interest 2026-10", p, None],
+        ["Total", None, None, None, None, 4708.62, None, None, None, None],
     ]
     return _book("11111111", "99999999", p, open_rows, cash_rows)
 

@@ -147,6 +147,8 @@ def _parse_cash(rows: list[tuple]) -> tuple[pd.DataFrame, str | None, str | None
     hdr = _find_header(rows, "Type", "Cash Operations")
     recs = _records(rows, hdr, ["Type", "Ticker", "Time", "Amount", "Comment"], "Cash Operations")
     product = next((r.get("Product") for r in recs if r.get("Product")), None)
+    # XTB konczy arkusz wierszem zbiorczym z Type="Total" - to nie operacja
+    recs = [r for r in recs if str(r.get("Type") or "").strip().lower() != "total"]
     ops = [{
         "type": str(r.get("Type") or "").strip(),
         "ticker": r.get("Ticker"),
