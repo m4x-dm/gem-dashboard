@@ -385,6 +385,10 @@ from components.locales.en_premium import PREMIUM  # noqa: E402
 
 EN.update(PREMIUM)
 
+from components.locales.en_portfel import PORTFEL  # noqa: E402
+
+EN.update(PORTFEL)
+
 
 DOCS: dict[str, str] = {
     "sygnal_jak_czytac": """
