@@ -84,3 +84,49 @@ def test_no_quotes_falls_back_to_file(accounts):
     assert s["value"] == pytest.approx(990 + 1200 + 2001 + 100)
     assert not pos["live"].any()
     assert s["day"] == 0.0
+
+
+import numpy as np  # noqa: E402
+
+from data.portfolio import valuation  # noqa: E402
+
+
+def _fake_download(tickers, **kwargs):
+    names = tickers.split()
+    idx = pd.bdate_range("2026-11-03", periods=4)
+    close = pd.DataFrame({t: [10.0, 11.0, 12.0, 13.0] for t in names}, index=idx)
+    if "GONE" in close:
+        close["GONE"] = np.nan
+    if "LATE" in close:
+        close.loc[idx[-1], "LATE"] = np.nan   # brak ostatniej sesji -> bierzemy ostatnie dostepne
+    if len(names) == 1:
+        return pd.concat({"Close": close}, axis=1).droplevel(1, axis=1)
+    return pd.concat({"Close": close}, axis=1)
+
+
+def test_fetch_live_prices(monkeypatch):
+    import yfinance as yf
+    calls = []
+    monkeypatch.setattr(yf, "download", lambda t, **k: calls.append(k) or _fake_download(t, **k))
+    q = valuation.fetch_live_prices(("META", "GONE", "LATE"))
+    assert len(calls) == 1 and calls[0]["timeout"] == 20 and calls[0]["progress"] is False
+    assert q.loc["META", "last"] == 13.0 and q.loc["META", "prev"] == 12.0
+    assert q.loc["LATE", "last"] == 12.0 and q.loc["LATE", "prev"] == 11.0
+    assert "GONE" not in q.index
+
+
+def test_fetch_live_prices_single_ticker(monkeypatch):
+    import yfinance as yf
+    monkeypatch.setattr(yf, "download", lambda t, **k: _fake_download(t, **k))
+    q = valuation.fetch_live_prices(("META",))
+    assert q.loc["META", "last"] == 13.0
+
+
+def test_fetch_live_prices_failure_returns_empty(monkeypatch):
+    import yfinance as yf
+
+    def boom(*a, **k):
+        raise RuntimeError("Yahoo down")
+    monkeypatch.setattr(yf, "download", boom)
+    assert valuation.fetch_live_prices(("META",)).empty
+    assert valuation.fetch_live_prices(()).empty

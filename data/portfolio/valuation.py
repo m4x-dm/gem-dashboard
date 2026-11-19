@@ -46,6 +46,36 @@ def _fx(quotes: pd.DataFrame, currency: str | None) -> float | None:
     return _quote(quotes, fx_ticker(currency), "last")
 
 
+def fetch_live_prices(tickers: tuple[str, ...]) -> pd.DataFrame:
+    """Ostatni i przedostatni close dla tickerow Yahoo (akcje + kursy walut).
+
+    Celowo JEDNO yf.download z timeoutem, bez download_prices(): fallback per ticker
+    (retry + stooq) trwal >5 min przy throttlingu Yahoo (lekcja z Pulpitu, 2026-11-15).
+    Brak tickera w wyniku -> wycena kursem z pliku. Blad sieci -> pusty DataFrame.
+    """
+    empty = pd.DataFrame(columns=["last", "prev"])
+    if not tickers:
+        return empty
+    try:
+        import yfinance as yf
+        data = yf.download(" ".join(tickers), period="5d", auto_adjust=True,
+                           progress=False, threads=True, timeout=20)
+    except Exception:
+        return empty
+    if data is None or data.empty or "Close" not in data.columns.get_level_values(0):
+        return empty
+    close = data["Close"]
+    if isinstance(close, pd.Series):
+        close = close.to_frame(tickers[0])
+    out = {}
+    for t in close.columns:
+        s = close[t].dropna()
+        if s.empty:
+            continue
+        out[t] = {"last": float(s.iloc[-1]), "prev": float(s.iloc[-2]) if len(s) > 1 else float(s.iloc[-1])}
+    return pd.DataFrame.from_dict(out, orient="index", columns=["last", "prev"]) if out else empty
+
+
 def value_portfolio(accounts: list[XtbAccount], quotes: pd.DataFrame,
                     account_type: str | None = None) -> tuple[pd.DataFrame, dict]:
     """Zwraca (tabela pozycji per konto+ticker posortowana malejaco po wartosci, podsumowanie).
