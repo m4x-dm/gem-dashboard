@@ -64,6 +64,7 @@ def test_main_rejects_low_coverage_and_writes_readable_file(tmp_path, monkeypatc
     for k, v in vars(blocked).items():
         monkeypatch.setattr(real_fin, k, v)
     monkeypatch.setattr(uf.time, "sleep", lambda s: None)
+    monkeypatch.setattr(uf, "espi_frame", lambda t: None)        # bez sieci (Bankier)
     assert uf.main(["--out", str(out)]) == 1 and not out.exists()
     ok, _ = _fake_fin()
     for k, v in vars(ok).items():
@@ -99,6 +100,7 @@ def test_main_omits_companies_without_any_data(tmp_path, monkeypatch):
     monkeypatch.setattr(uf, "get_gpw_universe", lambda: ["SNT.WA"])
     monkeypatch.setattr(uf, "EXTRA_TICKERS", ())
     monkeypatch.setattr(uf.time, "sleep", lambda s: None)
+    monkeypatch.setattr(uf, "espi_frame", lambda t: None)        # bez sieci (Bankier)
     import data.financials as real_fin
     ok, _ = _fake_fin()
     for k, v in vars(ok).items():
@@ -109,3 +111,18 @@ def test_main_omits_companies_without_any_data(tmp_path, monkeypatch):
     assert uf.main(["--out", str(out)]) == 0
     snap = fs.Snapshot.from_payload(json.loads(gzip.decompress(out.read_bytes())))
     assert "SNT.WA" not in snap._t and {"META", "AAPL"} <= set(snap._t)
+
+
+
+def test_fetch_one_collects_espi_only_for_gpw():
+    fin, _ = _fake_fin()
+    frame = pd.DataFrame({"title": ["Raport"], "link": ["l"]}, index=pd.DatetimeIndex(["2026-11-18"]))
+    asked = []
+
+    def espi(t):
+        asked.append(t)
+        return frame
+
+    assert uf.fetch_one("SNT.WA", fin, TODAY, espi)["espi"] is frame
+    assert uf.fetch_one("META", fin, TODAY, espi)["espi"] is None
+    assert asked == ["SNT.WA"]

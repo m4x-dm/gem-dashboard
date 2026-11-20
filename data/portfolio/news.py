@@ -135,10 +135,11 @@ def fetch_yahoo(query: str) -> list[dict]:
     return yf.Search(query, news_count=20, session=_get_yf_session()).news or []
 
 
-def fetch_google(name: str) -> str:
+def fetch_google(name: str, lang: str = "pl") -> str:
     import requests
+    region = "hl=pl&gl=PL&ceid=PL:pl" if lang == "pl" else "hl=en-US&gl=US&ceid=US:en"
     url = (f"https://news.google.com/rss/search?q={quote(chr(34) + name + chr(34))}+when:{WINDOW_DAYS}d"
-           "&hl=pl&gl=PL&ceid=PL:pl")
+           f"&{region}")
     r = requests.get(url, timeout=15, headers=UA)
     r.raise_for_status()
     return r.text
@@ -218,9 +219,21 @@ def collect(rows: list[tuple[str, str]], today: pd.Timestamp,
             return parse_google_rss(xml, name, ticker)
 
         def espi():
-            got = parse_bankier(fetch_bankier(base_symbol(ticker)), ticker)
+            # Bankier odpowiada 403 serwerom Streamlit Cloud -> najpierw dzienny zrzut z GitHub Actions.
+            from data import fundamentals_snapshot as fs
+            hit, df = fs.lookup("espi", ticker)
+            if hit:
+                got = [] if df is None else [NewsItem(d, ticker, str(r["title"]), str(r["link"]), "ESPI", "espi")
+                                             for d, r in df.iterrows()]
+            else:
+                got = parse_bankier(fetch_bankier(base_symbol(ticker)), ticker)
             raw["espi"] = len(got)
             return got
+
+        def google_en():
+            xml = fetch_google(name, "en")
+            raw["google"] = xml.count("<item>")
+            return parse_google_rss(xml, name, ticker)
 
         if _is_gpw(ticker):
             items += run("google", google)
@@ -238,7 +251,11 @@ def collect(rows: list[tuple[str, str]], today: pd.Timestamp,
                     got += parse_yahoo(res2, sym)
                 return [NewsItem(i.date, ticker, i.title, i.link, i.source, i.kind) for i in got]
 
-            items += run("yahoo", yahoo)
+            got = run("yahoo", yahoo)
+            items += got
+            if not got and name:
+                # Yahoo Search z IP Streamlit Cloud bywa pusty (ASML: 0 wynikow, 2026-11-20) -> Google News EN
+                items += run("google", google_en)
         return ticker, items, st_, det
 
     status: dict = {}
