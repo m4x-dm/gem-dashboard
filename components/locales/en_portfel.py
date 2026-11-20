@@ -51,15 +51,8 @@ PORTFEL: dict[str, str] = {
     "Waluty": "Currencies",
     "#### Co się dzieje": "#### What's happening",
     "Alerty dla Twojego portfela": "Alerts for your portfolio",
-    "Najbliższe raporty kwartalne, a wkrótce: wyniki lepsze/gorsze od oczekiwań, "
-    "transakcje insiderów, przełamania poziomów technicznych i newsy.":
-        "Upcoming quarterly reports and soon: earnings beats/misses, insider transactions, "
-        "technical level breaks and news.",
-    "Brak raportów kwartalnych spółek z portfela w ciągu ±14 dni.":
-        "No quarterly reports for portfolio companies within ±14 days.",
     "wczoraj": "yesterday",
     "{n} dni temu": "{n} days ago",
-    "raport kwartalny": "quarterly report",
     "Usuń portfel": "Delete portfolio",
     "Usuwa wczytane konta z tej przeglądarki. Tej operacji nie można cofnąć.":
         "Removes the imported accounts from this browser. This cannot be undone.",
@@ -85,4 +78,21 @@ PORTFEL: dict[str, str] = {
         "What if: every deposit (and withdrawal) buys a dividend-reinvesting index fund on the same day — WIG20: ETFBW20TR, mWIG40: ETFBM40TR, S&P 500: SPY, Nasdaq 100: QQQ (in PLN).",
     "Wartość portfela": "Portfolio value",
     "Twój portfel": "Your portfolio",
+    # alerty fundamentalne — moduł 2 (2026-11-20)
+    "Wyniki lepsze/gorsze od oczekiwań, zmiany rekomendacji analityków, transakcje insiderów i najbliższe raporty — a wkrótce przełamania poziomów technicznych i newsy.":
+        "Earnings beats/misses, analyst rating changes, insider transactions and upcoming reports — soon also technical breakouts and news.",
+    "Brak spółek w portfelu — alerty dotyczą akcji, nie ETF-ów.": "No stocks in the portfolio — alerts cover stocks, not ETFs.",
+    "Sprawdzam wyniki, analityków i insiderów…": "Checking earnings, analysts and insiders…",
+    "Brak zdarzeń dla spółek z portfela w ostatnich 30 dniach.": "No events for your stocks in the last 30 days.",
+    "Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne.":
+        "Last 30 days · earnings: beat/miss at EPS surprise ≥ 2% · insiders: purchases and sales ≥ USD 1M listed separately · Yahoo Finance data, usually unavailable for WSE stocks.",
+    "wynik {q}: EPS {s} vs konsensus": "{q} results: EPS {s} vs consensus",
+    "raport kwartalny {d} ({when})": "quarterly report {d} ({when})",
+    "{firm}: {frm} → {to}": "{firm}: {frm} → {to}",
+    "{firm} rozpoczyna: {to}": "{firm} initiates: {to}",
+    "ceny docelowe: {up}↑ {down}↓ (30 dni)": "price targets: {up}↑ {down}↓ (30 days)",
+    "zakup akcji przez insidera: {who}": "insider purchase: {who}",
+    "sprzedaż akcji przez insidera: {who}": "insider sale: {who}",
+    "{n} mniejszych sprzedaży insiderów (30 dni)": "{n} smaller insider sales (30 days)",
+    "brak danych Yahoo: {tickers}": "no Yahoo data: {tickers}",
 }

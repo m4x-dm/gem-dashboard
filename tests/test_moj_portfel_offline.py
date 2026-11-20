@@ -44,6 +44,11 @@ def _offline(monkeypatch):
     monkeypatch.setattr(valuation, "fetch_live_prices", _fake_quotes)
     import data.financials as fin
     monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
+    monkeypatch.setattr(fin, "fetch_upgrades_downgrades", lambda t: None)
+    monkeypatch.setattr(fin, "fetch_insider_transactions", lambda t: None)
+    monkeypatch.setattr(fin, "fetch_last_report_date", lambda t: None)
+    import streamlit as st
+    st.cache_data.clear()                   # _alerts / _history_prices z poprzednich testow
     from data.portfolio import history
     monkeypatch.setattr(history, "fetch_history", _fake_history)
 
@@ -138,7 +143,7 @@ def test_portfolio_premium_panel_and_account_filter():
     assert not at.exception, at.exception
     t = _text(at)
     assert "🔒" not in t
-    assert "Brak raportów" in t            # fetch_earnings_dates -> None dla wszystkich
+    assert "brak danych Yahoo: META, SNT.WA" in t   # wszystkie fetchery -> None
     seg = at.button_group(key="pf_account")
     assert seg.options == ["Wszystkie", "IKE", "Zwykłe"]
     seg.set_value("ZWYKLE").run()
@@ -180,3 +185,51 @@ def test_portfolio_renders_in_english():
     assert not at.exception, at.exception
     leftovers = _polish_leftovers(at)
     assert not leftovers, "Polskie teksty w wersji EN:\n" + "\n".join(sorted(set(leftovers)))
+
+
+def _fake_alert_sources(monkeypatch):
+    import data.financials as fin
+    today = pd.Timestamp.now().normalize()
+    earn = pd.DataFrame({"eps_estimate": [1.0, 1.1], "eps_actual": [1.12, float("nan")],
+                         "eps_surprise_pct": [12.0, float("nan")], "is_future": [False, True],
+                         "q_label": ["Q3 2026", "Q4 2026"]},
+                        index=[today - pd.Timedelta(days=5), today + pd.Timedelta(days=3)])
+    ud = pd.DataFrame({"Firm": ["Barclays", "JPM"], "ToGrade": ["Buy", "Buy"], "FromGrade": ["Hold", "Buy"],
+                       "Action": ["up", "main"], "priceTargetAction": ["Raises", "Raises"],
+                       "currentPriceTarget": [800.0, 820.0]},
+                      index=[today - pd.Timedelta(days=2), today - pd.Timedelta(days=4)])
+    ins = pd.DataFrame({"Insider": ["JANE ROE"], "Position": ["Chief Financial Officer"], "Type": ["Sell"],
+                        "Shares": [1000], "Value": [2_100_000.0]}, index=[today - pd.Timedelta(days=1)])
+    monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: earn if t == "META" else None)
+    monkeypatch.setattr(fin, "fetch_upgrades_downgrades", lambda t: ud if t == "META" else None)
+    monkeypatch.setattr(fin, "fetch_insider_transactions", lambda t: ins if t == "META" else None)
+
+
+def test_premium_alerts_panel(monkeypatch):
+    _fake_alert_sources(monkeypatch)
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    for s in ("wynik Q3 2026: EPS +12,0% vs konsensus", "Barclays: Hold → Buy", "ceny docelowe: 2↑ 0↓",
+              "sprzedaż akcji przez insidera: CFO · 2,1 mln USD", "raport kwartalny", "za 3 dni",
+              "brak danych Yahoo: SNT.WA"):
+        assert s in t, s
+    assert t.index("CFO") < t.index("Barclays") < t.index("wynik Q3")   # najnowsze pierwsze
+
+
+def test_premium_alerts_and_charts_in_english(monkeypatch):
+    from tests.test_i18n_pages import _polish_leftovers
+    _fake_alert_sources(monkeypatch)
+    _seed()
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["_auth_retries"] = 3
+    at.session_state["lang"] = "en"
+    at.session_state["premium"] = True
+    at.switch_page(PAGE).run()
+    assert not at.exception, at.exception
+    leftovers = _polish_leftovers(at)
+    assert not leftovers, "Polskie teksty w wersji EN: " + " | ".join(sorted(set(leftovers)))
+    t = _text(at)
+    assert "Comparison with indices" in t
+    assert "Barclays: Hold → Buy" in t
