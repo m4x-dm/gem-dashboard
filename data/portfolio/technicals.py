@@ -160,8 +160,19 @@ def events(ticker: str, ohlc: pd.DataFrame, ccy: str = "") -> list[Alert]:
     return out
 
 
+def chart_frame(ohlc: pd.DataFrame, sessions: int = 126) -> pd.DataFrame:
+    """Ostatnie `sessions` sesji + SMA50/SMA200/RSI liczone z PELNEJ historii (widoczne od poczatku okna)."""
+    cols = [c for c in ("Open", "High", "Low", "Close") if c in ohlc.columns]
+    d = ohlc[cols].astype(float).dropna(subset=["Close"]).copy()
+    c = d["Close"]
+    d["SMA50"] = c.rolling(50).mean()
+    d["SMA200"] = c.rolling(200).mean()
+    d["RSI"] = calc_rsi(c)
+    return d.tail(sessions)
+
+
 def fetch_ohlc(tickers: tuple[str, ...], period: str = "2y") -> dict[str, pd.DataFrame]:
-    """Kursy High/Low/Close dla tickerow Yahoo — JEDNO yf.download (dziala na Streamlit Cloud).
+    """Kursy Open/High/Low/Close dla tickerow Yahoo — JEDNO yf.download (dziala na Streamlit Cloud).
 
     Blad sieci / brak danych tickera -> brak klucza w wyniku.
     """
@@ -179,9 +190,9 @@ def fetch_ohlc(tickers: tuple[str, ...], period: str = "2y") -> dict[str, pd.Dat
     for t in tickers:
         try:
             if isinstance(data.columns, pd.MultiIndex):
-                df = pd.DataFrame({k: data[k][t] for k in ("High", "Low", "Close")})
+                df = pd.DataFrame({k: data[k][t] for k in ("Open", "High", "Low", "Close")})
             else:
-                df = data[["High", "Low", "Close"]].copy()
+                df = data[["Open", "High", "Low", "Close"]].copy()
         except KeyError:
             continue
         idx = pd.DatetimeIndex(df.index)

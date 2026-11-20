@@ -107,10 +107,7 @@ PORTFEL: dict[str, str] = {
     "Dane fundamentalne z dziennego zrzutu z {d} UTC.": "Fundamentals from the daily snapshot of {d} UTC.",
     # analiza techniczna — modul 3 (2026-11-20)
     'Wyniki lepsze/gorsze od oczekiwań, zmiany rekomendacji analityków, transakcje insiderów, przebicia wsparć i oporów, SMA200, RSI i najbliższe raporty.': 'Earnings beats/misses, analyst rating changes, insider transactions, support/resistance breaks, SMA200, RSI and upcoming reports.',
-    'Technika: ostatnie 10 sesji · przebicie poziomu = zamknięcie ponad 1% za wsparciem/oporem wyznaczonym przed tym okresem.': 'Technicals: last 10 sessions · level break = close more than 1% beyond a support/resistance set before that period.',
-    '#### Technika': '#### Technicals',
-    'Poziomy techniczne Twoich spółek': 'Technical levels of your stocks',
-    'Najbliższy opór i wsparcie, położenie względem SMA50 i SMA200, RSI i odległość od 52-tygodniowego maksimum dla każdej pozycji.': 'Nearest resistance and support, position vs SMA50 and SMA200, RSI and distance from the 52-week high for every position.',
+        'Poziomy techniczne Twoich spółek': 'Technical levels of your stocks',
     'Nie udało się pobrać kursów do analizy technicznej — spróbuj ponownie za chwilę.': 'Could not load prices for technical analysis — please try again in a moment.',
     'nad': 'above',
     'pod': 'below',
@@ -133,4 +130,13 @@ PORTFEL: dict[str, str] = {
     'RSI {rsi} — wykupienie': 'RSI {rsi} — overbought',
     'RSI {rsi} — wyprzedanie': 'RSI {rsi} — oversold',
     "Pokaż wszystkie ({n})": "Show all ({n})",
+    # wykres analizy technicznej (2026-11-20)
+    '#### Analiza techniczna': '#### Technical analysis',
+    'Analiza techniczna: ostatnie 10 sesji · przebicie poziomu = zamknięcie ponad 1% za wsparciem/oporem wyznaczonym przed tym okresem.': 'Technical analysis: last 10 sessions · level break = close more than 1% beyond a support/resistance set before that period.',
+    'Wykres każdej spółki ze wsparciami, oporami, SMA50/200 i RSI oraz tabela: najbliższy opór i wsparcie, SMA, RSI i odległość od 52-tygodniowego maksimum.': 'A chart of every stock with supports, resistances, SMA50/200 and RSI, plus a table: nearest resistance and support, SMAs, RSI and distance from the 52-week high.',
+    'Okres': 'Period',
+    'opór': 'resistance',
+    'wsparcie': 'support',
+    'Zdarzenia': 'Events',
+    'Świece dzienne, SMA50 (niebieska) i SMA200 (złota). Przerywane linie: opory (czerwone) i wsparcia (zielone) z liczbą testów. Trójkąty: zdarzenia z ostatnich 10 sesji. Pod spodem RSI z progami 70 i 30.': 'Daily candles, SMA50 (blue) and SMA200 (gold). Dotted lines: resistances (red) and supports (green) with the number of tests. Triangles: events from the last 10 sessions. RSI with 70 and 30 thresholds below.',
 }

@@ -281,8 +281,11 @@ def test_premium_technika_table_and_alerts(monkeypatch):
     at = _run(True)
     assert not at.exception, at.exception
     t = _text(at)
-    for s in ("Technika", "Opór", "Wsparcie", "SMA200", "Od 52-tyg. max", "przebite wsparcie"):
+    for s in ("Analiza techniczna", "Opór", "Wsparcie", "SMA200", "Od 52-tyg. max", "przebite wsparcie"):
         assert s in t, s
+    assert at.button_group(key="pf_ta_ticker").options == ["META.US"]   # etykiety jak w pozycjach
+    at.button_group(key="pf_ta_period").set_value("1R").run()
+    assert not at.exception, at.exception
 
 
 def test_free_technika_teaser():
@@ -306,7 +309,7 @@ def test_technika_in_english(monkeypatch):
     leftovers = _polish_leftovers(at)
     assert not leftovers, "Polskie teksty w wersji EN: " + " | ".join(sorted(set(leftovers)))
     t = _text(at)
-    assert "Technicals" in t and "support" in t
+    assert "Technical analysis" in t and "support" in t
 
 
 def test_long_alert_list_is_collapsed(monkeypatch):

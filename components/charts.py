@@ -619,3 +619,66 @@ def benchmark_whatif_chart(df: pd.DataFrame, height: int = 380) -> go.Figure:
     fig.update_layout(hovermode="x unified", legend=dict(orientation="h", y=1.1, x=0, bgcolor="rgba(0,0,0,0)"))
     fig.update_xaxes(tickformat="%m.%Y")
     return fig
+
+
+
+def technical_chart(frame: pd.DataFrame, levels: list, events: list, ccy: str = "",
+                    height: int = 560) -> go.Figure:
+    """Moj portfel — analiza techniczna jednej spolki.
+
+    frame: z technicals.chart_frame (Open/High/Low/Close, SMA50, SMA200, RSI).
+    levels: [(cena, liczba testow)]; powyzej kursu = opor (czerwony), ponizej = wsparcie (zielony).
+    events: [(data, cena, ton 'pos'|'neg'|'neutral', opis)] — znaczniki zdarzen.
+    """
+    from plotly.subplots import make_subplots
+    from components.constants import GREEN, RED
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.74, 0.26], vertical_spacing=0.04)
+    x = frame.index
+    if "Open" in frame.columns and frame["Open"].notna().any():
+        fig.add_trace(go.Candlestick(x=x, open=frame["Open"], high=frame["High"], low=frame["Low"],
+                                     close=frame["Close"], name=tr("Kurs"), showlegend=False,
+                                     increasing_line_color=GREEN, decreasing_line_color=RED), row=1, col=1)
+    else:
+        fig.add_trace(go.Scatter(x=x, y=frame["Close"], name=tr("Kurs"), mode="lines",
+                                 line=dict(color=TEXT, width=1.5), showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x, y=frame["SMA50"], name="SMA50", mode="lines",
+                             line=dict(color="#60A5FA", width=1.3)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x, y=frame["SMA200"], name="SMA200", mode="lines",
+                             line=dict(color=GOLD, width=1.3)), row=1, col=1)
+
+    price = float(frame["Close"].iloc[-1])
+    lo = float(frame[["Low", "Close"]].min().min()) if "Low" in frame else float(frame["Close"].min())
+    hi = float(frame[["High", "Close"]].max().max()) if "High" in frame else float(frame["Close"].max())
+    for lvl, n in levels:
+        if not (lo * 0.92 <= lvl <= hi * 1.08):
+            continue
+        res = lvl > price
+        color = RED if res else GREEN
+        label = f"{tr('opór') if res else tr('wsparcie')} {fmt_number(lvl, 2)} ({n}×)"
+        fig.add_hline(y=lvl, line=dict(color=color, width=1, dash="dot"), row=1, col=1,
+                      annotation_text=label, annotation_position="top left",
+                      annotation_font=dict(size=10, color=color))
+
+    if events:
+        tone_color = {"pos": GREEN, "neg": RED}
+        fig.add_trace(go.Scatter(
+            x=[e[0] for e in events], y=[e[1] for e in events], mode="markers", name=tr("Zdarzenia"),
+            marker=dict(size=11, symbol=["triangle-up" if e[2] == "pos" else "triangle-down" if e[2] == "neg"
+                                          else "circle" for e in events],
+                        color=[tone_color.get(e[2], MUTED) for e in events], line=dict(color=BG, width=1)),
+            hovertext=[e[3] for e in events], hoverinfo="text+x"), row=1, col=1)
+
+    fig.add_trace(go.Scatter(x=x, y=frame["RSI"], name="RSI", mode="lines",
+                             line=dict(color="#A78BFA", width=1.3)), row=2, col=1)
+    for y in (70, 30):
+        fig.add_hline(y=y, line=dict(color=MUTED, width=1, dash="dash"), row=2, col=1)
+
+    fig.update_layout(**_base_layout(height=height))
+    fig.update_layout(hovermode="x unified", xaxis_rangeslider_visible=False,
+                      legend=dict(orientation="h", y=-0.08, x=0, bgcolor="rgba(0,0,0,0)"),
+                      margin=dict(l=40, r=20, t=20, b=40))
+    fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])], gridcolor=GRID, tickformat="%d.%m.%y")
+    fig.update_yaxes(gridcolor=GRID, row=1, col=1, title_text=ccy or None)
+    fig.update_yaxes(gridcolor=GRID, range=[0, 100], tickvals=[30, 50, 70], row=2, col=1)
+    return fig
