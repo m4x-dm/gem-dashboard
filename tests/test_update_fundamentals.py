@@ -63,6 +63,7 @@ def test_main_rejects_low_coverage_and_writes_readable_file(tmp_path, monkeypatc
     blocked, _ = _fake_fin(blocked=True)
     for k, v in vars(blocked).items():
         monkeypatch.setattr(real_fin, k, v)
+    monkeypatch.setattr(uf.time, "sleep", lambda s: None)
     assert uf.main(["--out", str(out)]) == 1 and not out.exists()
     ok, _ = _fake_fin()
     for k, v in vars(ok).items():
@@ -71,3 +72,40 @@ def test_main_rejects_low_coverage_and_writes_readable_file(tmp_path, monkeypatc
     snap = fs.Snapshot.from_payload(json.loads(gzip.decompress(out.read_bytes())))
     assert set(snap._t) == {"META", "AAPL", "SNT.WA", "ASML.AS"}
     assert snap.lookup("eh", "AAPL")[1]["surprise_pct"].iloc[0] == 20.0
+
+
+def test_collect_retries_missing_fields_after_pause():
+    fin, _ = _fake_fin()
+    state = {"n": 0}
+    real_eh = fin.get_earnings_history
+
+    def flaky_eh(t, *a, **k):          # pierwsza proba dla TSLA: limit Yahoo
+        if t == "TSLA" and state["n"] == 0:
+            state["n"] += 1
+            return None
+        return real_eh(t, *a, **k)
+
+    fin.get_earnings_history = flaky_eh
+    sleeps = []
+    per = uf.collect(["META", "TSLA"], fin, TODAY, retries=((60, 2), (120, 1)), sleep=sleeps.append)
+    assert per["TSLA"]["eh"] is not None
+    assert sleeps == [60, 60] or sleeps[0] == 60         # co najmniej jedna powtorka
+    assert uf.missing("SNT.WA", {"eh": None, "ud": None, "ins": None}) == ["eh"]
+
+
+def test_main_omits_companies_without_any_data(tmp_path, monkeypatch):
+    out = tmp_path / "f.json.gz"
+    monkeypatch.setattr(uf, "get_sp500_universe", lambda: ["META", "AAPL"])
+    monkeypatch.setattr(uf, "get_gpw_universe", lambda: ["SNT.WA"])
+    monkeypatch.setattr(uf, "EXTRA_TICKERS", ())
+    monkeypatch.setattr(uf.time, "sleep", lambda s: None)
+    import data.financials as real_fin
+    ok, _ = _fake_fin()
+    for k, v in vars(ok).items():
+        monkeypatch.setattr(real_fin, k, v)
+    base_eh, base_info = ok.get_earnings_history, ok._fetch_info
+    monkeypatch.setattr(real_fin, "get_earnings_history", lambda t, *a, **k: None if t == "SNT.WA" else base_eh(t))
+    monkeypatch.setattr(real_fin, "_fetch_info", lambda t: {} if t == "SNT.WA" else base_info(t))
+    assert uf.main(["--out", str(out)]) == 0
+    snap = fs.Snapshot.from_payload(json.loads(gzip.decompress(out.read_bytes())))
+    assert "SNT.WA" not in snap._t and {"META", "AAPL"} <= set(snap._t)
