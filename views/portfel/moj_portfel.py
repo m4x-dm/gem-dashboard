@@ -14,7 +14,7 @@ import streamlit as st
 from components import nav
 from components.auth import is_premium, premium_teaser
 from components.cards import kpi_card
-from components.charts import _base_layout, benchmark_whatif_chart, portfolio_value_chart
+from components.charts import _base_layout, benchmark_whatif_chart, portfolio_value_chart, technical_chart
 from components.constants import BORDER, CHART_COLORS, GOLD, MUTED, TEXT
 from components.formatting import GREEN, RED, fmt_number, fmt_pct
 from components.i18n import is_pl, tr
@@ -392,7 +392,7 @@ def _panel(pos: pd.DataFrame, tech: list | None = None) -> None:
     st.caption(tr("Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i "
                   "sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne."))
     if tech:
-        st.caption(tr("Technika: ostatnie 10 sesji · przebicie poziomu = zamknięcie ponad 1% za wsparciem/oporem "
+        st.caption(tr("Analiza techniczna: ostatnie 10 sesji · przebicie poziomu = zamknięcie ponad 1% za wsparciem/oporem "
                       "wyznaczonym przed tym okresem."))
 
 
@@ -438,11 +438,11 @@ def _side(price, sma) -> str:
 
 
 def _technika(data: dict, ccy: dict, label: dict) -> None:
-    st.markdown(tr("#### Technika"))
+    st.markdown(tr("#### Analiza techniczna"))
     if not is_premium():
         premium_teaser(tr("Poziomy techniczne Twoich spółek"),
-                       tr("Najbliższy opór i wsparcie, położenie względem SMA50 i SMA200, RSI i odległość "
-                          "od 52-tygodniowego maksimum dla każdej pozycji."))
+                       tr("Wykres każdej spółki ze wsparciami, oporami, SMA50/200 i RSI oraz tabela: najbliższy "
+                          "opór i wsparcie, SMA, RSI i odległość od 52-tygodniowego maksimum."))
         return
     if not data:
         st.info(tr("Nie udało się pobrać kursów do analizy technicznej — spróbuj ponownie za chwilę."))
@@ -475,6 +475,33 @@ def _technika(data: dict, ccy: dict, label: dict) -> None:
     st.caption(tr("Opór/wsparcie: najbliższy poziom z lokalnych szczytów i dołków z ostatnich 6 miesięcy, "
                   "testowany co najmniej 2 razy (— gdy takiego nie ma). RSI 14 sesji: ≥ 70 wykupienie, "
                   "≤ 30 wyprzedanie. Ceny w walucie notowań, dzienne zamknięcia z Yahoo Finance."))
+    _ta_chart(data, ccy, label)
+
+
+_TA_PERIODS = {"6M": 126, "1R": 252}
+
+
+def _ta_chart(data: dict, ccy: dict, label: dict) -> None:
+    """Wykres wybranej spolki: swiece, SMA50/200, poziomy, zdarzenia z 10 sesji, RSI."""
+    tickers = sorted(data, key=lambda x: label.get(x, x))
+    c1, c2 = st.columns([4, 1])
+    with c1:
+        t = st.segmented_control(tr("Spółka"), tickers, default=tickers[0], key="pf_ta_ticker",
+                                 format_func=lambda x: label.get(x, x)) or tickers[0]
+    with c2:
+        period = st.segmented_control(tr("Okres"), list(_TA_PERIODS), default="6M", key="pf_ta_period") or "6M"
+    df = data[t]
+    frame = technicals.chart_frame(df, sessions=_TA_PERIODS[period])
+    lv = technicals.levels(df["High"], df["Low"])
+    evs = []
+    for a in technicals.events(t, df, ccy.get(t, "")):
+        if a.date in frame.index:
+            evs.append((a.date, float(frame.loc[a.date, "Close"]), a.tone, _alert_text(a)))
+    st.plotly_chart(technical_chart(frame, lv, evs, ccy.get(t, "")), width="stretch",
+                    key="pf_ta_chart", config={"displayModeBar": False})
+    st.caption(tr("Świece dzienne, SMA50 (niebieska) i SMA200 (złota). Przerywane linie: opory (czerwone) i "
+                  "wsparcia (zielone) z liczbą testów. Trójkąty: zdarzenia z ostatnich 10 sesji. Pod spodem RSI "
+                  "z progami 70 i 30."))
 
 
 def _delete(ls) -> None:

@@ -30,3 +30,6 @@ Wykresy z poziomami, MACD/Bollinger, powiadomienia e-mail.
 
 ## Testy
 `tests/test_portfolio_technicals.py` (syntetyczne kursy): pivoty i łączenie, min. 2 testy, przebicie bez lookahead (poziom z danych sprzed okna), krzyże SMA, kurs vs SMA200, 52 tyg., RSI wejście w strefę, krótka historia. Strona: stub pobierania cen, Premium PL/EN, Free teaser. Na koniec sprawdzenie na żywo na tickerach użytkownika + zrzut.
+
+## Zmiana 2026-11-20 (po feedbacku użytkownika)
+Sekcja przemianowana na **„Analiza techniczna”** („Technical analysis”). Pod tabelą: przełącznik spółki (etykiety XTB) i okresu 6M/1R oraz wykres `technical_chart`: świece dzienne (`fetch_ohlc` pobiera też Open), SMA50/SMA200 liczone z pełnej historii (`chart_frame`), wszystkie wyznaczone poziomy (opory czerwone powyżej kursu, wsparcia zielone poniżej, etykieta z ceną i liczbą testów), trójkąty zdarzeń z ostatnich 10 sesji z opisem w podpowiedzi, RSI(14) z liniami 70/30 w dolnym panelu, bez przerw weekendowych.
