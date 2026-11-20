@@ -31,11 +31,17 @@ def test_exactly_one_default_and_it_is_pulpit():
 
 
 def test_free_pages():
-    assert {p.key for p in nav.PAGES if p.free} == {"pulpit", "sygnal", "ranking-etf", "o-strategii", "karta"}
+    assert {p.key for p in nav.PAGES if p.free} == {"pulpit", "sygnal", "ranking-etf", "o-strategii", "karta",
+                                                    "moj-portfel"}
+
+
+def test_moj_portfel_first_in_portfel_section():
+    portfel = [p for p in nav.PAGES if p.section == "Portfel"]
+    assert portfel[0].key == "moj-portfel"
 
 
 def test_page_count():
-    assert len(nav.PAGES) == 25
+    assert len(nav.PAGES) == 26
 
 
 def test_sections_known_and_non_empty():

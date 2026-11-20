@@ -16,6 +16,7 @@ PAGES = {
     "sygnal": "views/strategia/sygnal.py",
     "ranking": "views/etf/ranking.py",
     "o-strategii": "views/strategia/o_strategii.py",
+    "moj-portfel": "views/portfel/moj_portfel.py",
 }
 
 # Polskie znaki + czeste polskie slowa pisane bez ogonkow (stare napisy w kodzie)

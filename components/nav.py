@@ -71,6 +71,8 @@ PAGES: list[PageDef] = [
     PageDef("insiderzy", "views/spolki/insiderzy.py", "Insiderzy", ":material/groups:", "Spółki", False,
             "Bulk insider activity SP500 — top kupujacy/sprzedajacy, sektory"),
     # --- Portfel ---
+    PageDef("moj-portfel", "views/portfel/moj_portfel.py", "Mój portfel", ":material/account_balance_wallet:", "Portfel", True,
+            "Wczytaj eksport z XTB: pozycje, zysk, struktura, nadchodzace raporty"),
     PageDef("portfolio-builder", "views/portfel/portfolio_builder.py", "Portfolio Builder", ":material/pie_chart:", "Portfel", False,
             "Zbuduj portfel, ustaw wagi, backtest i analiza korelacji"),
     PageDef("monte-carlo", "views/portfel/monte_carlo.py", "Monte Carlo", ":material/casino:", "Portfel", False,
