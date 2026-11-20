@@ -696,3 +696,40 @@ def test_get_earnings_history_juz_procenty_nie_mnozy_ponownie():
 def test_get_earnings_history_fallback_lokalny_bez_zmian():
     out = _eh_run(_eh_frame(epsEstimate=[2.0, 2.0, 2.0], epsActual=[2.2, 1.8, 2.0]), "X_FALLBACK")
     assert out["surprise_pct"].tolist() == pytest.approx([10.0, -10.0, 0.0])
+
+
+def test_failed_yahoo_fetch_is_not_cached_but_success_is():
+    """Blokada Yahoo na Streamlit Cloud (2026-11-20): pusty wynik NIE moze zostac w cache na 24h."""
+    from unittest.mock import MagicMock, patch
+    import streamlit as st
+    from data.financials import fetch_insider_transactions
+    st.cache_data.clear()
+    blocked, ok = MagicMock(), MagicMock()
+    blocked.insider_transactions = pd.DataFrame()
+    blocked.get_insider_transactions.return_value = pd.DataFrame()
+    ok.insider_transactions = _real_shape_insider_df()
+    with patch("data.financials.yf.Ticker", return_value=blocked):
+        assert fetch_insider_transactions("RETRY_TEST") is None
+    with patch("data.financials.yf.Ticker", return_value=ok) as m:
+        assert fetch_insider_transactions("RETRY_TEST") is not None     # porazka nie zapamietana
+        calls = m.call_count
+        assert fetch_insider_transactions("RETRY_TEST") is not None     # sukces z cache
+        assert m.call_count == calls
+    st.cache_data.clear()
+
+
+def test_success_only_cache_keys_do_not_collide():
+    import streamlit as st
+    from data import financials as fin
+    st.cache_data.clear()
+
+    @fin._cache_success()
+    def a(x):
+        return f"a{x}"
+
+    @fin._cache_success()
+    def b(x):
+        return f"b{x}"
+
+    assert (a(1), b(1)) == ("a1", "b1")
+    st.cache_data.clear()

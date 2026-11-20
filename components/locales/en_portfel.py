@@ -95,4 +95,13 @@ PORTFEL: dict[str, str] = {
     "sprzedaż akcji przez insidera: {who}": "insider sale: {who}",
     "{n} mniejszych sprzedaży insiderów (30 dni)": "{n} smaller insider sales (30 days)",
     "brak danych Yahoo: {tickers}": "no Yahoo data: {tickers}",
+    # diagnostyka zrodel (2026-11-20, blokady Yahoo na Streamlit Cloud)
+    "Yahoo nie zwrócił danych: {tickers} — spróbuj ponownie za kilka minut":
+        "Yahoo returned no data: {tickers} — please try again in a few minutes",
+    "Źródła danych": "Data sources",
+    "Spółka": "Stock",
+    "Analitycy": "Analysts",
+    "Insiderzy": "Insiders",
+    "✅ dane pobrane · ❌ Yahoo nie zwrócił danych (bywa chwilowo blokowany — przy kolejnym otwarciu strona spróbuje ponownie) · — źródło niedostępne dla GPW.":
+        "✅ data loaded · ❌ Yahoo returned no data (it is sometimes blocked temporarily — the page will retry next time) · — source unavailable for WSE stocks.",
 }

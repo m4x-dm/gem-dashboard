@@ -6,6 +6,7 @@ Wszystkie funkcje wrapped w try/except — fail = None / empty (graceful).
 Uzywane przez tab "Finanse spolki" w views/spolki/sp500.py + views/spolki/gpw.py.
 """
 
+import functools
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -48,6 +49,41 @@ def _get_yf_session():
 # ---------------------------------------------------------------------------
 # Fetch functions (cached 24h)
 # ---------------------------------------------------------------------------
+
+class _NoData(Exception):
+    """Pobranie nie dalo danych — wyjatek, zeby st.cache_data NIE zapamietal porazki."""
+
+
+def _cache_success(ttl: int = 86400):
+    """Jak st.cache_data, ale wynik None NIE trafia do cache (nastepne wywolanie pyta ponownie).
+
+    Yahoo blokuje/ogranicza czesc endpointow z IP Streamlit Cloud (potwierdzone 2026-11-20:
+    insiderzy META pusci na produkcji, lokalnie OK). Zwykly st.cache_data zapisywal None na 24 h,
+    wiec chwilowa blokada psula Karte spolki i panel Mojego portfela na cala dobe.
+    `__wrapped__` = oryginalna funkcja (testy wolaja ja bez cache).
+    """
+    def deco(fn):
+        def _raising(*args, **kwargs):
+            out = fn(*args, **kwargs)
+            if out is None:
+                raise _NoData
+            return out
+        # Unikalna nazwa = unikalny klucz cache Streamlit (modul + qualname + zrodlo).
+        _raising.__module__ = fn.__module__
+        _raising.__name__ = f"{fn.__name__}__ok"
+        _raising.__qualname__ = f"{fn.__qualname__}__ok"
+        cached = st.cache_data(ttl=ttl, show_spinner=False)(_raising)
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                return cached(*args, **kwargs)
+            except _NoData:
+                return None
+        wrapper.clear = cached.clear
+        return wrapper
+    return deco
+
 
 class _InfoUnavailable(Exception):
     """Yahoo nie oddalo Ticker.info (rate limit / blad). Wyjatek, bo st.cache_data go NIE zapamietuje."""
@@ -201,7 +237,7 @@ def _normalize_surprise_pct(df: pd.DataFrame) -> pd.Series:
     return raw.where(~is_fraction, raw * 100)
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@_cache_success()
 def get_earnings_history(ticker: str, n_quarters: int = 8) -> pd.DataFrame | None:
     """Historia earnings: actual vs estimate dla ostatnich N kwartalow.
 
@@ -1223,7 +1259,7 @@ def _try_insider_endpoint(ticker: str, attr_name: str) -> pd.DataFrame | dict | 
     return None
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@_cache_success()
 def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     """Historia transakcji insiderow (CEO/CFO/...) ostatnie ~6 mc.
 
@@ -1302,7 +1338,7 @@ def fetch_last_report_date(ticker: str) -> pd.Timestamp | None:
         return None
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@_cache_success()
 def fetch_upgrades_downgrades(ticker: str) -> pd.DataFrame | None:
     """Zmiany rekomendacji i cen docelowych analitykow (Mój portfel, alerty).
 

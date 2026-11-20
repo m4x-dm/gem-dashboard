@@ -102,13 +102,20 @@ def _quotes(tickers: tuple[str, ...]) -> pd.DataFrame:
     return valuation.fetch_live_prices(tickers)
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
-def _alerts(tickers: tuple[str, ...], day: str) -> list:
-    """Alerty fundamentalne (moduł 2) — cache 6 h; `day` w kluczu, żeby okno 30 dni przesuwało się z datą."""
+@st.cache_data(ttl=15 * 60, show_spinner=False)
+def _alerts(tickers: tuple[str, ...], day: str) -> tuple[list, dict]:
+    """Alerty fundamentalne (moduł 2) + status źródeł per spółka.
+
+    Cache tylko 15 min: Yahoo bywa blokowany z IP Streamlit Cloud, a udane pobrania i tak
+    siedzą w cache funkcji z financials.py (24 h, bez zapamiętywania porażek).
+    `day` w kluczu, żeby okno 30 dni przesuwało się z datą.
+    """
     from data import financials as fin
-    return alerts.collect(tickers, pd.Timestamp(day), fin.fetch_earnings_dates,
-                          fin.fetch_upgrades_downgrades, fin.fetch_insider_transactions,
-                          fin.fetch_last_report_date)
+    status: dict = {}
+    items = alerts.collect(tickers, pd.Timestamp(day), fin.fetch_earnings_dates,
+                           fin.fetch_upgrades_downgrades, fin.fetch_insider_transactions,
+                           fin.fetch_last_report_date, status=status)
+    return items, status
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
@@ -276,7 +283,7 @@ def _when(days: int) -> str:
 
 
 _ICONS = {"earnings": "📊", "upcoming": "📅", "targets": "🎯", "insider_buy": "🟢", "insider_sell": "🔴",
-          "insider_sells": "🔴", "no_data": "ℹ"}
+          "insider_sells": "🔴", "no_data": "ℹ", "fetch_failed": "⚠"}
 
 
 def _usd(v: float) -> str:
@@ -308,12 +315,33 @@ def _alert_row(a) -> str:
     color = {"pos": GREEN, "neg": RED}.get(a.tone, MUTED)
     icon = _ICONS.get(a.kind) or ("⬆" if a.tone == "pos" else "⬇" if a.tone == "neg" else "✚")
     date = f'<span style="color:{MUTED};white-space:nowrap">{a.date:%d.%m}</span>'         if a.date is not None and a.kind != "upcoming" else ""
-    ticker = "" if a.kind == "no_data" else f'<b style="color:{GOLD}">{escape(a.ticker)}</b> '
+    ticker = "" if a.kind in ("no_data", "fetch_failed") else f'<b style="color:{GOLD}">{escape(a.ticker)}</b> '
     return (f'<div style="display:flex;gap:8px;align-items:baseline;padding:8px 0;'
             f'border-bottom:1px solid {BORDER};font-size:13px">'
             f'<span>{icon}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">{ticker}'
-            f'<span style="color:{color if a.kind != "no_data" else MUTED}">{escape(_alert_text(a))}</span>'
+            f'<span style="color:{color if a.kind not in ("no_data", "fetch_failed") else MUTED}">{escape(_alert_text(a))}</span>'
             f'</span>{date}</div>')
+
+
+_MARK = {"ok": "✅", "empty": "❌", "error": "❌", "skip": "—"}
+
+
+def _sources(status: dict) -> None:
+    """Diagnostyka: które źródło Yahoo odpowiedziało dla której spółki (blokady na Streamlit Cloud)."""
+    if not status:
+        return
+    with st.expander(tr("Źródła danych")):
+        head = (f'<tr style="color:{MUTED}"><th style="text-align:left;font-weight:500">{tr("Spółka")}</th>'
+                + "".join(f'<th style="font-weight:500">{tr(h)}</th>' for h in ("Wyniki", "Analitycy", "Insiderzy"))
+                + "</tr>")
+        rows = "".join(
+            f'<tr><td style="color:{GOLD}">{escape(t)}</td>'
+            + "".join(f'<td style="text-align:center">{_MARK.get(s.get(k), "—")}</td>'
+                      for k in ("earnings", "ratings", "insiders")) + "</tr>"
+            for t, s in sorted(status.items()))
+        st.html(f'<table style="width:100%;font-size:13px;border-collapse:collapse">{head}{rows}</table>')
+        st.caption(tr("✅ dane pobrane · ❌ Yahoo nie zwrócił danych (bywa chwilowo blokowany — przy kolejnym "
+                      "otwarciu strona spróbuje ponownie) · — źródło niedostępne dla GPW."))
 
 
 def _panel(pos: pd.DataFrame) -> None:
@@ -330,13 +358,14 @@ def _panel(pos: pd.DataFrame) -> None:
         return
     with st.spinner(tr("Sprawdzam wyniki, analityków i insiderów…")):
         try:
-            items = _alerts(tickers, f"{pd.Timestamp.now():%Y-%m-%d}")
+            items, status = _alerts(tickers, f"{pd.Timestamp.now():%Y-%m-%d}")
         except Exception:
-            items = []
+            items, status = [], {}
     if not items:
         st.caption(tr("Brak zdarzeń dla spółek z portfela w ostatnich 30 dniach."))
         return
     st.html("".join(_alert_row(a) for a in items))
+    _sources(status)
     st.caption(tr("Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i "
                   "sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne."))
 

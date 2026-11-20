@@ -543,7 +543,7 @@ def _render_insiders_tab(ticker: str) -> None:
                    "**Mozliwe przyczyny:**\n"
                    "- Yahoo Finance czasowo blokuje insider endpointy (rate limit / API change)\n"
                    "- Streamlit Cloud IP jest na czarnej liscie Yahoo\n"
-                   "- Sproboj ponownie za kilka minut (cache 24h)\n\n"
+                   "- Sproboj ponownie za kilka minut\n\n"
                    "**Alternatywne zrodla:**\n", ticker=ticker)
                 + f"- SEC EDGAR (Form 4): https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type=4\n"
                 f"- Finviz: https://finviz.com/quote.ashx?t={ticker}\n"

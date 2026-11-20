@@ -149,7 +149,8 @@ def sort_alerts(items: list[Alert]) -> list[Alert]:
     dated = sorted([a for a in items if a.kind in DATED_KINDS], key=lambda a: a.date, reverse=True)
     summaries = [a for a in items if a.kind in SUMMARY_KINDS]
     upcoming = sorted([a for a in items if a.kind == "upcoming"], key=lambda a: a.date)
-    rest = [a for a in items if a.kind not in DATED_KINDS + SUMMARY_KINDS + ("upcoming",)]
+    rest = sorted([a for a in items if a.kind not in DATED_KINDS + SUMMARY_KINDS + ("upcoming",)],
+                  key=lambda a: a.kind != "fetch_failed")
     return dated + summaries + upcoming + rest
 
 
@@ -157,12 +158,23 @@ def _has(df) -> bool:
     return isinstance(df, pd.DataFrame) and not df.empty
 
 
+def _is_gpw(ticker: str) -> bool:
+    return ticker.upper().endswith(".WA")
+
+
 def collect(tickers: tuple[str, ...], today: pd.Timestamp,
             fetch_earnings: Callable, fetch_ratings: Callable, fetch_insiders: Callable,
-            fetch_report_date: Callable | None = None, max_workers: int = 6) -> list[Alert]:
-    """Alerty dla wszystkich tickerow (rownolegle). Blad / brak danych -> linia 'brak danych'."""
-    def one(t: str) -> tuple[str, list[Alert], bool]:
-        items, has = [], False
+            fetch_report_date: Callable | None = None, max_workers: int = 6,
+            status: dict | None = None) -> list[Alert]:
+    """Alerty dla wszystkich tickerow (rownolegle).
+
+    status (opcjonalny slownik do wypelnienia): {ticker: {"earnings"|"ratings"|"insiders":
+    "ok" | "empty" | "error" | "skip"}} — diagnostyka zrodel na stronie.
+    Spolka bez zadnych danych: GPW -> linia 'no_data' (Yahoo tego nie ma), pozostale ->
+    'fetch_failed' (Yahoo nie odpowiedzial, np. blokada IP Streamlit Cloud — sprobuj pozniej).
+    """
+    def one(t: str) -> tuple[str, list[Alert], bool, dict]:
+        items, has, st_ = [], False, {}
 
         def earn_build(tk, df, day):
             rd = None
@@ -173,28 +185,43 @@ def collect(tickers: tuple[str, ...], today: pd.Timestamp,
                     rd = None
             return earnings_alerts(tk, df, day, rd)
 
-        sources = [(fetch_earnings, earn_build)]
-        if not t.upper().endswith(".WA"):
-            sources += [(fetch_ratings, analyst_alerts), (fetch_insiders, insider_alerts)]
-        for fetch, build in sources:
+        sources = [("earnings", fetch_earnings, earn_build),
+                   ("ratings", fetch_ratings, analyst_alerts),
+                   ("insiders", fetch_insiders, insider_alerts)]
+        for name, fetch, build in sources:
+            if name != "earnings" and _is_gpw(t):
+                st_[name] = "skip"
+                continue
             try:
                 df = fetch(t)
             except Exception:
+                st_[name] = "error"
                 continue
             if _has(df):
                 has = True
+                st_[name] = "ok"
                 items += build(t, df, today)
-        return t, items, has
+            else:
+                st_[name] = "empty"
+        return t, items, has, st_
 
-    out, missing = [], []
+    out, gpw_missing, failed = [], [], []
     if not tickers:
         return out
     with ThreadPoolExecutor(max_workers=min(max_workers, len(tickers))) as ex:
-        for t, items, has in ex.map(one, tickers):
+        for t, items, has, st_ in ex.map(one, tickers):
             out += items
+            if status is not None:
+                status[t] = st_
             if not has:
-                missing.append(t)
-    if missing:
-        out.append(Alert(None, ", ".join(sorted(missing)), "no_data", "neutral",
-                         "brak danych Yahoo: {tickers}", {"tickers": ", ".join(sorted(missing))}))
+                (gpw_missing if _is_gpw(t) else failed).append(t)
+    if failed:
+        names = ", ".join(sorted(failed))
+        out.append(Alert(None, names, "fetch_failed", "neutral",
+                         "Yahoo nie zwrócił danych: {tickers} — spróbuj ponownie za kilka minut",
+                         {"tickers": names}))
+    if gpw_missing:
+        names = ", ".join(sorted(gpw_missing))
+        out.append(Alert(None, names, "no_data", "neutral", "brak danych Yahoo: {tickers}",
+                         {"tickers": names}))
     return sort_alerts(out)

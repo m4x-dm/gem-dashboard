@@ -114,13 +114,13 @@ KARTA: dict[str, str] = {
     "**Mozliwe przyczyny:**\n"
     "- Yahoo Finance czasowo blokuje insider endpointy (rate limit / API change)\n"
     "- Streamlit Cloud IP jest na czarnej liscie Yahoo\n"
-    "- Sproboj ponownie za kilka minut (cache 24h)\n\n"
+    "- Sproboj ponownie za kilka minut\n\n"
     "**Alternatywne zrodla:**\n":
         "⚠️ yfinance returned no insider/institutional data for {ticker}.\n\n"
         "**Possible causes:**\n"
         "- Yahoo Finance is temporarily blocking insider endpoints (rate limit / API change)\n"
         "- The Streamlit Cloud IP is blocklisted by Yahoo\n"
-        "- Try again in a few minutes (24h cache)\n\n"
+        "- Try again in a few minutes\n\n"
         "**Alternative sources:**\n",
     "🔍 Diagnostyka yfinance endpointow": "🔍 yfinance endpoint diagnostics",
     "#### 📊 Major Holders": "#### 📊 Major holders",
