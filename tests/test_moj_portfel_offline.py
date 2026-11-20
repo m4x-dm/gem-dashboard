@@ -47,6 +47,8 @@ def _offline(monkeypatch):
     monkeypatch.setattr(fin, "fetch_upgrades_downgrades", lambda t: None)
     monkeypatch.setattr(fin, "fetch_insider_transactions", lambda t: None)
     monkeypatch.setattr(fin, "fetch_last_report_date", lambda t: None)
+    from data.portfolio import technicals
+    monkeypatch.setattr(technicals, "fetch_ohlc", lambda tickers, period="2y": {})
     import streamlit as st
     st.cache_data.clear()                   # _alerts / _history_prices z poprzednich testow
     from data.portfolio import history
@@ -256,3 +258,66 @@ def test_alerts_panel_uses_daily_snapshot(monkeypatch):
     assert "sprzedaż akcji przez insidera: CFO · 2,1 mln USD" in t
     assert "Dane fundamentalne z dziennego zrzutu" in t
     importlib.reload(fin)
+
+
+
+def _fake_ohlc(tickers, period="2y"):
+    """META: oscylacja 590-650, potem spadek pod wsparcie ~590 w ostatnich sesjach."""
+    import numpy as np
+    n = 300
+    idx = pd.bdate_range(end=pd.Timestamp.now().normalize(), periods=n)
+    t_ = np.arange(n)
+    close = 620 + 30 * np.sin(2 * np.pi * t_ / 30)
+    close[-10:-3] = 600.0
+    close[-3:] = [575.0, 572.0, 570.0]
+    df = pd.DataFrame({"High": close, "Low": close, "Close": close}, index=idx)
+    return {t: df for t in tickers if t == "META"}
+
+
+def test_premium_technika_table_and_alerts(monkeypatch):
+    from data.portfolio import technicals
+    monkeypatch.setattr(technicals, "fetch_ohlc", _fake_ohlc)
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    for s in ("Technika", "Opór", "Wsparcie", "SMA200", "Od 52-tyg. max", "przebite wsparcie"):
+        assert s in t, s
+
+
+def test_free_technika_teaser():
+    _seed()
+    at = _run(False)
+    assert not at.exception, at.exception
+    assert "Poziomy techniczne Twoich spółek" in _text(at)
+
+
+def test_technika_in_english(monkeypatch):
+    from tests.test_i18n_pages import _polish_leftovers
+    from data.portfolio import technicals
+    monkeypatch.setattr(technicals, "fetch_ohlc", _fake_ohlc)
+    _seed()
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["_auth_retries"] = 3
+    at.session_state["lang"] = "en"
+    at.session_state["premium"] = True
+    at.switch_page(PAGE).run()
+    assert not at.exception, at.exception
+    leftovers = _polish_leftovers(at)
+    assert not leftovers, "Polskie teksty w wersji EN: " + " | ".join(sorted(set(leftovers)))
+    t = _text(at)
+    assert "Technicals" in t and "support" in t
+
+
+def test_long_alert_list_is_collapsed(monkeypatch):
+    from data.portfolio import alerts as al
+    import importlib, sys
+    page = sys.modules.get("views.portfel.moj_portfel")
+    many = [al.Alert(pd.Timestamp.now().normalize() - pd.Timedelta(days=i % 20), "META", "rating", "pos",
+                     "{firm}: {frm} → {to}", {"firm": f"F{i}", "frm": "Hold", "to": "Buy"}) for i in range(20)]
+    import data.portfolio.alerts as mod
+    monkeypatch.setattr(mod, "collect", lambda *a, **k: list(many))
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    assert any(e.label == "Pokaż wszystkie (20)" for e in at.expander)

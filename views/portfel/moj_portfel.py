@@ -22,7 +22,7 @@ from components.portfolio_storage import clear_portfolio, load_portfolio, save_p
 from components.sidebar import render_footer
 from data import fundamentals_snapshot
 from data.gpw_universe import GPW_NAMES
-from data.portfolio import alerts, history, valuation
+from data.portfolio import alerts, history, technicals, valuation
 from data.portfolio.tickers import currency_for, fx_ticker, xtb_to_yahoo
 from data.portfolio.xtb_parser import XtbFormatError, parse_xtb_xlsx
 from data.sp500_universe import SP500_NAMES
@@ -297,8 +297,18 @@ def _usd(v: float) -> str:
     return f"${num}{'M' if big else 'k'}"
 
 
+_TECH_ICONS = {"tech_level": ("📈", "📉"), "tech_52w": ("📈", "📉"), "tech_cross": ("✨", "⚠"),
+               "tech_sma200": ("〰", "〰"), "tech_rsi": ("🌡", "🌡")}
+
+
 def _alert_text(a) -> str:
     p = dict(a.params)
+    if a.kind == "tech_level":
+        p["level"] = f"{fmt_number(p['level'], 2)} {p.pop('ccy', '')}".strip()
+        p["pct"] = fmt_pct(float(p["pct"]), 1)
+    if a.kind == "tech_rsi":
+        p["rsi"] = f"{p['rsi']:.0f}"
+        p.pop("zone", None)
     if a.kind == "earnings":
         p["s"] = fmt_pct(p["s"] / 100, 1)
     if a.kind == "upcoming":
@@ -314,7 +324,10 @@ def _alert_text(a) -> str:
 
 def _alert_row(a) -> str:
     color = {"pos": GREEN, "neg": RED}.get(a.tone, MUTED)
-    icon = _ICONS.get(a.kind) or ("⬆" if a.tone == "pos" else "⬇" if a.tone == "neg" else "✚")
+    if a.kind in _TECH_ICONS:
+        icon = _TECH_ICONS[a.kind][0 if a.tone != "neg" else 1]
+    else:
+        icon = _ICONS.get(a.kind) or ("⬆" if a.tone == "pos" else "⬇" if a.tone == "neg" else "✚")
     date = f'<span style="color:{MUTED};white-space:nowrap">{a.date:%d.%m}</span>'         if a.date is not None and a.kind != "upcoming" else ""
     ticker = "" if a.kind in ("no_data", "fetch_failed") else f'<b style="color:{GOLD}">{escape(a.ticker)}</b> '
     return (f'<div style="display:flex;gap:8px;align-items:baseline;padding:8px 0;'
@@ -323,6 +336,8 @@ def _alert_row(a) -> str:
             f'<span style="color:{color if a.kind not in ("no_data", "fetch_failed") else MUTED}">{escape(_alert_text(a))}</span>'
             f'</span>{date}</div>')
 
+
+PANEL_VISIBLE = 12   # alerty widoczne od razu; reszta pod "Pokaż wszystkie"
 
 _MARK = {"ok": "✅", "empty": "❌", "error": "❌", "skip": "—"}
 
@@ -345,33 +360,121 @@ def _sources(status: dict) -> None:
                       "otwarciu strona spróbuje ponownie) · — źródło niedostępne dla GPW."))
 
 
-def _panel(pos: pd.DataFrame) -> None:
+def _panel(pos: pd.DataFrame, tech: list | None = None) -> None:
     st.markdown(tr("#### Co się dzieje"))
     if not is_premium():
         premium_teaser(tr("Alerty dla Twojego portfela"),
                        tr("Wyniki lepsze/gorsze od oczekiwań, zmiany rekomendacji analityków, transakcje "
-                          "insiderów i najbliższe raporty — a wkrótce przełamania poziomów technicznych i newsy."))
+                          "insiderów, przebicia wsparć i oporów, SMA200, RSI i najbliższe raporty."))
         return
     stocks = pos[(pos["category"] == "STOCK") & pos["yahoo"].notna()] if "category" in pos else pos
     tickers = tuple(sorted(set(stocks["yahoo"])))
-    if not tickers:
-        st.caption(tr("Brak spółek w portfelu — alerty dotyczą akcji, nie ETF-ów."))
-        return
-    with st.spinner(tr("Sprawdzam wyniki, analityków i insiderów…")):
-        try:
-            items, status = _alerts(tickers, f"{pd.Timestamp.now():%Y-%m-%d}")
-        except Exception:
-            items, status = [], {}
+    items, status = [], {}
+    if tickers:
+        with st.spinner(tr("Sprawdzam wyniki, analityków i insiderów…")):
+            try:
+                items, status = _alerts(tickers, f"{pd.Timestamp.now():%Y-%m-%d}")
+            except Exception:
+                items, status = [], {}
+    items = alerts.sort_alerts(list(items) + list(tech or []))
     if not items:
         st.caption(tr("Brak zdarzeń dla spółek z portfela w ostatnich 30 dniach."))
         return
-    st.html("".join(_alert_row(a) for a in items))
+    # Przy przecenie zdarzeń bywa 30+ (2026-11-20) — najnowsze na wierzchu, reszta w expanderze.
+    st.html("".join(_alert_row(a) for a in items[:PANEL_VISIBLE]))
+    if len(items) > PANEL_VISIBLE:
+        with st.expander(tr("Pokaż wszystkie ({n})", n=len(items))):
+            st.html("".join(_alert_row(a) for a in items[PANEL_VISIBLE:]))
     snap_at = fundamentals_snapshot.generated_at()
     if snap_at is not None:
         st.caption(tr("Dane fundamentalne z dziennego zrzutu z {d} UTC.", d=f"{snap_at:%d.%m %H:%M}"))
     _sources(status)
     st.caption(tr("Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i "
                   "sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne."))
+    if tech:
+        st.caption(tr("Technika: ostatnie 10 sesji · przebicie poziomu = zamknięcie ponad 1% za wsparciem/oporem "
+                      "wyznaczonym przed tym okresem."))
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _ohlc(tickers: tuple[str, ...]) -> dict:
+    return technicals.fetch_ohlc(tickers)
+
+
+def _tech_data(pos: pd.DataFrame) -> tuple[dict, dict, dict]:
+    """(kursy per ticker Yahoo, waluta per ticker, etykieta XTB per ticker) dla pozycji z portfela."""
+    p = pos[pos["yahoo"].notna()].drop_duplicates("yahoo")
+    tickers = tuple(sorted(p["yahoo"]))
+    try:
+        data = _ohlc(tickers) if tickers else {}
+    except Exception:
+        data = {}
+    return data, dict(zip(p["yahoo"], p["currency"])), dict(zip(p["yahoo"], p["xtb_ticker"]))
+
+
+def _tech_events(data: dict, ccy: dict) -> list:
+    out = []
+    for t, df in data.items():
+        try:
+            out += technicals.events(t, df, ccy.get(t, ""))
+        except Exception:
+            continue
+    return out
+
+
+def _lvl(v, price) -> str:
+    if v is None:
+        return "—"
+    return (f'{fmt_number(v, 2)}<br><span style="color:{MUTED};font-size:11px">'
+            f'{fmt_pct(v / price - 1, 1)}</span>')
+
+
+def _side(price, sma) -> str:
+    if sma != sma:
+        return f'<span style="color:{MUTED}">—</span>'
+    if price >= sma:
+        return f'<span style="color:{GREEN}">{tr("nad")}</span>'
+    return f'<span style="color:{RED}">{tr("pod")}</span>'
+
+
+def _technika(data: dict, ccy: dict, label: dict) -> None:
+    st.markdown(tr("#### Technika"))
+    if not is_premium():
+        premium_teaser(tr("Poziomy techniczne Twoich spółek"),
+                       tr("Najbliższy opór i wsparcie, położenie względem SMA50 i SMA200, RSI i odległość "
+                          "od 52-tygodniowego maksimum dla każdej pozycji."))
+        return
+    if not data:
+        st.info(tr("Nie udało się pobrać kursów do analizy technicznej — spróbuj ponownie za chwilę."))
+        return
+    heads = (("Spółka", "left"), ("Kurs", "right"), ("Opór", "right"), ("Wsparcie", "right"),
+             ("SMA50", "center"), ("SMA200", "center"), ("RSI", "right"), ("Od 52-tyg. max", "right"))
+    th = "".join(f'<th style="text-align:{a};font-weight:500;padding:5px 5px;white-space:nowrap">{tr(h)}</th>'
+                 for h, a in heads)
+    td = 'style="padding:5px 5px;text-align:right;white-space:nowrap"'
+    tc = 'style="padding:5px 5px;text-align:center"'
+    rows = []
+    for t in sorted(data, key=lambda x: label.get(x, x)):
+        r = technicals.snapshot_row(data[t])
+        p, rsi = r["price"], r["rsi"]
+        rsi_c = RED if rsi == rsi and rsi >= 70 else GREEN if rsi == rsi and rsi <= 30 else TEXT
+        rsi_s = "—" if rsi != rsi else f"{rsi:.0f}"
+        hi = "—" if r["from_high52"] != r["from_high52"] else fmt_pct(r["from_high52"], 0)
+        rows.append(
+            f'<tr style="border-top:1px solid {BORDER}">'
+            f'<td style="padding:5px 5px;color:{GOLD};font-weight:600;white-space:nowrap">'
+            f'{escape(label.get(t, t))}</td>'
+            f'<td {td}>{fmt_number(p, 2)}<br><span style="color:{MUTED};font-size:11px">'
+            f'{escape(ccy.get(t, ""))}</span></td>'
+            f'<td {td}>{_lvl(r["res"], p)}</td><td {td}>{_lvl(r["sup"], p)}</td>'
+            f'<td {tc}>{_side(p, r["sma50"])}</td><td {tc}>{_side(p, r["sma200"])}</td>'
+            f'<td {td}><span style="color:{rsi_c}">{rsi_s}</span></td><td {td}>{hi}</td></tr>')
+    st.html(f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+            f'<table style="width:100%;min-width:480px;font-size:12px;border-collapse:collapse;'
+            f'font-variant-numeric:tabular-nums"><tr style="color:{MUTED}">{th}</tr>{"".join(rows)}</table></div>')
+    st.caption(tr("Opór/wsparcie: najbliższy poziom z lokalnych szczytów i dołków z ostatnich 6 miesięcy, "
+                  "testowany co najmniej 2 razy (— gdy takiego nie ma). RSI 14 sesji: ≥ 70 wykupienie, "
+                  "≤ 30 wyprzedanie. Ceny w walucie notowań, dzienne zamknięcia z Yahoo Finance."))
 
 
 def _delete(ls) -> None:
@@ -418,11 +521,18 @@ def _render_portfolio(ls, accounts: dict) -> None:
         else:
             _positions(pos)
         _history(accounts, account_type)
+        tech_events: list = []
         if not pos.empty:
+            if is_premium():
+                data, ccy, label = _tech_data(pos)
+                tech_events = _tech_events(data, ccy)
+            else:
+                data, ccy, label = {}, {}, {}
+            _technika(data, ccy, label)
             _allocation(pos)
     with right:
         with st.container(key="pf_panel"):
-            _panel(pos)
+            _panel(pos, tech_events)
     _delete(ls)
 
 
