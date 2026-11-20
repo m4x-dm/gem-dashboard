@@ -72,9 +72,38 @@ def fetch_one(ticker: str, fin, today: pd.Timestamp) -> dict:
     return rec
 
 
-def collect(tickers: list[str], fin, today: pd.Timestamp, workers: int = 8) -> dict[str, dict]:
+# Pierwszy run w CI (2026-11-20): po ~450 spolkach Yahoo zaczal odrzucac zapytania (401 Invalid
+# Crumb) — GPW i lista extra wyszly w 0%. Stad mniej watkow i dwie powtorki dla brakow.
+RETRIES = ((60, 2), (120, 1))   # (pauza s, watki)
+
+
+def missing(ticker: str, rec: dict) -> list[str]:
+    """Pola, ktore warto pobrac ponownie (GPW: tylko wyniki — reszty Yahoo dla GPW nie ma)."""
+    need = ("eh",) if ticker.upper().endswith(".WA") else ("eh", "ud", "ins")
+    return [k for k in need if rec.get(k) is None]
+
+
+def _pass(tickers: list[str], fin, today, workers: int) -> dict[str, dict]:
     with ThreadPoolExecutor(max_workers=workers) as ex:
         return dict(zip(tickers, ex.map(lambda t: fetch_one(t, fin, today), tickers)))
+
+
+def collect(tickers: list[str], fin, today: pd.Timestamp, workers: int = 4,
+            retries=RETRIES, sleep=None) -> dict[str, dict]:
+    sleep = sleep or time.sleep          # rozwiazywane przy wywolaniu (testy podmieniaja time.sleep)
+    per = _pass(tickers, fin, today, workers)
+    for wait, w in retries:
+        todo = [t for t in tickers if missing(t, per[t])]
+        if not todo:
+            break
+        print(f"  powtorka: {len(todo)} spolek z brakami, pauza {wait} s, {w} watki", flush=True)
+        sleep(wait)
+        again = _pass(todo, fin, today, w)
+        for t in todo:
+            for k, v in again[t].items():
+                if per[t].get(k) is None and v is not None:
+                    per[t][k] = v
+    return per
 
 
 def coverage(per_ticker: dict[str, dict], tickers: list[str], kind: str) -> float:
@@ -106,7 +135,11 @@ def main(argv=None) -> int:
         print(f"ODRZUCONO: wyniki tylko dla {cov:.0%} S&P 500 (< {MIN_SP500_EARNINGS:.0%}) — "
               "Yahoo blokuje? Poprzedni zrzut zostaje.", flush=True)
         return 1
-    payload = fs.build_payload(per, generated_at=pd.Timestamp.now(tz="UTC"))
+    # Do pliku tylko spolki z jakimikolwiek danymi: spolka w zrzucie = "Yahoo nie ma nic wiecej",
+    # wiec aplikacja nie pytalaby o nia Yahoo. Pusta -> aplikacja sprobuje sama (lokalnie dziala).
+    kept = {t: r for t, r in per.items() if any(v is not None for v in r.values())}
+    print(f"  w pliku {len(kept)} z {len(per)} spolek", flush=True)
+    payload = fs.build_payload(kept, generated_at=pd.Timestamp.now(tz="UTC"))
     data = gzip.compress(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     Path(args.out).write_bytes(data)
     print(f"zapisano {args.out}: {len(data) / 1024:.0f} KB", flush=True)
