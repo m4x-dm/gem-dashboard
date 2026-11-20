@@ -139,4 +139,14 @@ PORTFEL: dict[str, str] = {
     'wsparcie': 'support',
     'Zdarzenia': 'Events',
     'Świece dzienne, SMA50 (niebieska) i SMA200 (złota). Przerywane linie: opory (czerwone) i wsparcia (zielone) z liczbą testów. Trójkąty: zdarzenia z ostatnich 10 sesji. Pod spodem RSI z progami 70 i 30.': 'Daily candles, SMA50 (blue) and SMA200 (gold). Dotted lines: resistances (red) and supports (green) with the number of tests. Triangles: events from the last 10 sessions. RSI with 70 and 30 thresholds below.',
+    # newsy — modul 4 (2026-11-20)
+    '#### Newsy': '#### News',
+    'Newsy o Twoich spółkach': 'News about your stocks',
+    'Najnowsze artykuły o spółkach z portfela z ostatnich 14 dni — z Yahoo Finance, polskich serwisów (Google News) i komunikaty ESPI spółek z GPW.': 'The latest articles about your stocks from the last 14 days — from Yahoo Finance, Polish news sites (Google News) and ESPI filings of WSE companies.',
+    'Brak spółek w portfelu — newsy dotyczą akcji, nie ETF-ów.': 'No stocks in the portfolio — news covers stocks, not ETFs.',
+    'Pobieram newsy…': 'Loading news…',
+    'Brak newsów z ostatnich 14 dni.': 'No news from the last 14 days.',
+    'Pokaż więcej ({n})': 'Show more ({n})',
+    'Źródła newsów': 'News sources',
+    '✅ newsy pobrane · ❌ źródło nie odpowiedziało albo nic nie znalazło (strona spróbuje ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: USA/Europa; Google News i ESPI: GPW).': '✅ news loaded · ❌ the source did not respond or found nothing (the page retries in 30 min) · — source not used for this stock (Yahoo: US/Europe; Google News and ESPI: WSE).',
 }

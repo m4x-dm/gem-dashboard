@@ -49,6 +49,8 @@ def _offline(monkeypatch):
     monkeypatch.setattr(fin, "fetch_last_report_date", lambda t: None)
     from data.portfolio import technicals
     monkeypatch.setattr(technicals, "fetch_ohlc", lambda tickers, period="2y": {})
+    from data.portfolio import news as _news_mod
+    monkeypatch.setattr(_news_mod, "collect", lambda rows, today, **k: ([], {}))
     import streamlit as st
     st.cache_data.clear()                   # _alerts / _history_prices z poprzednich testow
     from data.portfolio import history
@@ -324,3 +326,53 @@ def test_long_alert_list_is_collapsed(monkeypatch):
     at = _run(True)
     assert not at.exception, at.exception
     assert any(e.label == "Pokaż wszystkie (20)" for e in at.expander)
+
+
+
+def _fake_news(rows, today, **k):
+    from data.portfolio import news as n
+    now = pd.Timestamp.now().normalize()
+    items = [n.NewsItem(now - pd.Timedelta(days=1), "SNT.WA", "Synektik z rekordowymi wynikami", "https://a/1",
+                        "Bankier.pl"),
+             n.NewsItem(now - pd.Timedelta(days=2), "SNT.WA", "Wyniki finansowe QSr 4/2025", "https://a/2", "ESPI",
+                        "espi"),
+             n.NewsItem(now - pd.Timedelta(days=1), "META", "Meta rallies", "https://a/3", "Barrons.com")]
+    return items, {"SNT.WA": {"google": "ok", "espi": "ok"}, "META": {"yahoo": "error"}}
+
+
+def test_premium_news_section_and_filter(monkeypatch):
+    from data.portfolio import news as n
+    monkeypatch.setattr(n, "collect", _fake_news)
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    for s in ("Newsy", "Synektik z rekordowymi wynikami", "ESPI", "Meta rallies", 'target="_blank"'):
+        assert s in t, s
+    assert "Źródła newsów" in [e.label for e in at.expander]
+    at.button_group(key="pf_news_ticker").set_value("META").run()
+    t = _text(at)
+    assert "Meta rallies" in t and "Synektik z rekordowymi wynikami" not in t
+
+
+def test_free_news_teaser():
+    _seed()
+    at = _run(False)
+    assert not at.exception, at.exception
+    assert "Newsy o Twoich spółkach" in _text(at)
+
+
+def test_news_in_english(monkeypatch):
+    from tests.test_i18n_pages import _polish_leftovers
+    from data.portfolio import news as n
+    monkeypatch.setattr(n, "collect", _fake_news)
+    _seed()
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["_auth_retries"] = 3
+    at.session_state["lang"] = "en"
+    at.session_state["premium"] = True
+    at.switch_page(PAGE).run()
+    assert not at.exception, at.exception
+    leftovers = [s for s in _polish_leftovers(at) if "Synektik" not in s and "Wyniki finansowe" not in s]
+    assert not leftovers, "Polskie teksty w wersji EN: " + " | ".join(sorted(set(leftovers)))
+    assert "#### News" in " ".join(m.value for m in at.markdown) or "News" in _text(at)
