@@ -235,3 +235,24 @@ def test_premium_alerts_and_charts_in_english(monkeypatch):
     t = _text(at)
     assert "Comparison with indices" in t
     assert "Barclays: Hold → Buy" in t
+
+
+def test_alerts_panel_uses_daily_snapshot(monkeypatch):
+    """Na Streamlit Cloud Yahoo blokuje quoteSummary — panel bierze dane z dziennego zrzutu."""
+    from data import fundamentals_snapshot as fs
+    import data.financials as fin
+    import importlib
+    importlib.reload(fin)          # prawdziwe fetchery (fixture podmienia je na None)
+    monkeypatch.delenv("GEM_FUNDAMENTALS_SNAPSHOT")
+    today = pd.Timestamp.now().normalize()
+    ins = pd.DataFrame({"Insider": ["JANE ROE"], "Position": ["Chief Financial Officer"], "Type": ["Sell"],
+                        "Shares": [1000], "Value": [2_100_000.0]}, index=[today - pd.Timedelta(days=1)])
+    fs.set_for_tests(fs.build_payload({"META": {"ins": ins}, "SNT.WA": {}},
+                                      generated_at=pd.Timestamp.now(tz="UTC")))
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    assert "sprzedaż akcji przez insidera: CFO · 2,1 mln USD" in t
+    assert "Dane fundamentalne z dziennego zrzutu" in t
+    importlib.reload(fin)

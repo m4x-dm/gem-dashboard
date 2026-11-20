@@ -13,6 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import streamlit as st
 import yfinance as yf
+
+from data import fundamentals_snapshot as _fsnap
 import pandas as pd
 import numpy as np
 
@@ -54,13 +56,15 @@ class _NoData(Exception):
     """Pobranie nie dalo danych — wyjatek, zeby st.cache_data NIE zapamietal porazki."""
 
 
-def _cache_success(ttl: int = 86400):
+def _cache_success(ttl: int = 86400, snapshot=None):
     """Jak st.cache_data, ale wynik None NIE trafia do cache (nastepne wywolanie pyta ponownie).
 
     Yahoo blokuje/ogranicza czesc endpointow z IP Streamlit Cloud (potwierdzone 2026-11-20:
     insiderzy META pusci na produkcji, lokalnie OK). Zwykly st.cache_data zapisywal None na 24 h,
     wiec chwilowa blokada psula Karte spolki i panel Mojego portfela na cala dobe.
     `__wrapped__` = oryginalna funkcja (testy wolaja ja bez cache).
+    snapshot: funkcja(*args, **kwargs) -> (trafienie, wartosc) z dziennego zrzutu GitHub Actions
+    (data/fundamentals_snapshot.py); trafienie zwraca wartosc bez pytania Yahoo.
     """
     def deco(fn):
         def _raising(*args, **kwargs):
@@ -76,6 +80,10 @@ def _cache_success(ttl: int = 86400):
 
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
+            if snapshot is not None:
+                hit, val = snapshot(*args, **kwargs)
+                if hit:
+                    return val
             try:
                 return cached(*args, **kwargs)
             except _NoData:
@@ -83,6 +91,20 @@ def _cache_success(ttl: int = 86400):
         wrapper.clear = cached.clear
         return wrapper
     return deco
+
+
+def _snap_earnings_history(ticker: str, n_quarters: int = 8):
+    hit, df = _fsnap.lookup("eh", ticker)
+    if hit and df is not None:
+        df = df.dropna(how="all").tail(n_quarters)
+        return True, (df if not df.empty else None)
+    return hit, None
+
+
+def _snap(kind: str):
+    def look(ticker: str, *a, **k):
+        return _fsnap.lookup(kind, ticker)
+    return look
 
 
 class _InfoUnavailable(Exception):
@@ -237,7 +259,7 @@ def _normalize_surprise_pct(df: pd.DataFrame) -> pd.Series:
     return raw.where(~is_fraction, raw * 100)
 
 
-@_cache_success()
+@_cache_success(snapshot=_snap_earnings_history)
 def get_earnings_history(ticker: str, n_quarters: int = 8) -> pd.DataFrame | None:
     """Historia earnings: actual vs estimate dla ostatnich N kwartalow.
 
@@ -968,6 +990,28 @@ def _cache_path_earnings_dates(ticker: str) -> Path | None:
     return path
 
 
+def _earnings_dates_from_snapshot(ticker: str) -> pd.DataFrame | None:
+    today = pd.Timestamp.now().normalize()
+    rows = []
+    hist = get_earnings_history(ticker, n_quarters=8)
+    if hist is not None and not hist.empty:
+        for date, row in hist.iterrows():
+            ts = pd.Timestamp(date).normalize()
+            rows.append({"_date": ts, "eps_estimate": row.get("eps_estimate", float("nan")),
+                         "eps_actual": row.get("eps_actual", float("nan")),
+                         "eps_surprise_pct": row.get("surprise_pct", float("nan")),
+                         "is_future": ts > today, "q_label": _quarter_label(ts)})
+    _, nd = _fsnap.lookup("nd", ticker)
+    if nd is not None and nd > today and nd not in {r["_date"] for r in rows}:
+        rows.append({"_date": nd, "eps_estimate": float("nan"), "eps_actual": float("nan"),
+                     "eps_surprise_pct": float("nan"), "is_future": True, "q_label": _quarter_label(nd)})
+    if not rows:
+        return None
+    out = pd.DataFrame(rows).set_index("_date").sort_index()
+    out.index.name = None
+    return out
+
+
 def fetch_earnings_dates(ticker: str) -> pd.DataFrame | None:
     """Pobiera earnings dates (historia + future 1) dla tickera.
 
@@ -983,6 +1027,12 @@ def fetch_earnings_dates(ticker: str) -> pd.DataFrame | None:
 
     Cache parquet 24h.
     """
+    # Dzienny zrzut z GitHub Actions (2026-11-20): historia + data nastepnego raportu bez
+    # Ticker.calendar (quoteSummary blokowany na Streamlit Cloud). Prognoza EPS przyszlego raportu = NaN.
+    hit, _ = _fsnap.lookup("eh", ticker)
+    if hit:
+        return _earnings_dates_from_snapshot(ticker)
+
     # Try cache first
     cache_path = _cache_path_earnings_dates(ticker)
     if cache_path is not None:
@@ -1259,7 +1309,7 @@ def _try_insider_endpoint(ticker: str, attr_name: str) -> pd.DataFrame | dict | 
     return None
 
 
-@_cache_success()
+@_cache_success(snapshot=_snap("ins"))
 def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     """Historia transakcji insiderow (CEO/CFO/...) ostatnie ~6 mc.
 
@@ -1325,7 +1375,11 @@ def fetch_last_report_date(ticker: str) -> pd.Timestamp | None:
 
     get_earnings_history indeksuje wyniki koncem kwartalu (30.09), a raport wychodzi np. 21.10 —
     alerty Mojego portfela potrzebuja prawdziwej daty. Cache przez _fetch_info (24 h, tylko udane).
+    Najpierw dzienny zrzut z GitHub Actions (Yahoo blokuje info na Streamlit Cloud).
     """
+    hit, rd = _fsnap.lookup("rd", ticker)
+    if hit:
+        return rd
     try:
         ts = _fetch_info(ticker).get("earningsTimestamp")
     except Exception:
@@ -1338,7 +1392,7 @@ def fetch_last_report_date(ticker: str) -> pd.Timestamp | None:
         return None
 
 
-@_cache_success()
+@_cache_success(snapshot=_snap("ud"))
 def fetch_upgrades_downgrades(ticker: str) -> pd.DataFrame | None:
     """Zmiany rekomendacji i cen docelowych analitykow (Mój portfel, alerty).
 
