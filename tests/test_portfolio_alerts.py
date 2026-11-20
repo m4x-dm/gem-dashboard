@@ -136,5 +136,20 @@ def test_collect_gpw_skips_analysts_and_handles_errors():
     out = al.collect(("META", "SNT.WA", "BAD"), TODAY, earn, ud, ins, lambda t: 1 / 0)
     assert ("u", "SNT.WA") not in calls and ("i", "SNT.WA") not in calls
     assert ("u", "META") in calls
-    assert [a.kind for a in out] == ["earnings", "no_data"]
-    assert out[-1].params["tickers"] == "BAD, SNT.WA"
+    assert [a.kind for a in out] == ["earnings", "fetch_failed", "no_data"]
+    assert out[1].params["tickers"] == "BAD"         # blad Yahoo (nie GPW) -> "sprobuj ponownie"
+    assert out[2].params["tickers"] == "SNT.WA"
+
+
+def test_collect_reports_source_status_and_fetch_failures():
+    status = {}
+    earn = lambda t: _earn([("2026-10-28", 10.0, False)]) if t == "META" else None
+    ud = lambda t: (_ for _ in ()).throw(RuntimeError("429")) if t == "META" else None
+    ins = lambda t: None
+    out = al.collect(("META", "NOW", "SNT.WA"), TODAY, earn, ud, ins, status=status)
+    assert status["META"] == {"earnings": "ok", "ratings": "error", "insiders": "empty"}
+    assert status["SNT.WA"] == {"earnings": "empty", "ratings": "skip", "insiders": "skip"}
+    kinds = {a.kind: a for a in out}
+    assert kinds["fetch_failed"].params["tickers"] == "NOW"          # USA bez zadnych danych
+    assert kinds["no_data"].params["tickers"] == "SNT.WA"            # GPW
+    assert [a.kind for a in out][-2:] == ["fetch_failed", "no_data"]

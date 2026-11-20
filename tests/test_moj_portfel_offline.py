@@ -143,7 +143,9 @@ def test_portfolio_premium_panel_and_account_filter():
     assert not at.exception, at.exception
     t = _text(at)
     assert "🔒" not in t
-    assert "brak danych Yahoo: META, SNT.WA" in t   # wszystkie fetchery -> None
+    assert "Yahoo nie zwrócił danych: META" in t    # USA bez danych = porazka pobrania
+    assert "brak danych Yahoo: SNT.WA" in t           # GPW
+    assert "Źródła danych" in [e.label for e in at.expander]
     seg = at.button_group(key="pf_account")
     assert seg.options == ["Wszystkie", "IKE", "Zwykłe"]
     seg.set_value("ZWYKLE").run()
