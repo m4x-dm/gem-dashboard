@@ -1284,6 +1284,53 @@ def fetch_insider_transactions(ticker: str) -> pd.DataFrame | None:
     return out
 
 
+def fetch_last_report_date(ticker: str) -> pd.Timestamp | None:
+    """Data publikacji ostatniego raportu (Ticker.info['earningsTimestamp']); None gdy brak.
+
+    get_earnings_history indeksuje wyniki koncem kwartalu (30.09), a raport wychodzi np. 21.10 —
+    alerty Mojego portfela potrzebuja prawdziwej daty. Cache przez _fetch_info (24 h, tylko udane).
+    """
+    try:
+        ts = _fetch_info(ticker).get("earningsTimestamp")
+    except Exception:
+        return None
+    if not ts:
+        return None
+    try:
+        return pd.Timestamp(int(ts), unit="s").normalize()
+    except (TypeError, ValueError):
+        return None
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_upgrades_downgrades(ticker: str) -> pd.DataFrame | None:
+    """Zmiany rekomendacji i cen docelowych analitykow (Mój portfel, alerty).
+
+    Indeks: DatetimeIndex (naive, znormalizowany), malejaco. Kolumny: Firm, ToGrade,
+    FromGrade, Action (up/down/init/main/reit), priceTargetAction (Raises/Lowers/...),
+    currentPriceTarget. None gdy brak danych (GPW: Yahoo zwraca 404).
+    """
+    df = _try_insider_endpoint(ticker, "upgrades_downgrades")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return None
+    out = df.copy()
+    if not isinstance(out.index, pd.DatetimeIndex):
+        for col in ("GradeDate", "Date"):
+            if col in out.columns:
+                out.index = pd.to_datetime(out[col], errors="coerce")
+                break
+    idx = pd.DatetimeIndex(pd.to_datetime(out.index, errors="coerce"))
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    out.index = idx.normalize()
+    out = out[out.index.notna()]
+    keep = [c for c in ("Firm", "ToGrade", "FromGrade", "Action", "priceTargetAction", "currentPriceTarget")
+            if c in out.columns]
+    if "Action" not in keep:
+        return None
+    return out[keep].sort_index(ascending=False)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_insider_purchases(ticker: str) -> pd.DataFrame | None:
     """Insider purchases summary (agregat 6 mc).

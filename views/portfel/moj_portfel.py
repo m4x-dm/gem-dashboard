@@ -21,7 +21,7 @@ from components.i18n import is_pl, tr
 from components.portfolio_storage import clear_portfolio, load_portfolio, save_portfolio
 from components.sidebar import render_footer
 from data.gpw_universe import GPW_NAMES
-from data.portfolio import history, valuation
+from data.portfolio import alerts, history, valuation
 from data.portfolio.tickers import currency_for, fx_ticker, xtb_to_yahoo
 from data.portfolio.xtb_parser import XtbFormatError, parse_xtb_xlsx
 from data.sp500_universe import SP500_NAMES
@@ -103,22 +103,12 @@ def _quotes(tickers: tuple[str, ...]) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
-def _upcoming_reports(tickers: tuple[str, ...]) -> list[tuple[str, pd.Timestamp]]:
-    """(ticker, data) raportow kwartalnych w oknie -14..+14 dni, posortowane po dacie."""
+def _alerts(tickers: tuple[str, ...], day: str) -> list:
+    """Alerty fundamentalne (moduł 2) — cache 6 h; `day` w kluczu, żeby okno 30 dni przesuwało się z datą."""
     from data import financials as fin
-    today = pd.Timestamp.now().normalize()
-    out = []
-    for t in tickers:
-        try:
-            df = fin.fetch_earnings_dates(t)
-        except Exception:
-            df = None
-        if df is None or df.empty:
-            continue
-        for d in df.index:
-            if abs((pd.Timestamp(d).normalize() - today).days) <= 14:
-                out.append((t, pd.Timestamp(d)))
-    return sorted(out, key=lambda x: x[1])
+    return alerts.collect(tickers, pd.Timestamp(day), fin.fetch_earnings_dates,
+                          fin.fetch_upgrades_downgrades, fin.fetch_insider_transactions,
+                          fin.fetch_last_report_date)
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
@@ -285,23 +275,70 @@ def _when(days: int) -> str:
     return tr("za {n} dni", n=days) if days > 0 else tr("{n} dni temu", n=-days)
 
 
+_ICONS = {"earnings": "📊", "upcoming": "📅", "targets": "🎯", "insider_buy": "🟢", "insider_sell": "🔴",
+          "insider_sells": "🔴", "no_data": "ℹ"}
+
+
+def _usd(v: float) -> str:
+    if v != v:
+        return ""
+    big = v >= 1e6
+    num = fmt_number(v / 1e6, 1) if big else fmt_number(v / 1e3, 0)
+    if is_pl():
+        return f"{num} {'mln' if big else 'tys.'} USD"
+    return f"${num}{'M' if big else 'k'}"
+
+
+def _alert_text(a) -> str:
+    p = dict(a.params)
+    if a.kind == "earnings":
+        p["s"] = fmt_pct(p["s"] / 100, 1)
+    if a.kind == "upcoming":
+        p["d"] = f"{a.date:%d.%m}"
+        p["when"] = _when(p.pop("days"))
+    if a.kind == "rating" and not p.get("frm"):
+        p["frm"] = "—"
+    txt = tr(a.text, **{k: v for k, v in p.items() if k != "usd"})
+    if "usd" in p and _usd(p["usd"]):
+        txt += f" · {_usd(p['usd'])}"
+    return txt
+
+
+def _alert_row(a) -> str:
+    color = {"pos": GREEN, "neg": RED}.get(a.tone, MUTED)
+    icon = _ICONS.get(a.kind) or ("⬆" if a.tone == "pos" else "⬇" if a.tone == "neg" else "✚")
+    date = f'<span style="color:{MUTED};white-space:nowrap">{a.date:%d.%m}</span>'         if a.date is not None and a.kind != "upcoming" else ""
+    ticker = "" if a.kind == "no_data" else f'<b style="color:{GOLD}">{escape(a.ticker)}</b> '
+    return (f'<div style="display:flex;gap:8px;align-items:baseline;padding:8px 0;'
+            f'border-bottom:1px solid {BORDER};font-size:13px">'
+            f'<span>{icon}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">{ticker}'
+            f'<span style="color:{color if a.kind != "no_data" else MUTED}">{escape(_alert_text(a))}</span>'
+            f'</span>{date}</div>')
+
+
 def _panel(pos: pd.DataFrame) -> None:
     st.markdown(tr("#### Co się dzieje"))
     if not is_premium():
         premium_teaser(tr("Alerty dla Twojego portfela"),
-                       tr("Najbliższe raporty kwartalne, a wkrótce: wyniki lepsze/gorsze od oczekiwań, "
-                          "transakcje insiderów, przełamania poziomów technicznych i newsy."))
+                       tr("Wyniki lepsze/gorsze od oczekiwań, zmiany rekomendacji analityków, transakcje "
+                          "insiderów i najbliższe raporty — a wkrótce przełamania poziomów technicznych i newsy."))
         return
-    tickers = tuple(sorted({t for t in pos["yahoo"] if _has_card(t)}))
-    reports = _upcoming_reports(tickers) if tickers else []
-    if not reports:
-        st.caption(tr("Brak raportów kwartalnych spółek z portfela w ciągu ±14 dni."))
+    stocks = pos[(pos["category"] == "STOCK") & pos["yahoo"].notna()] if "category" in pos else pos
+    tickers = tuple(sorted(set(stocks["yahoo"])))
+    if not tickers:
+        st.caption(tr("Brak spółek w portfelu — alerty dotyczą akcji, nie ETF-ów."))
         return
-    today = pd.Timestamp.now().normalize()
-    for t, d in reports:
-        days = (d.normalize() - today).days
-        st.html(f'<div style="padding:8px 0;border-bottom:1px solid {BORDER}">📅 <b style="color:{GOLD}">{t}</b>'
-                f' <span style="color:{MUTED}">{tr("raport kwartalny")} · {d:%d.%m} ({_when(days)})</span></div>')
+    with st.spinner(tr("Sprawdzam wyniki, analityków i insiderów…")):
+        try:
+            items = _alerts(tickers, f"{pd.Timestamp.now():%Y-%m-%d}")
+        except Exception:
+            items = []
+    if not items:
+        st.caption(tr("Brak zdarzeń dla spółek z portfela w ostatnich 30 dniach."))
+        return
+    st.html("".join(_alert_row(a) for a in items))
+    st.caption(tr("Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i "
+                  "sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne."))
 
 
 def _delete(ls) -> None:
