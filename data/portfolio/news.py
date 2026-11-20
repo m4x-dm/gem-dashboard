@@ -106,10 +106,17 @@ _BANKIER_ITEM = re.compile(
     r'<a[^>]*class="m-quotes-announcements-item__anchor"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', re.S)
 
 
+def _page_title(page: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", page or "", re.S | re.I)
+    return html.unescape(m.group(1)).strip()[:80] if m else ""
+
+
 def parse_bankier(page: str, ticker: str) -> list[NewsItem]:
     """Lista komunikatow ESPI ze strony spolki na Bankierze."""
     if "m-quotes-announcements" not in (page or ""):
-        raise NewsParseError("brak listy komunikatów w HTML")
+        # Tytul strony w bledzie: odroznia ekran zgody / blokade od zmiany ukladu (diagnostyka na Cloud)
+        raise NewsParseError(f"brak listy komunikatów w HTML ({len(page or '')} zn., "
+                             f"tytuł: {_page_title(page) or '—'})")
     out = []
     for date, link, title in _BANKIER_ITEM.findall(page):
         try:
@@ -180,44 +187,68 @@ def merge_across_tickers(items: list[NewsItem]) -> list[tuple[NewsItem, list[str
 
 def collect(rows: list[tuple[str, str]], today: pd.Timestamp,
             fetch_yahoo: Callable = fetch_yahoo, fetch_google: Callable = fetch_google,
-            fetch_bankier: Callable = fetch_bankier, max_workers: int = 6
-            ) -> tuple[list[NewsItem], dict]:
-    """rows = [(ticker Yahoo, nazwa spolki)] -> (newsy z 14 dni malejaco, status zrodel per spolka)."""
+            fetch_bankier: Callable = fetch_bankier, max_workers: int = 6,
+            details: dict | None = None) -> tuple[list[NewsItem], dict]:
+    """rows = [(ticker Yahoo, nazwa spolki)] -> (newsy z 14 dni malejaco, status zrodel per spolka).
+
+    details (opcjonalny slownik do wypelnienia): {ticker: {zrodlo: opis}} — przy bledzie typ wyjatku
+    i komunikat, przy pustym wyniku ile surowych wynikow odrzucil filtr (diagnostyka na Streamlit Cloud).
+    """
 
     def one(row):
         ticker, name = row
-        items, st_ = [], {}
+        items, st_, det = [], {}, {}
+        raw = {}                                     # ile surowych wynikow przed filtrem (diagnostyka)
 
         def run(key, fn):
             try:
                 got = fn()
-            except Exception:
+            except Exception as exc:
                 st_[key] = "error"
+                det[key] = f"{type(exc).__name__}: {str(exc)[:140]}"
                 return []
             st_[key] = "ok" if got else "empty"
+            if not got:
+                det[key] = f"0 pasujących z {raw.get(key, 0)} wyników"
+            return got
+
+        def google():
+            xml = fetch_google(name)
+            raw["google"] = xml.count("<item>")
+            return parse_google_rss(xml, name, ticker)
+
+        def espi():
+            got = parse_bankier(fetch_bankier(base_symbol(ticker)), ticker)
+            raw["espi"] = len(got)
             return got
 
         if _is_gpw(ticker):
-            items += run("google", lambda: parse_google_rss(fetch_google(name), name, ticker))
-            items += run("espi", lambda: parse_bankier(fetch_bankier(base_symbol(ticker)), ticker))
+            items += run("google", google)
+            items += run("espi", espi)
         else:
             sym = base_symbol(ticker)
 
             def yahoo():
-                got = parse_yahoo(fetch_yahoo(sym), sym)
+                res = fetch_yahoo(sym)
+                raw["yahoo"] = len(res or [])
+                got = parse_yahoo(res, sym)
                 if len(got) < MIN_YAHOO_HITS and name and name.upper() != sym.upper():
-                    got += parse_yahoo(fetch_yahoo(name), sym)
+                    res2 = fetch_yahoo(name)
+                    raw["yahoo"] += len(res2 or [])
+                    got += parse_yahoo(res2, sym)
                 return [NewsItem(i.date, ticker, i.title, i.link, i.source, i.kind) for i in got]
 
             items += run("yahoo", yahoo)
-        return ticker, items, st_
+        return ticker, items, st_, det
 
     status: dict = {}
     out: list[NewsItem] = []
     if rows:
         with ThreadPoolExecutor(max_workers=min(max_workers, len(rows))) as ex:
-            for ticker, items, st_ in ex.map(one, rows):
+            for ticker, items, st_, det in ex.map(one, rows):
                 status[ticker] = st_
+                if details is not None and det:
+                    details[ticker] = det
                 out += items
     lo = today.normalize() - pd.Timedelta(days=WINDOW_DAYS)
     out = [i for i in out if i.date >= lo]

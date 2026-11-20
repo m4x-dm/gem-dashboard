@@ -508,9 +508,11 @@ NEWS_VISIBLE = 20
 
 
 @st.cache_data(ttl=30 * 60, show_spinner=False)
-def _news(rows: tuple[tuple[str, str], ...], day: str) -> tuple[list, dict]:
-    """Newsy z 14 dni + status źródeł (cache 30 min; `day` w kluczu przesuwa okno z datą)."""
-    return news.collect(list(rows), pd.Timestamp(day))
+def _news(rows: tuple[tuple[str, str], ...], day: str) -> tuple[list, dict, dict]:
+    """Newsy z 14 dni + status i szczegóły źródeł (cache 30 min; `day` w kluczu przesuwa okno z datą)."""
+    details: dict = {}
+    items, status = news.collect(list(rows), pd.Timestamp(day), details=details)
+    return items, status, details
 
 
 def _news_row(it, label: dict, tickers: list | None = None) -> str:
@@ -526,7 +528,10 @@ def _news_row(it, label: dict, tickers: list | None = None) -> str:
             f' <span style="color:{MUTED};font-size:12px">· {escape(it.source)}</span></span></div>')
 
 
-def _news_sources(status: dict, label: dict) -> None:
+_NEWS_MARK = {"ok": "✅", "empty": "❌", "error": "⚠", "skip": "—"}
+
+
+def _news_sources(status: dict, label: dict, details: dict | None = None) -> None:
     if not status:
         return
     with st.expander(tr("Źródła newsów")):
@@ -535,12 +540,18 @@ def _news_sources(status: dict, label: dict) -> None:
                 + "".join(f'<th style="font-weight:500">{h}</th>' for _, h in cols) + "</tr>")
         rows = "".join(
             f'<tr><td style="color:{GOLD}">{escape(label.get(t, t))}</td>'
-            + "".join(f'<td style="text-align:center">{_MARK.get(s.get(k), "—")}</td>' for k, _ in cols)
+            + "".join(f'<td style="text-align:center">{_NEWS_MARK.get(s.get(k), "—")}</td>' for k, _ in cols)
             + "</tr>" for t, s in sorted(status.items(), key=lambda x: label.get(x[0], x[0])))
         st.html(f'<table style="width:100%;font-size:13px;border-collapse:collapse">{head}{rows}</table>')
-        st.caption(tr("✅ newsy pobrane · ❌ źródło nie odpowiedziało albo nic nie znalazło (strona spróbuje "
-                      "ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: USA/Europa; Google News "
-                      "i ESPI: GPW)."))
+        st.caption(tr("✅ newsy pobrane · ❌ źródło odpowiedziało, ale nic nie pasuje · ⚠ błąd pobierania "
+                      "(strona spróbuje ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: "
+                      "USA/Europa; Google News i ESPI: GPW)."))
+        names = dict(cols)
+        lines = [f"{label.get(t, t)} · {names.get(k, k)}: {msg}"
+                 for t, d in sorted((details or {}).items(), key=lambda x: label.get(x[0], x[0]))
+                 for k, msg in d.items()]
+        if lines:
+            st.code("\n".join(lines), language=None)
 
 
 def _newsy(pos: pd.DataFrame) -> None:
@@ -558,9 +569,9 @@ def _newsy(pos: pd.DataFrame) -> None:
     rows = tuple(sorted(zip(p["yahoo"], p["name"].astype(str))))
     with st.spinner(tr("Pobieram newsy…")):
         try:
-            items, status = _news(rows, f"{pd.Timestamp.now():%Y-%m-%d}")
+            items, status, details = _news(rows, f"{pd.Timestamp.now():%Y-%m-%d}")
         except Exception:
-            items, status = [], {}
+            items, status, details = [], {}, {}
     tickers = sorted({t for t, _ in rows}, key=lambda x: label.get(x, x))
     choice = st.segmented_control(tr("Spółka"), ["__all__"] + tickers, default="__all__", key="pf_news_ticker",
                                   format_func=lambda x: tr("Wszystkie") if x == "__all__" else label.get(x, x)) \
@@ -576,7 +587,7 @@ def _newsy(pos: pd.DataFrame) -> None:
         if len(shown) > NEWS_VISIBLE:
             with st.expander(tr("Pokaż więcej ({n})", n=len(shown) - NEWS_VISIBLE)):
                 st.html("".join(_news_row(i, label, tk) for i, tk in shown[NEWS_VISIBLE:]))
-    _news_sources(status, label)
+    _news_sources(status, label, details)
 
 
 def _delete(ls) -> None:

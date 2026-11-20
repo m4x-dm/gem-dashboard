@@ -337,6 +337,8 @@ def _fake_news(rows, today, **k):
              n.NewsItem(now - pd.Timedelta(days=2), "SNT.WA", "Wyniki finansowe QSr 4/2025", "https://a/2", "ESPI",
                         "espi"),
              n.NewsItem(now - pd.Timedelta(days=1), "META", "Meta rallies", "https://a/3", "Barrons.com")]
+    if "details" in k and k["details"] is not None:
+        k["details"]["META"] = {"yahoo": "HTTPError: 403 Forbidden"}
     return items, {"SNT.WA": {"google": "ok", "espi": "ok"}, "META": {"yahoo": "error"}}
 
 
@@ -350,6 +352,7 @@ def test_premium_news_section_and_filter(monkeypatch):
     for s in ("Newsy", "Synektik z rekordowymi wynikami", "ESPI", "Meta rallies", 'target="_blank"'):
         assert s in t, s
     assert "Źródła newsów" in [e.label for e in at.expander]
+    assert any("HTTPError: 403" in c.value for c in at.code)
     at.button_group(key="pf_news_ticker").set_value("META").run()
     t = _text(at)
     assert "Meta rallies" in t and "Synektik z rekordowymi wynikami" not in t
