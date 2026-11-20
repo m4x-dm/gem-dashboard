@@ -6,7 +6,8 @@ je obsluguje. scripts/update_fundamentals.py codziennie zapisuje fundamentals.js
 `data-snapshots`; funkcje z data/financials.py najpierw pytaja ten zrzut, dopiero potem Yahoo.
 
 Rodzaje (`kind`): "eh" historia wynikow, "rd" data ostatniego raportu, "nd" data nastepnego,
-"ud" zmiany rekomendacji, "ins" transakcje insiderow.
+"ud" zmiany rekomendacji, "ins" transakcje insiderow, "espi" komunikaty ESPI (GPW, z Bankiera —
+Bankier odpowiada 403 serwerom Streamlit Cloud, 2026-11-20).
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ MAX_AGE = pd.Timedelta(days=3)
 OK_TTL = 3600          # s — udane pobranie
 FAIL_TTL = 300         # s — po porazce nie probujemy co wywolanie (timeouty)
 VERSION = 1
-FRAME_KINDS = ("eh", "ud", "ins")
+FRAME_KINDS = ("eh", "ud", "ins", "espi")
 DATE_KINDS = ("rd", "nd")
 
 _lock = threading.Lock()

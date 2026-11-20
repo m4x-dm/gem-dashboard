@@ -128,3 +128,33 @@ def test_details_explain_empty_results():
     news.collect([("ASB.WA", "Asbis")], TODAY, fetch_google=lambda n: RSS, fetch_bankier=lambda s: BANKIER,
                  details=details)
     assert details["ASB.WA"]["google"].startswith("0 pasujących z 5")
+
+
+
+def test_yahoo_empty_falls_back_to_english_google_news():
+    seen = []
+
+    def google(name, lang="pl"):
+        seen.append((name, lang))
+        return RSS.replace("Synektik", "ASML")
+
+    items, status = news.collect([("ASML.AS", "ASML")], TODAY, fetch_yahoo=lambda q: [], fetch_google=google)
+    assert seen == [("ASML", "en")]
+    assert status["ASML.AS"] == {"yahoo": "empty", "google": "ok"}
+    assert any("ASML" in i.title for i in items)
+
+
+def test_espi_read_from_daily_snapshot_before_bankier(monkeypatch):
+    from data import fundamentals_snapshot as fs
+    monkeypatch.delenv("GEM_FUNDAMENTALS_SNAPSHOT")
+    frame = pd.DataFrame({"title": ["Wyniki finansowe QSr 4/2025"], "link": ["https://b/1"]},
+                         index=pd.DatetimeIndex(["2026-11-18 06:03"]))
+    fs.set_for_tests(fs.build_payload({"SNT.WA": {"espi": frame}}, generated_at=pd.Timestamp.now(tz="UTC")))
+
+    def bankier(symbol):
+        raise AssertionError("Bankier nie powinien byc pytany")
+
+    items, status = news.collect([("SNT.WA", "Synektik")], TODAY, fetch_google=lambda n: "",
+                                 fetch_bankier=bankier)
+    assert status["SNT.WA"]["espi"] == "ok"
+    assert [(i.title, i.kind, i.source) for i in items] == [("Wyniki finansowe QSr 4/2025", "espi", "ESPI")]

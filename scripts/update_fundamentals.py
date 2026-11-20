@@ -40,9 +40,32 @@ def _ts(v):
         return None
 
 
-def fetch_one(ticker: str, fin, today: pd.Timestamp) -> dict:
-    """Dane jednej spolki z Yahoo (te same funkcje co aplikacja). Bledy -> None w danym polu."""
-    rec = {"eh": None, "rd": None, "nd": None, "ud": None, "ins": None}
+ESPI_DAYS = 30
+
+
+def espi_frame(ticker: str) -> pd.DataFrame | None:
+    """Komunikaty ESPI spolki z GPW z ostatnich 30 dni (Bankier) jako DataFrame[title, link]."""
+    from data.portfolio import news
+    items = news.parse_bankier(news.fetch_bankier(news.base_symbol(ticker)), ticker)
+    lo = pd.Timestamp.now().normalize() - pd.Timedelta(days=ESPI_DAYS)
+    items = [i for i in items if i.date >= lo]
+    if not items:
+        return None
+    return pd.DataFrame({"title": [i.title for i in items], "link": [i.link for i in items]},
+                        index=pd.DatetimeIndex([i.date for i in items]))
+
+
+def fetch_one(ticker: str, fin, today: pd.Timestamp, espi=None) -> dict:
+    """Dane jednej spolki z Yahoo (te same funkcje co aplikacja). Bledy -> None w danym polu.
+
+    espi: funkcja(ticker) -> DataFrame komunikatow ESPI (tylko GPW); None = pomin.
+    """
+    rec = {"eh": None, "rd": None, "nd": None, "ud": None, "ins": None, "espi": None}
+    if espi is not None and ticker.upper().endswith(".WA"):
+        try:
+            rec["espi"] = espi(ticker)
+        except Exception:
+            pass
     try:
         rec["eh"] = fin.get_earnings_history(ticker, n_quarters=8)
     except Exception:
@@ -83,15 +106,15 @@ def missing(ticker: str, rec: dict) -> list[str]:
     return [k for k in need if rec.get(k) is None]
 
 
-def _pass(tickers: list[str], fin, today, workers: int) -> dict[str, dict]:
+def _pass(tickers: list[str], fin, today, workers: int, espi=None) -> dict[str, dict]:
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        return dict(zip(tickers, ex.map(lambda t: fetch_one(t, fin, today), tickers)))
+        return dict(zip(tickers, ex.map(lambda t: fetch_one(t, fin, today, espi), tickers)))
 
 
 def collect(tickers: list[str], fin, today: pd.Timestamp, workers: int = 4,
-            retries=RETRIES, sleep=None) -> dict[str, dict]:
+            retries=RETRIES, sleep=None, espi=None) -> dict[str, dict]:
     sleep = sleep or time.sleep          # rozwiazywane przy wywolaniu (testy podmieniaja time.sleep)
-    per = _pass(tickers, fin, today, workers)
+    per = _pass(tickers, fin, today, workers, espi)
     for wait, w in retries:
         todo = [t for t in tickers if missing(t, per[t])]
         if not todo:
@@ -125,11 +148,11 @@ def main(argv=None) -> int:
     tickers = list(dict.fromkeys(sp500 + gpw + extra))
     today = pd.Timestamp.now().normalize()
     t0 = time.time()
-    per = collect(tickers, fin, today)
+    per = collect(tickers, fin, today, espi=espi_frame)
     print(f"pobrano {len(per)} spolek w {time.time() - t0:.0f} s", flush=True)
     for name, group in (("S&P 500", sp500), ("GPW", gpw), ("extra", extra)):
         print(f"  {name:8} " + " · ".join(f"{k} {coverage(per, group, k):.0%}"
-                                          for k in ("eh", "rd", "nd", "ud", "ins")), flush=True)
+                                          for k in ("eh", "rd", "nd", "ud", "ins", "espi")), flush=True)
     cov = coverage(per, sp500, "eh")
     if cov < MIN_SP500_EARNINGS:
         print(f"ODRZUCONO: wyniki tylko dla {cov:.0%} S&P 500 (< {MIN_SP500_EARNINGS:.0%}) — "
