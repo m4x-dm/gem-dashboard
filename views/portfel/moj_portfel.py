@@ -20,6 +20,7 @@ from components.formatting import GREEN, RED, fmt_number, fmt_pct
 from components.i18n import is_pl, tr
 from components.portfolio_storage import clear_portfolio, load_portfolio, save_portfolio
 from components.sidebar import render_footer
+from data import fundamentals_snapshot
 from data.gpw_universe import GPW_NAMES
 from data.portfolio import alerts, history, valuation
 from data.portfolio.tickers import currency_for, fx_ticker, xtb_to_yahoo
@@ -365,6 +366,9 @@ def _panel(pos: pd.DataFrame) -> None:
         st.caption(tr("Brak zdarzeń dla spółek z portfela w ostatnich 30 dniach."))
         return
     st.html("".join(_alert_row(a) for a in items))
+    snap_at = fundamentals_snapshot.generated_at()
+    if snap_at is not None:
+        st.caption(tr("Dane fundamentalne z dziennego zrzutu z {d} UTC.", d=f"{snap_at:%d.%m %H:%M}"))
     _sources(status)
     st.caption(tr("Ostatnie 30 dni · wyniki: beat/miss przy niespodziance EPS ≥ 2% · insiderzy: zakupy i "
                   "sprzedaże ≥ 1 mln USD osobno · dane Yahoo Finance, dla GPW zwykle niedostępne."))

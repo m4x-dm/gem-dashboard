@@ -104,4 +104,5 @@ PORTFEL: dict[str, str] = {
     "Insiderzy": "Insiders",
     "✅ dane pobrane · ❌ Yahoo nie zwrócił danych (bywa chwilowo blokowany — przy kolejnym otwarciu strona spróbuje ponownie) · — źródło niedostępne dla GPW.":
         "✅ data loaded · ❌ Yahoo returned no data (it is sometimes blocked temporarily — the page will retry next time) · — source unavailable for WSE stocks.",
+    "Dane fundamentalne z dziennego zrzutu z {d} UTC.": "Fundamentals from the daily snapshot of {d} UTC.",
 }

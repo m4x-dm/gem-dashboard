@@ -1,0 +1,50 @@
+name: Fundamenty — dzienny zrzut
+
+# Yahoo odrzuca zapytania quoteSummary (wyniki, analitycy, insiderzy, info) z IP Streamlit Cloud,
+# a z GitHub Actions je obsluguje. Zrzut trafia na osobna galaz `data-snapshots` (jeden commit,
+# force push) — main bez codziennych commitow, aplikacja bez restartow. Czyta go
+# data/fundamentals_snapshot.py z raw.githubusercontent.com.
+
+on:
+  schedule:
+    - cron: "30 5 * * *"   # codziennie 05:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fundamentals-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect fundamentals
+        run: python scripts/update_fundamentals.py --out "$RUNNER_TEMP/fundamentals.json.gz"
+
+      - name: Publish to data-snapshots branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pub" && cd "$RUNNER_TEMP/pub"
+          cp "$RUNNER_TEMP/fundamentals.json.gz" .
+          git init -q
+          git checkout -q -b data-snapshots
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fundamentals.json.gz
+          git commit -q -m "Fundamenty: zrzut $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data-snapshots
