@@ -148,5 +148,5 @@ PORTFEL: dict[str, str] = {
     'Brak newsów z ostatnich 14 dni.': 'No news from the last 14 days.',
     'Pokaż więcej ({n})': 'Show more ({n})',
     'Źródła newsów': 'News sources',
-    '✅ newsy pobrane · ❌ źródło nie odpowiedziało albo nic nie znalazło (strona spróbuje ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: USA/Europa; Google News i ESPI: GPW).': '✅ news loaded · ❌ the source did not respond or found nothing (the page retries in 30 min) · — source not used for this stock (Yahoo: US/Europe; Google News and ESPI: WSE).',
+    '✅ newsy pobrane · ❌ źródło odpowiedziało, ale nic nie pasuje · ⚠ błąd pobierania (strona spróbuje ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: USA/Europa; Google News i ESPI: GPW).': '✅ news loaded · ❌ the source responded but nothing matched · ⚠ download error (the page retries in 30 min) · — source not used for this stock (Yahoo: US/Europe; Google News and ESPI: WSE).',
 }

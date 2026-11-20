@@ -86,8 +86,10 @@ def test_collect_routes_sources_window_dedupe_and_status():
         calls.append(("b", symbol))
         raise OSError("timeout")
 
+    details = {}
     items, status = news.collect([("META", "Meta"), ("NOW", "ServiceNow"), ("SNT.WA", "Synektik")], TODAY,
-                                 fetch_yahoo=yahoo, fetch_google=google, fetch_bankier=bankier)
+                                 fetch_yahoo=yahoo, fetch_google=google, fetch_bankier=bankier, details=details)
+    assert details["SNT.WA"]["espi"] == "OSError: timeout"
     assert ("y", "ServiceNow") in calls and ("y", "META") in calls       # NOW: drugie szukanie po nazwie
     assert ("g", "Synektik") in calls and ("b", "SNT") in calls
     assert not any(c[0] == "y" and c[1].startswith("SNT") for c in calls)
@@ -113,3 +115,16 @@ def test_merge_same_article_across_tickers():
     merged = news.merge_across_tickers([a, b, c])
     assert [(m[0].title, m[1]) for m in merged] == [("Funds With Anthropic Exposure", ["META", "SPCX"]),
                                                     ("Other", ["META"])]
+
+
+
+def test_bankier_parse_error_names_page_title():
+    with pytest.raises(news.NewsParseError, match="Zanim przejdziesz"):
+        news.parse_bankier("<html><title>Zanim przejdziesz do serwisu</title></html>", "SNT.WA")
+
+
+def test_details_explain_empty_results():
+    details = {}
+    news.collect([("ASB.WA", "Asbis")], TODAY, fetch_google=lambda n: RSS, fetch_bankier=lambda s: BANKIER,
+                 details=details)
+    assert details["ASB.WA"]["google"].startswith("0 pasujących z 5")
