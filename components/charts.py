@@ -556,3 +556,66 @@ def rolling_returns_chart(rolling: dict[str, pd.Series], years: int,
     fig.update_layout(separators=", ")
     fig.update_yaxes(ticksuffix="%")
     return fig
+
+
+def _pln_hover(v: float) -> str:
+    return f"{fmt_number(v)} {tr('zł')}"
+
+
+def portfolio_value_chart(df: pd.DataFrame, height: int = 340) -> go.Figure:
+    """Moj portfel: wartosc portfela vs wplaty netto w czasie (df: kolumny value, deposits)."""
+    profit = df["value"] - df["deposits"]
+    pct = profit / df["deposits"].where(df["deposits"] > 0)
+    custom = np.column_stack([
+        [_pln_hover(v) for v in df["value"]],
+        [_pln_hover(v) for v in df["deposits"]],
+        [("+" if p > 0 else "") + _pln_hover(p) for p in profit],
+        ["" if q != q else f" ({q * 100:+.1f}%)" for q in pct],
+    ]) if len(df) else None
+    fig = go.Figure()
+    # Zielone pole tam, gdzie portfel jest nad wplatami, czerwone tam, gdzie pod nimi:
+    # dwie pary (wplaty -> max/min) z fill="tonexty", linie na wierzchu.
+    upper = np.maximum(df["value"], df["deposits"])
+    lower = np.minimum(df["value"], df["deposits"])
+    for edge, color in ((upper, "rgba(52,211,153,0.18)"), (lower, "rgba(248,113,113,0.18)")):
+        fig.add_trace(go.Scatter(x=df.index, y=df["deposits"], mode="lines", line=dict(width=0),
+                                 hoverinfo="skip", showlegend=False))
+        fig.add_trace(go.Scatter(x=df.index, y=edge, mode="lines", line=dict(width=0), fill="tonexty",
+                                 fillcolor=color, hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(x=df.index, y=df["deposits"], name=tr("Wpłaty netto"), mode="lines",
+                             line=dict(color=MUTED, width=1.5, dash="dash"), hoverinfo="skip"))
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df["value"], name=tr("Wartość portfela"), mode="lines",
+        line=dict(color=GOLD, width=2), customdata=custom,
+        hovertemplate=(f"%{{x|%d.%m.%Y}}<br>{tr('Wartość')}: %{{customdata[0]}}<br>"
+                       f"{tr('Wpłaty netto')}: %{{customdata[1]}}<br>"
+                       f"{tr('Zysk / strata')}: %{{customdata[2]}}%{{customdata[3]}}<extra></extra>"),
+    ))
+    fig.update_layout(**_base_layout(height=height))
+    fig.update_layout(hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0, bgcolor="rgba(0,0,0,0)"))
+    fig.update_xaxes(tickformat="%m.%Y")
+    return fig
+
+
+def benchmark_whatif_chart(df: pd.DataFrame, height: int = 380) -> go.Figure:
+    """Moj portfel: portfel vs 'co gdyby wplaty szly w indeks' (kolumny: nazwy serii, ostatnia = wplaty)."""
+    fig = go.Figure()
+    palette = ["#60A5FA", "#34D399", "#F87171", "#A78BFA", "#22D3EE"]
+    other = 0
+    for col in df.columns:
+        if col == "Twój portfel":
+            line = dict(color=GOLD, width=2.5)
+        elif col == "Wpłaty netto":
+            line = dict(color=MUTED, width=1.5, dash="dash")
+        else:
+            line = dict(color=palette[other % len(palette)], width=1.5)
+            other += 1
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[col], name=tr(col), mode="lines", line=line,
+            customdata=[_pln_hover(v) if v == v else "—" for v in df[col]],
+            hovertemplate=f"{tr(col)}: %{{customdata}}<extra></extra>",
+        ))
+    fig.update_layout(**_base_layout(height=height))
+    fig.update_layout(hovermode="x unified", legend=dict(orientation="h", y=1.1, x=0, bgcolor="rgba(0,0,0,0)"))
+    fig.update_xaxes(tickformat="%m.%Y")
+    return fig

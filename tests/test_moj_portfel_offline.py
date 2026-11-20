@@ -44,6 +44,17 @@ def _offline(monkeypatch):
     monkeypatch.setattr(valuation, "fetch_live_prices", _fake_quotes)
     import data.financials as fin
     monkeypatch.setattr(fin, "fetch_earnings_dates", lambda t: None)
+    from data.portfolio import history
+    monkeypatch.setattr(history, "fetch_history", _fake_history)
+
+
+def _fake_history(tickers, start):
+    idx = pd.bdate_range(start, pd.Timestamp.now().normalize())
+    level = {"SNT.WA": 330.0, "META": 600.0, "IS3N.DE": 46.0, "USDPLN=X": 4.0, "EURPLN=X": 4.3,
+             "ETFBW20TR.WA": 80.0, "ETFBM40TR.WA": 120.0, "SPY": 500.0, "QQQ": 450.0}
+    import numpy as np
+    ramp = np.linspace(0.9, 1.0, len(idx))
+    return pd.DataFrame({t: level[t] * ramp for t in tickers if t in level}, index=idx)
 
 
 def _seed():
@@ -86,6 +97,39 @@ def test_portfolio_free_shows_positions_and_teaser():
     assert "OIL.WTI" not in t              # CFD pominiete
     assert "4 346" in t                    # wartosc: 1005 + 1220 + 2021 + 100
     assert "Jak pobrać eksport z XTB" not in t
+    # wykres wartosc vs wplaty darmowy, porownanie z indeksami jako zajawka
+    assert "Wartość i wpłaty" in t
+    keys = [c.proto.id for c in at.get("plotly_chart")]
+    assert len(keys) == 2                   # wartosc vs wplaty + donut struktury
+    assert "Twój portfel vs WIG20" in t
+
+
+def test_premium_benchmark_comparison():
+    _seed()
+    at = _run(True)
+    assert not at.exception, at.exception
+    t = _text(at)
+    assert "Porównanie z indeksami" in t
+    assert len(at.get("plotly_chart")) == 3
+    for name in ("WIG20", "mWIG40", "S&amp;P 500", "Nasdaq 100"):
+        assert name in t or name.replace("&amp;", "&") in t, name
+
+
+def test_history_download_failure_degrades():
+    from data.portfolio import history
+    import pytest as _pt
+    mp = _pt.MonkeyPatch()
+    mp.setattr(history, "fetch_history", lambda tickers, start: pd.DataFrame())
+    import streamlit as st
+    st.cache_data.clear()                   # _history_prices z poprzednich testow
+    try:
+        _seed()
+        at = _run(False)
+        assert not at.exception, at.exception
+        assert any("Nie udało się pobrać historii" in i.value for i in at.info)
+    finally:
+        mp.undo()
+        st.cache_data.clear()
 
 
 def test_portfolio_premium_panel_and_account_filter():
