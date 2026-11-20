@@ -18,7 +18,8 @@ UPCOMING_DAYS = 14        # najblizsze raporty
 BEAT_PCT = 2.0            # |niespodzianka EPS| w procentach, ponizej = zgodnie z oczekiwaniami
 BIG_SELL_USD = 1_000_000  # sprzedaz insidera pokazywana osobno
 
-DATED_KINDS = ("earnings", "rating", "insider_buy", "insider_sell")
+DATED_KINDS = ("earnings", "rating", "insider_buy", "insider_sell",
+               "tech_level", "tech_cross", "tech_sma200", "tech_52w", "tech_rsi")
 SUMMARY_KINDS = ("targets", "insider_sells")
 
 _ROLE_SHORT = {
