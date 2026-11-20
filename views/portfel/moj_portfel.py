@@ -22,7 +22,7 @@ from components.portfolio_storage import clear_portfolio, load_portfolio, save_p
 from components.sidebar import render_footer
 from data import fundamentals_snapshot
 from data.gpw_universe import GPW_NAMES
-from data.portfolio import alerts, history, technicals, valuation
+from data.portfolio import alerts, history, news, technicals, valuation
 from data.portfolio.tickers import currency_for, fx_ticker, xtb_to_yahoo
 from data.portfolio.xtb_parser import XtbFormatError, parse_xtb_xlsx
 from data.sp500_universe import SP500_NAMES
@@ -504,6 +504,81 @@ def _ta_chart(data: dict, ccy: dict, label: dict) -> None:
                   "z progami 70 i 30."))
 
 
+NEWS_VISIBLE = 20
+
+
+@st.cache_data(ttl=30 * 60, show_spinner=False)
+def _news(rows: tuple[tuple[str, str], ...], day: str) -> tuple[list, dict]:
+    """Newsy z 14 dni + status źródeł (cache 30 min; `day` w kluczu przesuwa okno z datą)."""
+    return news.collect(list(rows), pd.Timestamp(day))
+
+
+def _news_row(it, label: dict, tickers: list | None = None) -> str:
+    badge = (f'<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:{GOLD};color:#111;'
+             f'margin-right:6px;font-weight:700">ESPI</span>') if it.kind == "espi" else ""
+    return (f'<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid {BORDER};font-size:13px">'
+            f'<span style="color:{MUTED};white-space:nowrap;font-variant-numeric:tabular-nums">{it.date:%d.%m}</span>'
+            f'<span style="color:{GOLD};font-weight:600;white-space:nowrap;min-width:64px">'
+            f'{"<br>".join(escape(label.get(x, x)) for x in (tickers or [it.ticker]))}</span>'
+            f'<span style="flex:1;min-width:0;overflow-wrap:anywhere">{badge}'
+            f'<a href="{escape(it.link, quote=True)}" target="_blank" rel="noopener" '
+            f'style="color:{TEXT};text-decoration:none">{escape(it.title)}</a>'
+            f' <span style="color:{MUTED};font-size:12px">· {escape(it.source)}</span></span></div>')
+
+
+def _news_sources(status: dict, label: dict) -> None:
+    if not status:
+        return
+    with st.expander(tr("Źródła newsów")):
+        cols = (("yahoo", "Yahoo"), ("google", "Google News"), ("espi", "ESPI"))
+        head = (f'<tr style="color:{MUTED}"><th style="text-align:left;font-weight:500">{tr("Spółka")}</th>'
+                + "".join(f'<th style="font-weight:500">{h}</th>' for _, h in cols) + "</tr>")
+        rows = "".join(
+            f'<tr><td style="color:{GOLD}">{escape(label.get(t, t))}</td>'
+            + "".join(f'<td style="text-align:center">{_MARK.get(s.get(k), "—")}</td>' for k, _ in cols)
+            + "</tr>" for t, s in sorted(status.items(), key=lambda x: label.get(x[0], x[0])))
+        st.html(f'<table style="width:100%;font-size:13px;border-collapse:collapse">{head}{rows}</table>')
+        st.caption(tr("✅ newsy pobrane · ❌ źródło nie odpowiedziało albo nic nie znalazło (strona spróbuje "
+                      "ponownie za 30 min) · — źródło nie dotyczy tej spółki (Yahoo: USA/Europa; Google News "
+                      "i ESPI: GPW)."))
+
+
+def _newsy(pos: pd.DataFrame) -> None:
+    st.markdown(tr("#### Newsy"))
+    if not is_premium():
+        premium_teaser(tr("Newsy o Twoich spółkach"),
+                       tr("Najnowsze artykuły o spółkach z portfela z ostatnich 14 dni — z Yahoo Finance, "
+                          "polskich serwisów (Google News) i komunikaty ESPI spółek z GPW."))
+        return
+    p = pos[(pos["category"] == "STOCK") & pos["yahoo"].notna()].drop_duplicates("yahoo")
+    if p.empty:
+        st.caption(tr("Brak spółek w portfelu — newsy dotyczą akcji, nie ETF-ów."))
+        return
+    label = dict(zip(p["yahoo"], p["xtb_ticker"]))
+    rows = tuple(sorted(zip(p["yahoo"], p["name"].astype(str))))
+    with st.spinner(tr("Pobieram newsy…")):
+        try:
+            items, status = _news(rows, f"{pd.Timestamp.now():%Y-%m-%d}")
+        except Exception:
+            items, status = [], {}
+    tickers = sorted({t for t, _ in rows}, key=lambda x: label.get(x, x))
+    choice = st.segmented_control(tr("Spółka"), ["__all__"] + tickers, default="__all__", key="pf_news_ticker",
+                                  format_func=lambda x: tr("Wszystkie") if x == "__all__" else label.get(x, x)) \
+        or "__all__"
+    if choice == "__all__":
+        shown = news.merge_across_tickers(items)      # wspólny artykuł kilku spółek = jeden wiersz
+    else:
+        shown = [(i, [i.ticker]) for i in items if i.ticker == choice]
+    if not shown:
+        st.caption(tr("Brak newsów z ostatnich 14 dni."))
+    else:
+        st.html("".join(_news_row(i, label, tk) for i, tk in shown[:NEWS_VISIBLE]))
+        if len(shown) > NEWS_VISIBLE:
+            with st.expander(tr("Pokaż więcej ({n})", n=len(shown) - NEWS_VISIBLE)):
+                st.html("".join(_news_row(i, label, tk) for i, tk in shown[NEWS_VISIBLE:]))
+    _news_sources(status, label)
+
+
 def _delete(ls) -> None:
     with st.popover(tr("Usuń portfel")):
         st.caption(tr("Usuwa wczytane konta z tej przeglądarki. Tej operacji nie można cofnąć."))
@@ -556,6 +631,7 @@ def _render_portfolio(ls, accounts: dict) -> None:
             else:
                 data, ccy, label = {}, {}, {}
             _technika(data, ccy, label)
+            _newsy(pos)
             _allocation(pos)
     with right:
         with st.container(key="pf_panel"):
