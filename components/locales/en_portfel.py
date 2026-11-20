@@ -69,4 +69,20 @@ PORTFEL: dict[str, str] = {
     "Brak otwartych pozycji na wybranym koncie.": "No open positions in the selected account.",
     "IKE": "IKE",
     "IKZE": "IKZE",
+    # wykresy w czasie (2026-11-20)
+    "#### Wartość i wpłaty": "#### Value and deposits",
+    "Pobieram historię kursów…": "Loading price history…",
+    "Nie udało się pobrać historii kursów — spróbuj ponownie za chwilę.":
+        "Could not load price history — please try again in a moment.",
+    "Brak operacji na wybranym koncie.": "No transactions in the selected account.",
+    "Eksport nie obejmuje całej historii konta — w XTB wybierz zakres dat od początku konta. Wykres może być niedokładny.":
+        "The export does not cover the full account history — in XTB pick a date range from the account opening. The chart may be inaccurate.",
+    "#### Porównanie z indeksami": "#### Comparison with indices",
+    "Twój portfel vs WIG20, mWIG40, S&P 500 i Nasdaq 100": "Your portfolio vs WIG20, mWIG40, S&P 500 and Nasdaq 100",
+    "Ile byś miał, gdyby każda Twoja wpłata trafiła tego samego dnia do indeksu.":
+        "How much you would have if every deposit had gone into the index on the same day.",
+    "Co gdyby: każda wpłata (i wypłata) tego samego dnia kupuje fundusz indeksowy z reinwestycją dywidend — WIG20: ETFBW20TR, mWIG40: ETFBM40TR, S&P 500: SPY, Nasdaq 100: QQQ (w zł).":
+        "What if: every deposit (and withdrawal) buys a dividend-reinvesting index fund on the same day — WIG20: ETFBW20TR, mWIG40: ETFBM40TR, S&P 500: SPY, Nasdaq 100: QQQ (in PLN).",
+    "Wartość portfela": "Portfolio value",
+    "Twój portfel": "Your portfolio",
 }

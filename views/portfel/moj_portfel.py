@@ -14,14 +14,14 @@ import streamlit as st
 from components import nav
 from components.auth import is_premium, premium_teaser
 from components.cards import kpi_card
-from components.charts import _base_layout
+from components.charts import _base_layout, benchmark_whatif_chart, portfolio_value_chart
 from components.constants import BORDER, CHART_COLORS, GOLD, MUTED, TEXT
 from components.formatting import GREEN, RED, fmt_number, fmt_pct
 from components.i18n import is_pl, tr
 from components.portfolio_storage import clear_portfolio, load_portfolio, save_portfolio
 from components.sidebar import render_footer
 from data.gpw_universe import GPW_NAMES
-from data.portfolio import valuation
+from data.portfolio import history, valuation
 from data.portfolio.tickers import currency_for, fx_ticker, xtb_to_yahoo
 from data.portfolio.xtb_parser import XtbFormatError, parse_xtb_xlsx
 from data.sp500_universe import SP500_NAMES
@@ -119,6 +119,70 @@ def _upcoming_reports(tickers: tuple[str, ...]) -> list[tuple[str, pd.Timestamp]
             if abs((pd.Timestamp(d).normalize() - today).days) <= 14:
                 out.append((t, pd.Timestamp(d)))
     return sorted(out, key=lambda x: x[1])
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _history_prices(tickers: tuple[str, ...], start: str) -> pd.DataFrame:
+    return history.fetch_history(tickers, start)
+
+
+def _history(accounts: dict, account_type: str | None) -> None:
+    """Wykresy w czasie: wartosc vs wplaty (free) i 'co gdyby' indeksy (Premium)."""
+    accs = list(accounts.values())
+    start = history.history_start(accs)
+    if start is None:
+        return
+    st.markdown(tr("#### Wartość i wpłaty"))
+    first = (pd.Timestamp(start) - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    with st.spinner(tr("Pobieram historię kursów…")):
+        try:
+            prices = _history_prices(tuple(sorted(history.history_tickers(accs))), first)
+        except Exception:
+            prices = pd.DataFrame()
+    if prices.empty:
+        st.info(tr("Nie udało się pobrać historii kursów — spróbuj ponownie za chwilę."))
+        return
+    df, checks = history.reconstruct(accs, prices, account_type)
+    if df.empty:
+        st.caption(tr("Brak operacji na wybranym koncie."))
+        return
+    if checks["volume_mismatch"] or checks["unparsed"]:
+        st.warning(tr("Eksport nie obejmuje całej historii konta — w XTB wybierz zakres dat od początku "
+                      "konta. Wykres może być niedokładny."))
+    st.plotly_chart(portfolio_value_chart(df), width="stretch", key="pf_hist_value",
+                    config={"displayModeBar": False})
+
+    st.markdown(tr("#### Porównanie z indeksami"))
+    if not is_premium():
+        premium_teaser(tr("Twój portfel vs WIG20, mWIG40, S&P 500 i Nasdaq 100"),
+                       tr("Ile byś miał, gdyby każda Twoja wpłata trafiła tego samego dnia do indeksu."))
+        return
+    bench = history.benchmark_prices_pln(prices)
+    flows = df["flow"][df["flow"] != 0]
+    comp = pd.DataFrame({"Twój portfel": df["value"]}, index=df.index)
+    for name in bench.columns:
+        comp[name] = history.whatif(flows, bench[name], df.index)
+    comp["Wpłaty netto"] = df["deposits"]
+    st.plotly_chart(benchmark_whatif_chart(comp), width="stretch", key="pf_hist_bench",
+                    config={"displayModeBar": False})
+    st.caption(tr("Co gdyby: każda wpłata (i wypłata) tego samego dnia kupuje fundusz indeksowy z "
+                  "reinwestycją dywidend — WIG20: ETFBW20TR, mWIG40: ETFBM40TR, S&P 500: SPY, "
+                  "Nasdaq 100: QQQ (w zł)."))
+    mine = float(df["value"].iloc[-1])
+    rows = []
+    for name in bench.columns:
+        v = comp[name].dropna()
+        if v.empty:
+            continue
+        diff = mine - float(v.iloc[-1])
+        color = GREEN if diff >= 0 else RED
+        rows.append(f'<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;'
+                    f'border-bottom:1px solid {BORDER};font-variant-numeric:tabular-nums">'
+                    f'<span style="color:{TEXT}">{escape(name)}</span><span style="color:{MUTED}">'
+                    f'{_pln(float(v.iloc[-1]))} · <span style="color:{color}">'
+                    f'{tr("Twój portfel")} {"+" if diff >= 0 else "−"}{_pln(abs(diff))}</span></span></div>')
+    if rows:
+        st.html("".join(rows))
 
 
 def _pln(v: float) -> str:
@@ -283,6 +347,8 @@ def _render_portfolio(ls, accounts: dict) -> None:
             st.info(tr("Brak otwartych pozycji na wybranym koncie."))
         else:
             _positions(pos)
+        _history(accounts, account_type)
+        if not pos.empty:
             _allocation(pos)
     with right:
         with st.container(key="pf_panel"):
