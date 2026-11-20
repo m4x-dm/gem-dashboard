@@ -28,6 +28,7 @@ data/
   cache/                # Local CSV cache for GPW indices — fallback when stooq blocked on cloud
   momentum.py           # Momentum, GEM signals, backtests, seasonality, drawdowns, Monte Carlo, TA, RS
   company.py            # Karta spolki: profil, momentum_profile, dywidendy (+_norm_yield, kalkulator po podatku), peers sektorowi, universe_prices
+  portfolio/            # Moj portfel: xtb_parser.py (eksport XLSX z XTB), tickers.py (XTB -> Yahoo + waluty/FX), valuation.py (wycena pozycji)
   market_status.py      # Pulpit: compute_regime, signal_since, next_rebalance_date, daily_change, top_movers, market_movers (cache 1h), MARKET_TILES
 components/
   nav.py                # REJESTR STRON (PageDef: key, path, title, icon :material/..:, section, free, description) + build_navigation/go/link/by_title/access_info
@@ -38,13 +39,14 @@ components/
   auth.py               # Premium: init_auth/is_premium/activate_code/deactivate, render_lock_screen(icon,title,desc), premium_teaser(title,desc)
   pdf_report.py         # PDF report generator (reportlab) — Helvetica na Linuxie: przekazuj etykiety ASCII
   company/              # Karta spolki — zakladki: header.py, overview.py (free), finance.py, results.py, ownership.py, dividends.py, peers.py (Premium)
+  portfolio_storage.py  # Moj portfel: zapis/odczyt kont w localStorage (klucz gem_dashboard_portfolio_v1)
   sidebar.py            # setup_sidebar(): globalny CSS (inject_css) + Premium + Ulubione + Alerty + ustawienia
 views/                  # STRONY (NIE "pages/" — katalog pages/ obok st.navigation psuje deep linki)
   start/pulpit.py       # Pulpit (domyslna): wyszukiwarka, status (sygnal + regime, rowne karty), kafelki rynku, Ulubione/watchlista, wyniki tygodnia, wygrani/przegrani, Top 5, wyniki 5 lat, PDF
   strategia/            # sygnal.py (Teraz | Historia | Statystyki | Kalendarz), backtest.py, gem_extended.py, gem_zloto.py, o_strategii.py
   etf/                  # ranking.py, porownaj.py (Wykresy | Head-to-head | Side-by-side), stopy_zwrotu.py, drawdowny.py
   spolki/               # karta.py (Karta spolki, `?t=TICKER&tab=SLUG`; 6 sekcji w `st.segmented_control` key `karta_tab` — renderuje sie TYLKO wybrana, nie `st.tabs` (ten wykonywal wszystkie, zimny Premium >3 min); `tab` = przeglad/finanse/wyniki/akcjonariat/dywidendy/konkurencja, brak = Przeglad, URL jest zrodlem prawdy (stan widgetu ustawiany przed jego utworzeniem, `on_change` pisze `?tab=`); free: naglowek + Przeglad, pozostale sekcje = teaser; Premium: wszystkie), sp500.py, gpw.py (rankingi/screenery, bez zakladek per spolka), top_picks.py, screener.py, kalendarz_wynikow.py, insiderzy.py
-  portfel/              # portfolio_builder.py, monte_carlo.py
+  portfel/              # moj_portfel.py (import XTB, pierwsza w sekcji), portfolio_builder.py, monte_carlo.py
   rynek/                # makro.py, sektory.py, intermarket.py, sezonowosc.py, waluta.py
   krypto/               # kryptowaluty.py (ostatnia sekcja menu)
 ```
@@ -63,6 +65,7 @@ views/                  # STRONY (NIE "pages/" — katalog pages/ obok st.naviga
 
 ## Key Design Decisions
 - **Theme (B "fintech", od 2026-11-15):** tokeny w `components/constants.py`, motyw w `.streamlit/config.toml`, globalny CSS w `sidebar.inject_css`. Karty bez ramek (cien `SHADOW`, radius 14), zloto `#D4B062` tylko jako akcent, etykiety bez wersalikow, liczby tabular-nums, ikony `:material/..:` zamiast emoji. Twarde stare kolory (`#C9A84C`, `#141929`) zakazane — pilnuje `tests/test_theme.py`. Plan: `docs/superpowers/plans/2026-11-15-gem-theme-fintech.md`.
+- **Mój portfel** (`views/portfel/moj_portfel.py`, darmowa; panel „Co się dzieje” Premium, od 2026-11-20) — import eksportu XLSX z XTB (konto zwykłe/IKE/IKZE, osobny plik na konto), pozycje z arkusza *Open Positions* wyceniane kursami Yahoo (jedno `yf.download`, fallback na kurs z pliku ⚠; sanity check: kurs różny o >50% od pliku → wycena z pliku, bo XTB notuje ETF-y z LSE w USD), kafelki, struktura, najbliższe raporty ±14 dni. Pakiet `data/portfolio/` (parser `xtb_parser.py`, mapowanie `tickers.py`: .US→bez przyrostka, .PL→.WA, .NL→.AS, .FR→.PA, .UK→.L /100; wycena `valuation.py`). Pułapki formatu XTB: plik deklaruje `<dimension ref="A1"/>` → w trybie read_only openpyxl widzi 1 wiersz, trzeba `ws.reset_dimensions()`; Cash Operations ma wiersz `Total` do pominięcia. Zapis w localStorage (`components/portfolio_storage.py`, klucz `gem_dashboard_portfolio_v1`); w sesji `st.session_state["portfolio_accounts"]`, bo `LocalStorage.getItem` jest nieaktualny po `setItem`; pusty odczyt NIE jest cache'owany (przy pierwszym montażu komponent zwraca {}). CFD pomijane. Spec: `docs/superpowers/specs/2026-11-19-moj-portfel-import-design.md`. Moduły 2–4 (alerty fundamentalne, technika, newsy) — osobne specy.
 - **Risk-free rate:** ^IRX (13-week T-bill) auto-fetched, with manual override in sidebar
 - **GEM logic:** Classic (QQQ/VEA/EEM/ACWI/AGG) + Extended (31 ETFs, composite score)
 - **Momentum 12M dla ETF (no skip) — od 2026-05-23, zweryfikowane ponownie 2026-10-08:** `backtest_gem()`, `backtest_tqqq_mom()` i `walk_forward_gem()` używają default `lookback=252, skip=0` (czyste 12M). **Re-test nie potwierdza, że to lepszy wybór.**
