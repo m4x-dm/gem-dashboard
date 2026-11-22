@@ -65,8 +65,8 @@ def render_now(rf: float) -> None:
     with st.expander(tr("Jak czytac sygnal GEM?")):
         st.markdown(tr_doc("sygnal_jak_czytac", """
         **Klasyczny GEM** analizuje 5 aktywow:
-        1. Jesli zwrot QQQ 12M < stopa wolna → **kup obligacje (AGG)**
-        2. Jesli momentum dodatni → **kup najlepszy z QQQ / VEA / EEM / ACWI** (porownanie relatywne)
+        1. Wybierz najlepszy z QQQ / VEA / EEM / ACWI wg zwrotu 12M (porownanie relatywne)
+        2. Jesli zwrot zwyciezcy 12M > stopa wolna → **kup go**, inaczej → **kup obligacje (AGG)**
 
         **Momentum 12M (no skip) dla ETF — od 2026-05-23:** zwrot liczony jako
         `price(t) / price(t-252) - 1` (pelne 12 miesiecy). Ponowny test z pazdziernika 2026 na koszyku

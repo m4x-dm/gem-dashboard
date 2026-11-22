@@ -176,8 +176,8 @@ relatywnym (porownanie rynkow).
 ### Zasady
 | Krok | Warunek | Akcja |
 |------|---------|-------|
-| 1 | QQQ momentum 12M < stopa wolna | → Obligacje (AGG) |
-| 2 | QQQ 12M > stopa wolna | → Porownaj QQQ vs VEA vs EEM vs ACWI, kup najlepszy |
+| 1 | Porownaj QQQ vs VEA vs EEM vs ACWI | → Wybierz najlepszy wg momentum 12M |
+| 2 | Zwyciezca 12M < stopa wolna | → Obligacje (AGG), inaczej kup zwyciezce |
 
 **Rebalans miesięczny** (co 21 dni roboczych). Zawsze 100% w jednym aktywie.
 **Momentum 12M (no skip) — od 2026-05-23.** Wczesniej skip-month (12-1). Ponowny test

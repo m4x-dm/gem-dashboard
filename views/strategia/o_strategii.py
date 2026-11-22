@@ -32,8 +32,8 @@ Strategia podejmuje decyzje raz w miesiacu w 3 krokach:
 
 | Krok | Warunek | Akcja |
 |------|---------|-------|
-| 1 | Zwrot QQQ 12M < stopa wolna | → Kup obligacje (AGG) |
-| 2 | Porownaj QQQ vs VEA vs EEM vs ACWI | → Kup aktywo z najwyzszym 12M momentum |
+| 1 | Porownaj QQQ vs VEA vs EEM vs ACWI | → Wybierz aktywo z najwyzszym 12M momentum |
+| 2 | Zwrot zwyciezcy 12M < stopa wolna | → Kup obligacje (AGG), inaczej kup zwyciezce |
 
 **Zawsze jestes w 100% w jednym aktywie** — to strategia typu "all-in/all-out".
 Porownywane sa 4 rynki akcji: USA (QQQ), rozw. (VEA), wsch. (EEM), swiat (ACWI).
