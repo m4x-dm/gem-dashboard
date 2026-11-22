@@ -9,8 +9,8 @@ momentum (comparing markets).
 ### Rules
 | Step | Condition | Action |
 |------|-----------|--------|
-| 1 | QQQ 12M momentum < risk-free rate | → Bonds (AGG) |
-| 2 | QQQ 12M > risk-free rate | → Compare QQQ vs VEA vs EEM vs ACWI, buy the best |
+| 1 | Compare QQQ vs VEA vs EEM vs ACWI | → Pick the best by 12M momentum |
+| 2 | Winner's 12M < risk-free rate | → Bonds (AGG), otherwise buy the winner |
 
 **Monthly rebalance** (every 21 trading days). Always 100% in one asset.
 **12M momentum (no skip) — since 2026-05-23.** Previously skip-month (12-1). A re-test in

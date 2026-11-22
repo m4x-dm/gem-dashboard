@@ -16,6 +16,9 @@ from components.charts import ranking_bar_chart, _base_layout
 from components.formatting import MUTED, BG_CARD, BORDER
 from components.constants import GREEN, SHADOW
 from components.i18n import tr, tr_doc
+from components.h2h_compare import render_h2h
+
+GEM_COMPARE_DEFAULT = ["QQQ", "VEA", "EEM", "AGG"]
 
 SIGNAL_COLORS = {"QQQ": GREEN, "VEA": "#3B82F6", "EEM": "#A855F7", "ACWI": "#06B6D4", "AGG": "#FBBF24"}
 SIGNAL_LABELS = {"QQQ": "Akcje USA", "VEA": "Rynki rozwinięte", "EEM": "Rynki wschodzace",
@@ -65,8 +68,8 @@ def render_now(rf: float) -> None:
     with st.expander(tr("Jak czytac sygnal GEM?")):
         st.markdown(tr_doc("sygnal_jak_czytac", """
         **Klasyczny GEM** analizuje 5 aktywow:
-        1. Jesli zwrot QQQ 12M < stopa wolna → **kup obligacje (AGG)**
-        2. Jesli momentum dodatni → **kup najlepszy z QQQ / VEA / EEM / ACWI** (porownanie relatywne)
+        1. Wybierz najlepszy z QQQ / VEA / EEM / ACWI wg zwrotu 12M (porownanie relatywne)
+        2. Jesli zwrot zwyciezcy 12M > stopa wolna → **kup go**, inaczej → **kup obligacje (AGG)**
 
         **Momentum 12M (no skip) dla ETF — od 2026-05-23:** zwrot liczony jako
         `price(t) / price(t-252) - 1` (pelne 12 miesiecy). Ponowny test z pazdziernika 2026 na koszyku
@@ -314,10 +317,20 @@ def render_calendar_tab(prices, signal_periods) -> None:
 st.markdown("# " + tr("Sygnał GEM"))
 rf = get_risk_free()
 
-tab_now, tab_hist, tab_stats, tab_cal = st.tabs(["🎯 " + tr("Teraz"), "📜 " + tr("Historia"), "📊 " + tr("Statystyki"), "📅 " + tr("Kalendarz")])
+tab_now, tab_cmp, tab_hist, tab_stats, tab_cal = st.tabs(["🎯 " + tr("Teraz"), "⚖️ " + tr("Porównanie"), "📜 " + tr("Historia"),
+                                                         "📊 " + tr("Statystyki"), "📅 " + tr("Kalendarz")])
 
 with tab_now:
     render_now(rf)
+
+with tab_cmp:
+    if is_premium():
+        # To samo porownanie co ETF → Porownaj → Head-to-head, start od koszyka GEM
+        render_h2h(default=GEM_COMPARE_DEFAULT, key="gem_h2h",
+                   caption="Porownanie ETF-ow z koszyka GEM — mozesz zmienic sklad (2-4)")
+    else:
+        premium_teaser(tr("Porównanie ETF-ów GEM"),
+                       tr("Stopy zwrotu, wykres, statystyki, korelacje i relative strength QQQ / VEA / EEM / AGG."))
 
 if is_premium():
     data = build_signal_periods(rf)

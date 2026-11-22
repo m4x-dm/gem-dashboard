@@ -186,6 +186,11 @@ def gem_classic_signal(prices: pd.DataFrame, risk_free_annual: float) -> dict:
 
     Momentum 12M bez skip-month (price(t)/price(t-252)-1) — ta sama definicja
     co w backtest_gem (lookback=252, skip=0).
+
+    Regula (od 2026-11-22): najpierw momentum relatywny — wybierz ETF akcyjny
+    z najwyzszym 12M; potem momentum absolutny NA ZWYCIEZCY — jesli jego 12M
+    < stopa wolna → AGG. Wczesniej filtr absolutny sprawdzal tylko QQQ, przez
+    co np. w XI 2026 sygnal byl AGG mimo VEA +9,4% > T-bill 4,1%.
     """
     rets = latest_returns(prices, skip_month=False)
     rf_decimal = risk_free_annual / 100.0
@@ -196,22 +201,20 @@ def gem_classic_signal(prices: pd.DataFrame, risk_free_annual: float) -> dict:
     acwi_ret = rets.loc["ACWI", "12M"] if "ACWI" in rets.index else np.nan
     agg_ret = rets.loc["AGG", "12M"] if "AGG" in rets.index else np.nan
 
-    if pd.isna(qqq_ret):
+    # Momentum relatywny: najlepszy z QQQ / VEA / EEM / ACWI
+    candidates = {t: r for t, r in
+                  (("QQQ", qqq_ret), ("VEA", vea_ret), ("EEM", eem_ret), ("ACWI", acwi_ret))
+                  if pd.notna(r)}
+    best = max(candidates, key=candidates.get) if candidates else None
+
+    if pd.isna(qqq_ret) or best is None:
         signal = "BRAK_DANYCH"
         label = "Brak danych do obliczenia sygnalu"
-    elif qqq_ret < rf_decimal:
+    elif candidates[best] < rf_decimal:
+        # Momentum absolutny: nawet najlepszy rynek akcji przegrywa z T-billami
         signal = "AGG"
         label = "OBLIGACJE (AGG) — momentum absolutny ujemny"
     else:
-        # Momentum relatywny: porownaj QQQ vs VEA vs EEM vs ACWI
-        candidates = {"QQQ": qqq_ret}
-        if pd.notna(vea_ret):
-            candidates["VEA"] = vea_ret
-        if pd.notna(eem_ret):
-            candidates["EEM"] = eem_ret
-        if pd.notna(acwi_ret):
-            candidates["ACWI"] = acwi_ret
-        best = max(candidates, key=candidates.get)
         if best == "QQQ":
             signal = "QQQ"
             label = "AKCJE USA (QQQ) — momentum relatywny na korzysc USA"
@@ -314,14 +317,14 @@ def backtest_gem(prices: pd.DataFrame, risk_free_annual: float,
             rv = regime_aligned.iloc[idx]
             if pd.notna(rv) and rv > regime_threshold:
                 return "AGG"
-        qqq_r = prices_clean["QQQ"].iloc[idx - skip] / prices_clean["QQQ"].iloc[idx - lookback] - 1
-        if qqq_r < rf_decimal:
-            return "AGG"
         candidates = {
             a: prices_clean[a].iloc[idx - skip] / prices_clean[a].iloc[idx - lookback] - 1
             for a in equity_assets
         }
         best = max(candidates, key=candidates.get)
+        # Momentum absolutny na zwyciezcy (nie na samym QQQ) — spojnie z gem_classic_signal
+        if candidates[best] < rf_decimal:
+            return "AGG"
         if trend_filter and sma is not None and idx >= 1:
             # Uzyj wczorajszej ceny + SMA (no lookahead w decyzji na dzis)
             price_prev = prices_clean[best].iloc[idx - 1]

@@ -370,6 +370,12 @@ EN: dict[str, str] = {
     "Historia sygnałów": "Signal history",
     "Statystyki sygnałów": "Signal statistics",
     "Kalendarz sygnałów": "Signal calendar",
+    "Porównanie": "Comparison",
+    "Porównanie ETF-ów GEM": "GEM ETF comparison",
+    "Stopy zwrotu, wykres, statystyki, korelacje i relative strength QQQ / VEA / EEM / AGG.":
+        "Returns, chart, statistics, correlations and relative strength of QQQ / VEA / EEM / AGG.",
+    "Porownanie ETF-ow z koszyka GEM — mozesz zmienic sklad (2-4)":
+        "Comparison of the GEM basket ETFs — you can change the selection (2-4)",
     "Pełna historia zmian sygnału GEM, czas trwania pozycji i alokacja w czasie.":
         "The full history of GEM signal changes, how long each position lasted and allocation over time.",
 
@@ -393,8 +399,8 @@ EN.update(PORTFEL)
 DOCS: dict[str, str] = {
     "sygnal_jak_czytac": """
         **Classic GEM** looks at 5 assets:
-        1. If QQQ's 12M return < the risk-free rate → **buy bonds (AGG)**
-        2. If momentum is positive → **buy the best of QQQ / VEA / EEM / ACWI** (relative comparison)
+        1. Pick the best of QQQ / VEA / EEM / ACWI by 12M return (relative comparison)
+        2. If the winner's 12M return > the risk-free rate → **buy it**, otherwise → **buy bonds (AGG)**
 
         **12M momentum (no skip) for ETFs — since 2026-05-23:** the return is calculated as
         `price(t) / price(t-252) - 1` (a full 12 months). A re-test in October 2026 on the
@@ -436,8 +442,8 @@ The strategy makes one decision a month, in these steps:
 
 | Step | Condition | Action |
 |------|-----------|--------|
-| 1 | QQQ 12M return < risk-free rate | → Buy bonds (AGG) |
-| 2 | Compare QQQ vs VEA vs EEM vs ACWI | → Buy the asset with the highest 12M momentum |
+| 1 | Compare QQQ vs VEA vs EEM vs ACWI | → Pick the asset with the highest 12M momentum |
+| 2 | Winner's 12M return < risk-free rate | → Buy bonds (AGG), otherwise buy the winner |
 
 **You are always 100% in one asset** — it is an "all-in/all-out" strategy.
 Four equity markets are compared: the US (QQQ), developed (VEA), emerging (EEM) and the world (ACWI).
