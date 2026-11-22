@@ -370,6 +370,12 @@ EN: dict[str, str] = {
     "Historia sygnałów": "Signal history",
     "Statystyki sygnałów": "Signal statistics",
     "Kalendarz sygnałów": "Signal calendar",
+    "Porównanie": "Comparison",
+    "Porównanie ETF-ów GEM": "GEM ETF comparison",
+    "Stopy zwrotu, wykres, statystyki, korelacje i relative strength QQQ / VEA / EEM / AGG.":
+        "Returns, chart, statistics, correlations and relative strength of QQQ / VEA / EEM / AGG.",
+    "Porownanie ETF-ow z koszyka GEM — mozesz zmienic sklad (2-4)":
+        "Comparison of the GEM basket ETFs — you can change the selection (2-4)",
     "Pełna historia zmian sygnału GEM, czas trwania pozycji i alokacja w czasie.":
         "The full history of GEM signal changes, how long each position lasted and allocation over time.",
 
