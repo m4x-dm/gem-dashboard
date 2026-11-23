@@ -887,8 +887,41 @@ def backtest_gem_extended(prices: pd.DataFrame, risk_free_annual: float,
     return result
 
 
-GM_EQUITY_EX_US = ["EFA", "EEM"]    # rynki rozwiniete ex-US, rynki wschodzace
+# Rynki rozwiniete ex-US = VEA (jak w GEM klasycznym; FTSE Developed ex-US z Kanada, blizej
+# MSCI World ex-US autora niz EFA/EAFE). VEA notowany od VII 2007 — wczesniej zwroty EFA.
+GM_EQUITY_EX_US = ["VEA", "EEM"]    # rynki rozwiniete ex-US, rynki wschodzace
+GM_EX_US_PROXY = {"VEA": "EFA"}     # uzupelnienie historii sprzed debiutu
 GM_BONDS = ["TBILL", "IEF"]         # bony 3M (syntetyczne z ^IRX), obligacje USA 7-10Y
+GM_SESSIONS_PER_MONTH = 21          # biezacy sygnal: 12M = 252 sesje, jak gem_classic_signal
+
+
+def splice_proxy(prices: pd.DataFrame, primary: str, proxy: str) -> pd.DataFrame:
+    """Uzupelnia historie `primary` sprzed jej pierwszej wyceny zwrotami `proxy`.
+
+    Od pierwszej waznej ceny primary nic sie nie zmienia; wczesniej cena = cena proxy
+    przeskalowana tak, by w dniu debiutu obie serie sie stykaly (zwroty proxy 1:1).
+    Gdy primary nie ma kolumny, kopiuje proxy. Bez proxy zwraca dane bez zmian.
+    """
+    if proxy not in prices.columns:
+        return prices
+    out = prices.copy()
+    prx = out[proxy]
+    if primary not in out.columns or out[primary].dropna().empty:
+        out[primary] = prx
+        return out
+    first = out[primary].first_valid_index()
+    if pd.isna(prx.get(first, np.nan)):
+        return out
+    scale = out.at[first, primary] / prx.loc[first]
+    early = out.index < first
+    out.loc[early, primary] = prx.loc[early] * scale
+    return out
+
+
+def _gm_with_proxies(prices: pd.DataFrame) -> pd.DataFrame:
+    for primary, proxy in GM_EX_US_PROXY.items():
+        prices = splice_proxy(prices, primary, proxy)
+    return prices
 
 
 def tbill_index(irx: pd.Series) -> pd.Series:
@@ -909,7 +942,8 @@ def gold_momentum_pick(mom: dict[str, float], gold: str = "GLD",
     """Regula Gold Momentum (Inwestomat). Zwraca (galaz, aktywo).
 
     1. Momentum absolutne: najwyzszy zwrot z akcji USA (us) / zloto / bony 3M wybiera galaz.
-    2. Galaz akcji: najlepszy z us / EFA / EEM (momentum relatywne).
+    2. Galaz akcji: najlepszy z us / VEA / EEM (momentum relatywne; VEA jak w GEM klasycznym,
+       przed VII 2007 zwroty EFA — patrz splice_proxy).
     Autor uzywa S&P 500 (us="SPY"); us="QQQ" = wariant z Nasdaq-100 jak w GEM.
        Galaz obligacji: lepsze z bonow 3M / obligacji 7-10Y. Galaz zlota: zloto.
     """
@@ -924,6 +958,7 @@ def gold_momentum_pick(mom: dict[str, float], gold: str = "GLD",
 def _gm_monthly(prices: pd.DataFrame, tbill: pd.Series, gold: str,
                 us: str = "SPY") -> pd.DataFrame | None:
     cols = [us] + GM_EQUITY_EX_US + [gold, "IEF"]
+    prices = _gm_with_proxies(prices)
     if any(c not in prices.columns for c in cols) or tbill is None or tbill.empty:
         return None
     daily = prices[cols].copy()
@@ -944,7 +979,8 @@ def backtest_gold_momentum(prices: pd.DataFrame, tbill: pd.Series,
     Ostatni wiersz moze byc niepelnym biezacym miesiacem.
 
     Args:
-        prices: dzienne ceny (total return) us (SPY/QQQ), EFA, EEM, IEF + ticker zlota
+        prices: dzienne ceny (total return) us (SPY/QQQ), VEA (+ EFA do uzupelnienia sprzed 2007),
+            EEM, IEF + ticker zlota
         tbill: indeks bonow 3M z tbill_index()
         tax_belka / transaction_cost: przy kazdej zmianie aktywa (jak backtest_gem)
 
@@ -981,7 +1017,7 @@ def backtest_gold_momentum(prices: pd.DataFrame, tbill: pd.Series,
         equity.append(eq * (1 + rets[asset].iloc[i + 1]))
 
     curves = {"GEM Gold Momentum": pd.Series(equity, index=dates, name="GEM Gold Momentum")}
-    for t in (us, gold, "EFA", "EEM"):
+    for t in (us, gold, "VEA", "EEM"):
         p = m[t].loc[dates]
         curves[f"{t} B&H"] = start_capital * p / p.iloc[0]
     tb = m["TBILL"].loc[dates]
@@ -1001,20 +1037,26 @@ def backtest_gold_momentum(prices: pd.DataFrame, tbill: pd.Series,
 
 def gold_momentum_now(prices: pd.DataFrame, tbill: pd.Series, gold: str = "GLD",
                       lookback_months: int = 12, us: str = "SPY") -> dict | None:
-    """Biezacy sygnal z ostatniego zamkniecia: zwrot od tej samej daty L miesiecy temu."""
+    """Biezacy sygnal z ostatniego zamkniecia.
+
+    Okno = lookback_months * 21 sesji (12M = 252 sesje), ta sama definicja co
+    gem_classic_signal, zeby oba sygnaly liczyly momentum od tej samej daty.
+    Backtest (decyzje na koniec miesiaca) dalej uzywa cen koncow miesiecy.
+    """
     cols = [us] + GM_EQUITY_EX_US + [gold, "IEF"]
+    prices = _gm_with_proxies(prices)
     if any(c not in prices.columns for c in cols) or tbill is None or tbill.empty:
         return None
     d = prices[cols].copy()
     d["TBILL"] = tbill.reindex(d.index).ffill()
     d = d.ffill().dropna()
-    if d.empty:
+    # sesje gieldy akcji (bez dni, w ktore notowany byl tylko ^IRX) — jak w GEM klasycznym
+    d = d[prices[us].reindex(d.index).notna()]
+    n = lookback_months * GM_SESSIONS_PER_MONTH
+    if len(d) <= n:
         return None
     last = d.index[-1]
-    past_date = last - pd.DateOffset(months=lookback_months)
-    if past_date < d.index[0]:
-        return None
-    past = d.loc[:past_date].iloc[-1]
+    past = d.iloc[-1 - n]
     mom = (d.iloc[-1] / past - 1).to_dict()
     branch, asset = gold_momentum_pick(mom, gold, us)
     return {"date": last, "returns": mom, "branch": branch, "asset": asset}

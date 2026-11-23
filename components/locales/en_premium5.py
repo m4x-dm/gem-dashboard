@@ -99,7 +99,7 @@ DYNAMIC: dict[str, str] = {
     "0 (no skip — default dla ETF)": "0 (no skip — default for ETFs)",
     "21 (skip-month — klasyczny Jegadeesh)": "21 (skip-month — classic Jegadeesh)",
     # GEM Gold Momentum
-    "🇺🇸 Nasdaq-100 (QQQ)": "🇺🇸 Nasdaq-100 (QQQ)", "🌍 Rozwiniete ex-US (EFA)": "🌍 Developed ex-US (EFA)",
+    "🇺🇸 Nasdaq-100 (QQQ)": "🇺🇸 Nasdaq-100 (QQQ)", "🌍 Rozwiniete ex-US (VEA)": "🌍 Developed ex-US (VEA)",
     "🌏 Wschodzace (EEM)": "🌏 Emerging (EEM)", "🥇 Zloto (GLD)": "🥇 Gold (GLD)", "🥇 Zloto (IAU)": "🥇 Gold (IAU)",
     "💵 Bony 3M": "💵 3M T-bills", "📜 Obligacje 7-10Y (IEF)": "📜 7-10Y Treasuries (IEF)",
     "Akcje": "Stocks",

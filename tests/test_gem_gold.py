@@ -1,7 +1,7 @@
 """Testy strategii Gold Momentum (strona 25, regula z inwestomat.eu).
 
 Regula: (1) najwyzsze 12M z S&P 500 / zloto / bony 3M wybiera galaz,
-(2) w galezi akcji najlepszy z SPY/EFA/EEM, w galezi obligacji lepsze
+(2) w galezi akcji najlepszy z SPY/VEA/EEM (VEA jak w GEM, przed 2007 zwroty EFA), w galezi obligacji lepsze
 z bonow 3M / obligacji 7-10Y, w galezi zlota zloto.
 """
 
@@ -15,6 +15,7 @@ from data.momentum import (
     gold_momentum_now,
     gold_momentum_pick,
     gold_momentum_sensitivity,
+    splice_proxy,
     signal_time_share,
     tbill_index,
 )
@@ -31,32 +32,32 @@ def _prices(drifts: dict[str, float], n: int = 1300, seed: int | None = None) ->
     return pd.DataFrame(data, index=idx), tbill_index(irx)
 
 
-BASE = {"SPY": 0.0004, "EFA": 0.0002, "EEM": 0.0001, "GLD": 0.0001, "IEF": 0.00005}
+BASE = {"SPY": 0.0004, "VEA": 0.0002, "EEM": 0.0001, "GLD": 0.0001, "IEF": 0.00005}
 
 
 class TestPick:
     def test_galaz_akcji_wybiera_najlepszy_indeks(self):
-        mom = {"SPY": 0.10, "EFA": 0.15, "EEM": 0.05, "GLD": 0.02, "TBILL": 0.03, "IEF": 0.01}
-        assert gold_momentum_pick(mom) == ("Akcje", "EFA")
+        mom = {"SPY": 0.10, "VEA": 0.15, "EEM": 0.05, "GLD": 0.02, "TBILL": 0.03, "IEF": 0.01}
+        assert gold_momentum_pick(mom) == ("Akcje", "VEA")
 
-    def test_efa_nie_decyduje_o_galezi(self):
-        # EFA najsilniejsze, ale galaz wybiera tylko SPY vs zloto vs bony
-        mom = {"SPY": 0.01, "EFA": 0.30, "EEM": 0.20, "GLD": 0.05, "TBILL": 0.02, "IEF": 0.0}
+    def test_vea_nie_decyduje_o_galezi(self):
+        # VEA najsilniejsze, ale galaz wybiera tylko SPY vs zloto vs bony
+        mom = {"SPY": 0.01, "VEA": 0.30, "EEM": 0.20, "GLD": 0.05, "TBILL": 0.02, "IEF": 0.0}
         assert gold_momentum_pick(mom) == ("Zloto", "GLD")
 
     def test_galaz_obligacji(self):
-        mom = {"SPY": -0.1, "EFA": -0.1, "EEM": -0.2, "GLD": -0.05, "TBILL": 0.03, "IEF": 0.06}
+        mom = {"SPY": -0.1, "VEA": -0.1, "EEM": -0.2, "GLD": -0.05, "TBILL": 0.03, "IEF": 0.06}
         assert gold_momentum_pick(mom) == ("Obligacje", "IEF")
         mom["IEF"] = 0.01
         assert gold_momentum_pick(mom) == ("Obligacje", "TBILL")
 
     def test_inny_ticker_zlota(self):
-        mom = {"SPY": 0.0, "EFA": 0, "EEM": 0, "IAU": 0.2, "TBILL": 0.01, "IEF": 0}
+        mom = {"SPY": 0.0, "VEA": 0, "EEM": 0, "IAU": 0.2, "TBILL": 0.01, "IEF": 0}
         assert gold_momentum_pick(mom, gold="IAU") == ("Zloto", "IAU")
 
 
     def test_qqq_zamiast_spy(self):
-        mom = {"SPY": 0.50, "QQQ": 0.10, "EFA": 0.05, "EEM": 0.0, "GLD": 0.08, "TBILL": 0.02, "IEF": 0}
+        mom = {"SPY": 0.50, "QQQ": 0.10, "VEA": 0.05, "EEM": 0.0, "GLD": 0.08, "TBILL": 0.02, "IEF": 0}
         # SPY ignorowany, gdy galaz akcji reprezentuje QQQ
         assert gold_momentum_pick(mom, us="QQQ") == ("Akcje", "QQQ")
         mom["GLD"] = 0.12
@@ -88,7 +89,7 @@ class TestBacktest:
         np.testing.assert_allclose(gm.pct_change().iloc[1:], gld.pct_change().iloc[1:], rtol=1e-9)
 
     def test_bessa_ucieka_w_obligacje(self):
-        prices, tb = _prices({"SPY": -0.0005, "EFA": -0.0005, "EEM": -0.0006,
+        prices, tb = _prices({"SPY": -0.0005, "VEA": -0.0005, "EEM": -0.0006,
                               "GLD": -0.0003, "IEF": 0.0002})
         res = backtest_gold_momentum(prices, tb)
         assert res["signals"][-1][1] == "IEF"
@@ -117,7 +118,7 @@ class TestBacktest:
         prices, tb = _prices(BASE, seed=1)
         res = backtest_gold_momentum(prices, tb, start_capital=1000)
         idx = res["equity"]["GEM Gold Momentum"].index
-        assert set(res["equity"]) == {"GEM Gold Momentum", "SPY B&H", "GLD B&H", "EFA B&H", "EEM B&H"}
+        assert set(res["equity"]) == {"GEM Gold Momentum", "SPY B&H", "GLD B&H", "VEA B&H", "EEM B&H"}
         for s in res["equity"].values():
             assert s.index.equals(idx)
             assert s.iloc[0] == pytest.approx(1000)
@@ -158,3 +159,47 @@ class TestHelpers:
         assert share.sum() == pytest.approx(1.0)
         assert share["QQQ"] == pytest.approx(70 / 100)
         assert share["GLD"] == pytest.approx(30 / 100)
+
+
+class TestVeaIOkno252:
+    def test_splice_proxy_dokleja_historie_sprzed_debiutu(self):
+        idx = pd.bdate_range("2006-01-02", periods=10)
+        efa = pd.Series(np.linspace(100, 109, 10), index=idx)
+        vea = pd.Series([np.nan] * 4 + [50.0, 51, 52, 53, 54, 55], index=idx)
+        out = splice_proxy(pd.DataFrame({"VEA": vea, "EFA": efa}), "VEA", "EFA")
+        # od debiutu bez zmian
+        pd.testing.assert_series_equal(out["VEA"].iloc[4:], vea.iloc[4:], check_names=False)
+        # przed debiutem zwroty EFA 1:1, styk w dniu debiutu
+        np.testing.assert_allclose(out["VEA"].iloc[:5].pct_change().iloc[1:],
+                                   efa.iloc[:5].pct_change().iloc[1:], rtol=1e-12)
+        assert out["VEA"].isna().sum() == 0
+
+    def test_splice_bez_proxy_lub_bez_primary(self):
+        idx = pd.bdate_range("2006-01-02", periods=3)
+        df = pd.DataFrame({"VEA": [1.0, 2.0, 3.0]}, index=idx)
+        pd.testing.assert_frame_equal(splice_proxy(df, "VEA", "EFA"), df)
+        only_efa = pd.DataFrame({"EFA": [1.0, 2.0, 3.0]}, index=idx)
+        assert list(splice_proxy(only_efa, "VEA", "EFA")["VEA"]) == [1.0, 2.0, 3.0]
+
+    def test_backtest_dziala_na_samym_efa_przed_debiutem_vea(self):
+        prices, tb = _prices({**BASE, "SPY": -0.0003, "VEA": 0.0008})
+        prices["EFA"] = prices["VEA"]
+        prices.loc[prices.index[:400], "VEA"] = np.nan   # VEA "debiutuje" pozniej
+        res = backtest_gold_momentum(prices, tb)
+        assert res is not None
+        assert res["equity"]["GEM Gold Momentum"].index[0] < prices.index[400]
+
+    def test_sygnal_teraz_liczy_252_sesje(self):
+        prices, tb = _prices(BASE, seed=4)
+        out = gold_momentum_now(prices, tb)
+        exp = prices["VEA"].iloc[-1] / prices["VEA"].iloc[-253] - 1
+        assert out["returns"]["VEA"] == pytest.approx(exp, rel=1e-12)
+
+    def test_sygnal_teraz_pomija_dni_bez_sesji_akcji(self):
+        prices, tb = _prices(BASE, seed=6)
+        extra = prices.index[-100] + pd.Timedelta(hours=12)   # dzien tylko z ^IRX
+        p2 = pd.concat([prices, pd.DataFrame(index=[extra])]).sort_index()
+        tb2 = tb.reindex(p2.index).ffill()
+        a = gold_momentum_now(prices, tb)["returns"]["SPY"]
+        b = gold_momentum_now(p2, tb2)["returns"]["SPY"]
+        assert a == pytest.approx(b, rel=1e-12)

@@ -25,12 +25,12 @@ from components.i18n import tr
 st.markdown(tr("# GEM Gold Momentum"))
 st.caption(
     tr("Momentum ze zlotem wg inwestomat.eu, w wersji GEM: momentum 12M wybiera miedzy Nasdaq-100 (QQQ), "
-    "zlotem i bonami 3M, a w galezi akcji najsilniejszy z QQQ, rynkow rozwinietych ex-US (EFA) "
+    "zlotem i bonami 3M, a w galezi akcji najsilniejszy z QQQ, rynkow rozwinietych ex-US (VEA, jak w GEM) "
     "i rynkow wschodzacych (EEM). Autor artykulu uzywa S&P 500 zamiast QQQ.")
 )
 
 ASSET_LABELS = {
-    "QQQ": "🇺🇸 Nasdaq-100 (QQQ)", "EFA": "🌍 Rozwiniete ex-US (EFA)", "EEM": "🌏 Wschodzace (EEM)",
+    "QQQ": "🇺🇸 Nasdaq-100 (QQQ)", "VEA": "🌍 Rozwiniete ex-US (VEA)", "EEM": "🌏 Wschodzace (EEM)",
     "GLD": "🥇 Zloto (GLD)", "IAU": "🥇 Zloto (IAU)",
     "TBILL": "💵 Bony 3M", "IEF": "📜 Obligacje 7-10Y (IEF)",
 }
@@ -63,7 +63,7 @@ with st.expander(tr("Koszty transakcji i podatek Belki")):
                                    "Dotyczy Gold Momentum i GEM; B&H bez podatku."))
 
 # ====== Dane ======
-GM_TICKERS = [us, "EFA", "EEM", "IEF", gold]
+GM_TICKERS = [us, "VEA", "EFA", "EEM", "IEF", gold]  # EFA: historia VEA sprzed VII 2007
 tickers = list(dict.fromkeys(GM_TICKERS + ["^IRX"] + GEM_TICKERS))
 with st.spinner(tr("Pobieram pelna historie (od 2004)...")):
     raw = download_prices(tickers, period="max")
@@ -79,7 +79,7 @@ else:
 
 if page_ok:
     tb_full = tbill_index(raw["^IRX"])
-    first_common = raw[GM_TICKERS].dropna().index[0]
+    first_common = raw[[t for t in GM_TICKERS if t != "VEA"]].dropna().index[0]
     first_year = (first_common + pd.DateOffset(months=lookback + 1)).year
     last_year = raw.index[-1].year - 2
     start_year = st.select_slider(tr("Poczatek backtestu"), list(range(first_year, last_year + 1)),
@@ -151,14 +151,14 @@ if page_ok:
             a.plotly_chart(_bars([us, gold, "TBILL"], "Krok 1 — momentum absolutne (wybor galezi)"),
                            width="stretch")
             if now["branch"] == "Akcje":
-                b.plotly_chart(_bars([us, "EFA", "EEM"], "Krok 2 — najlepszy indeks akcji"), width="stretch")
+                b.plotly_chart(_bars([us, "VEA", "EEM"], "Krok 2 — najlepszy indeks akcji"), width="stretch")
             elif now["branch"] == "Obligacje":
                 b.plotly_chart(_bars(["TBILL", "IEF"], "Krok 2 — bony 3M czy obligacje 7-10Y"), width="stretch")
             else:
-                b.plotly_chart(_bars([us, "EFA", "EEM", "TBILL", "IEF"],
+                b.plotly_chart(_bars([us, "VEA", "EEM", "TBILL", "IEF"],
                                      "Pozostale aktywa (dla kontekstu)"), width="stretch")
-            st.caption(tr("Sygnal biezacy liczony od dzisiejszego zamkniecia; strategia handluje raz w miesiacu, "
-                       "na podstawie zamkniecia ostatniej sesji miesiaca."))
+            st.caption(tr("Sygnal biezacy liczony od dzisiejszego zamkniecia, momentum 12M = 252 sesje (jak w GEM klasycznym); "
+                       "strategia handluje raz w miesiacu, na podstawie zamkniecia ostatniej sesji miesiaca."))
 
     # ─── Tab 2: backtest ───────────────────────────────────────
     with tab2:
@@ -180,7 +180,7 @@ if page_ok:
                      color=GOLD if name == "GEM Gold Momentum" else "#E6E8EC")
 
         with st.expander(tr("📌 Skad w artykule ~20% rocznie, a tu mniej?")):
-            st.markdown(tr('\nAutor podaje **19,97% rocznie dla lat 1972–2025**, liczone na danych indeksowych (S&P 500 z dywidendami,\nMSCI World ex-US, MSCI EM od 1988, cena zlota). Ten wynik w duzej mierze robi **hossa zlota z lat 70.**\n(z 35 do ok. 850 USD/oz), kiedy strategia trzymala zloto przez wieksza czesc dekady.\n\nTen backtest korzysta z **ETF-ow z yfinance**, wiec moze zaczac sie najwczesniej pod koniec 2005\n(GLD jest od XI 2004, do tego {lookback} mies. na pierwsze momentum).\n\nRegula zostala sprawdzona na wersji autora (z S&P 500): dla lat 2006–2025 autor podaje\n**7469 USD z 1000 USD, obsuniecie ok. −29% i 58 zmian**, a ta sama regula na ETF-ach daje 6444 USD,\n−28,6% i 52 zmiany. Roznice wynikaja z uzycia EFA zamiast MSCI World ex-US, kosztow ETF-ow i innych\ndni konca miesiaca. Ta strona uzywa **Nasdaq-100 (QQQ)** zamiast S&P 500, tak jak klasyczny GEM.\n\nSam autor zaznacza, ze ETF-y na zloto powstaly w XXI wieku, wiec wczesniej strategia byla w praktyce\nniewykonalna, a w latach 2011–2025 wygrywaja zwykle indeksy akcji.\n', lookback=lookback))
+            st.markdown(tr('\nAutor podaje **19,97% rocznie dla lat 1972–2025**, liczone na danych indeksowych (S&P 500 z dywidendami,\nMSCI World ex-US, MSCI EM od 1988, cena zlota). Ten wynik w duzej mierze robi **hossa zlota z lat 70.**\n(z 35 do ok. 850 USD/oz), kiedy strategia trzymala zloto przez wieksza czesc dekady.\n\nTen backtest korzysta z **ETF-ow z yfinance**, wiec moze zaczac sie najwczesniej pod koniec 2005\n(GLD jest od XI 2004, do tego {lookback} mies. na pierwsze momentum).\n\nRegula zostala sprawdzona na wersji autora (z S&P 500): dla lat 2006–2025 autor podaje\n**7469 USD z 1000 USD, obsuniecie ok. −29% i 58 zmian**, a ta sama regula na ETF-ach daje 6259 USD,\n−29,1% i 52 zmiany (z EFA zamiast VEA: 6444 USD i −28,6%). Roznice wynikaja z uzycia VEA/EFA zamiast MSCI World ex-US, kosztow ETF-ow i innych\ndni konca miesiaca. Ta strona uzywa **Nasdaq-100 (QQQ)** zamiast S&P 500, tak jak klasyczny GEM.\n\nSam autor zaznacza, ze ETF-y na zloto powstaly w XXI wieku, wiec wczesniej strategia byla w praktyce\nniewykonalna, a w latach 2011–2025 wygrywaja zwykle indeksy akcji.\n', lookback=lookback))
 
     # ─── Tab 3: vs GEM klasyczny ───────────────────────────────
     with tab3:
@@ -327,6 +327,6 @@ if page_ok:
 
     st.divider()
     with st.expander(tr("ℹ️ Zasady strategii i ograniczenia backtestu")):
-        st.markdown(tr('\n**Regula (raz w miesiacu, na zamkniecie ostatniej sesji):**\n1. Policz {lookback}-miesieczny zwrot akcji USA ({us}), zlota ({gold}) i bonow 3M. Najwyzszy z nich wybiera galaz.\n2. **Akcje** → kup najsilniejszy z: akcje USA ({us}), rynki rozwiniete ex-US (EFA), rynki wschodzace (EEM).\n3. **Obligacje** → bony 3M albo obligacje USA 7-10Y (IEF), w zaleznosci od tego, co ma wyzsze momentum.\n4. **Zloto** → {gold}.\n\n**Ograniczenia:**\n- Bony 3M odtworzone z rentownosci ^IRX (bez ETF-u), obligacje 7-10Y = IEF (od 2002).\n- EFA to MSCI EAFE (bez Kanady), a autor uzywa MSCI World ex-US, wiec sklad nieco sie rozni.\n- Ceny w USD. Dla inwestora z PLN dochodzi kurs USD/PLN; {gold} nie jest dostepny w polskich IKE/IKZE\n  (odpowiedniki UCITS: zloto IGLN/SGLD/4GLD, S&P 500 CSPX/VUAA, EM EIMI, ex-US EXUS).\n- Brak slippage i spreadu; podatek uproszczony (bez rozliczania strat).\n- **QQQ to wybor po fakcie** — Nasdaq-100 byl najlepszym duzym indeksem ostatnich 20 lat, wiec wariant\n  z QQQ ma wbudowana przewage, ktorej nikt nie znal w 2005. Autor testowal S&P 500.\n', lookback=lookback, us=us, gold=gold))
+        st.markdown(tr('\n**Regula (raz w miesiacu, na zamkniecie ostatniej sesji):**\n1. Policz {lookback}-miesieczny zwrot akcji USA ({us}), zlota ({gold}) i bonow 3M. Najwyzszy z nich wybiera galaz.\n2. **Akcje** → kup najsilniejszy z: akcje USA ({us}), rynki rozwiniete ex-US (VEA), rynki wschodzace (EEM).\n3. **Obligacje** → bony 3M albo obligacje USA 7-10Y (IEF), w zaleznosci od tego, co ma wyzsze momentum.\n4. **Zloto** → {gold}.\n\n**Ograniczenia:**\n- Bony 3M odtworzone z rentownosci ^IRX (bez ETF-u), obligacje 7-10Y = IEF (od 2002).\n- Rynki rozwiniete ex-US = VEA (z Kanada), jak w GEM klasycznym; przed VII 2007 zwroty EFA. Autor uzywa MSCI World ex-US, wiec sklad nieco sie rozni.\n- Ceny w USD. Dla inwestora z PLN dochodzi kurs USD/PLN; {gold} nie jest dostepny w polskich IKE/IKZE\n  (odpowiedniki UCITS: zloto IGLN/SGLD/4GLD, S&P 500 CSPX/VUAA, EM EIMI, ex-US EXUS).\n- Brak slippage i spreadu; podatek uproszczony (bez rozliczania strat).\n- **QQQ to wybor po fakcie** — Nasdaq-100 byl najlepszym duzym indeksem ostatnich 20 lat, wiec wariant\n  z QQQ ma wbudowana przewage, ktorej nikt nie znal w 2005. Autor testowal S&P 500.\n', lookback=lookback, us=us, gold=gold))
 
 render_footer()
