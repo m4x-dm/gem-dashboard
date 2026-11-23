@@ -348,9 +348,9 @@ STRATEGIE: dict[str, str] = {
     # GEM Gold Momentum
     "# GEM Gold Momentum": "# GEM Gold Momentum",
     "Momentum ze zlotem wg inwestomat.eu, w wersji GEM: momentum 12M wybiera miedzy Nasdaq-100 (QQQ), zlotem i bonami 3M, a w galezi "
-    "akcji najsilniejszy z QQQ, rynkow rozwinietych ex-US (EFA) i rynkow wschodzacych (EEM). Autor artykulu uzywa S&P 500 zamiast QQQ.":
+    "akcji najsilniejszy z QQQ, rynkow rozwinietych ex-US (VEA, jak w GEM) i rynkow wschodzacych (EEM). Autor artykulu uzywa S&P 500 zamiast QQQ.":
         "Gold momentum after inwestomat.eu, GEM style: 12M momentum chooses between the Nasdaq-100 (QQQ), gold and 3M T-bills, and in the "
-        "equity branch the strongest of QQQ, developed ex-US markets (EFA) and emerging markets (EEM). The article's author uses the S&P 500 instead of QQQ.",
+        "equity branch the strongest of QQQ, developed ex-US markets (VEA, as in GEM) and emerging markets (EEM). The article's author uses the S&P 500 instead of QQQ.",
     "ETF na zloto": "Gold ETF",
     "Okno momentum (miesiace)": "Momentum window (months)",
     "Stopa wolna (dla GEM)": "Risk-free rate (for GEM)",
@@ -382,8 +382,8 @@ STRATEGIE: dict[str, str] = {
     "Od zysku segmentu przy kazdej zmianie aktywa (bez rozliczania strat). Dotyczy Gold Momentum i GEM; B&H bez podatku.":
         "On a segment's gain at every asset switch (losses not offset). Applies to Gold Momentum and GEM; B&H untaxed.",
     "Za krotka historia do policzenia biezacego sygnalu.": "History too short to calculate the current signal.",
-    "Sygnal biezacy liczony od dzisiejszego zamkniecia; strategia handluje raz w miesiacu, na podstawie zamkniecia ostatniej sesji miesiaca.":
-        "The current signal is calculated from today's close; the strategy trades once a month, based on the close of the month's last session.",
+    "Sygnal biezacy liczony od dzisiejszego zamkniecia, momentum 12M = 252 sesje (jak w GEM klasycznym); strategia handluje raz w miesiacu, na podstawie zamkniecia ostatniej sesji miesiaca.":
+        "The current signal is calculated from today's close, 12M momentum = 252 sessions (as in classic GEM); the strategy trades once a month, based on the close of the month's last session.",
     "📌 Skad w artykule ~20% rocznie, a tu mniej?": "📌 Why does the article show ~20% a year, but less here?",
     "Brak danych do GEM klasycznego (QQQ/VEA/EEM/ACWI/AGG) dla tego okresu.": "No data for classic GEM (QQQ/VEA/EEM/ACWI/AGG) in this period.",
     "Za krotki okres do porownania okien 3–15 mies.": "Period too short to compare 3–15 month windows.",
